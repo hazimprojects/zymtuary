@@ -1,0 +1,87 @@
+{
+	"version": "1.0.0",
+	"meta": {
+		"mythos": "Zymtuary Mythos",
+		"zipModelNote": "ZIP encodes Zones (where), Interactions (what you do), and Passages (what is said)."
+	},
+	"domains": [
+		{
+			"slug": "void-ferment",
+			"title": "Void Ferment",
+			"tagline": "Pressure without vessel.",
+			"path": "/domains/void-ferment"
+		},
+		{
+			"slug": "salt-archives",
+			"title": "Salt Archives",
+			"tagline": "Memory crystallized.",
+			"path": "/domains/salt-archives"
+		},
+		{
+			"slug": "luminous-culture",
+			"title": "Luminous Culture",
+			"tagline": "Life that writes light.",
+			"path": "/domains/luminous-culture"
+		}
+	],
+	"zones": [
+		{
+			"id": "vf-vessel-hall",
+			"domain": "void-ferment",
+			"label": "Vessel Hall",
+			"mood": "submerged, rhythmic"
+		},
+		{
+			"id": "sa-index-nave",
+			"domain": "salt-archives",
+			"label": "Index Nave",
+			"mood": "dry, whispering"
+		},
+		{
+			"id": "lc-bloom-atrium",
+			"domain": "luminous-culture",
+			"label": "Bloom Atrium",
+			"mood": "warm, prismatic"
+		}
+	],
+	"interactions": [
+		{
+			"id": "touch-meniscus",
+			"zoneId": "vf-vessel-hall",
+			"kind": "tactile",
+			"prompt": "Press your palm to the meniscus. It holds."
+		},
+		{
+			"id": "read-brine-line",
+			"zoneId": "sa-index-nave",
+			"kind": "inquiry",
+			"prompt": "Trace a brine line until a name unsticks."
+		},
+		{
+			"id": "tune-biolume",
+			"zoneId": "lc-bloom-atrium",
+			"kind": "attune",
+			"prompt": "Hum one note; the culture answers in chords."
+		}
+	],
+	"passages": [
+		{
+			"id": "vf-open",
+			"zoneId": "vf-vessel-hall",
+			"text": "Bubbles rise in slow constellations. Each one is a thought the zymurgy refused to finish.",
+			"nextInteractionIds": ["touch-meniscus"]
+		},
+		{
+			"id": "sa-open",
+			"zoneId": "sa-index-nave",
+			"text": "Salt maps time the way teeth map hunger—by what it leaves behind.",
+			"nextInteractionIds": ["read-brine-line"]
+		},
+		{
+			"id": "lc-open",
+			"zoneId": "lc-bloom-atrium",
+			"text": "The culture is not a metaphor. It is a parliament of small lights, quorum unknown.",
+			"nextInteractionIds": ["tune-biolume"]
+		}
+	]
+}
