@@ -1,0 +1,37 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import NarrativeBeat from '../../components/entities/NarrativeBeat';
+import zip from '../../data/zip-model.json';
+
+const slug = 'void-ferment';
+const domain = zip.domains.find((d) => d.slug === slug)!;
+const zone = zip.zones.find((z) => z.domain === slug)!;
+const passage = zip.passages.find((p) => p.zoneId === zone.id)!;
+const interaction = zip.interactions.find((i) =>
+	passage.nextInteractionIds.includes(i.id),
+);
+---
+
+<Layout title={`${domain.title} · Zymtuary Mythos`} description={domain.tagline}>
+	<main class="mx-auto max-w-2xl px-4 py-16">
+		<p>
+			<a
+				class="text-sm text-zinc-500 transition hover:text-amber-400"
+				href="/"
+			>
+				← Atlas
+			</a>
+		</p>
+		<div class="mt-8">
+			<NarrativeBeat
+				client:load
+				title={domain.title}
+				passage={passage.text}
+				interactionPrompt={interaction?.prompt}
+			/>
+		</div>
+		<p class="mt-6 text-center text-xs text-zinc-600">
+			Zone: {zone.label} · {zone.mood}
+		</p>
+	</main>
+</Layout>
