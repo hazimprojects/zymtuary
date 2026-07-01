@@ -1,22 +1,21 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import DomainNavigator from '../components/entities/DomainNavigator';
 import zipModel from '../data/zip-model.json';
+
+const { garden_keeper, meta } = zipModel;
 ---
 
 <Layout
-	title="Zymtuary Mythos"
-	description="Interactive narrative — explore Domains driven by the ZIP model (Zones, Interactions, Passages)."
+	title="Zymtuary"
+	description={meta.zipModelNote}
 >
-	<main class="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-10 px-4 py-16">
-		<header class="text-center">
-			<p class="text-sm uppercase tracking-[0.2em] text-amber-500/90">Zymtuary</p>
-			<h1 class="mt-2 text-4xl font-light tracking-tight text-zinc-50 md:text-5xl">Mythos</h1>
-			<p class="mx-auto mt-4 max-w-md text-pretty text-zinc-400">
-				Choose a Domain. The ZIP model in <code class="text-amber-200/90">src/data</code> feeds zones,
-				interactions, and passages as you expand the story.
-			</p>
-		</header>
-		<DomainNavigator client:load domains={zipModel.domains} />
+	<main class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-20">
+		<p class="text-center text-sm uppercase tracking-[0.35em] text-zinc-600">Zymtuary</p>
+		<p class="mt-12 text-center text-lg font-light leading-relaxed text-zinc-300">
+			{garden_keeper.frasa_sambutan}
+		</p>
+		<p class="mt-16 text-center text-sm leading-relaxed text-zinc-600">
+			{garden_keeper.dialog_pertama}
+		</p>
 	</main>
 </Layout>

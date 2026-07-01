@@ -1,87 +1,331 @@
 {
-	"version": "1.0.0",
+	"version": "2.0.0",
 	"meta": {
 		"mythos": "Zymtuary Mythos",
-		"zipModelNote": "ZIP encodes Zones (where), Interactions (what you do), and Passages (what is said)."
+		"zipModelNote": "Zymtuary Integrative Psychomythology Model — data untuk pengalaman immersive Descent/Ascent.",
+		"kanon": "Refined Logos Edition",
+		"bahasa": "ms"
 	},
-	"domains": [
+	"spherals": [
 		{
-			"slug": "void-ferment",
-			"title": "Void Ferment",
-			"tagline": "Pressure without vessel.",
-			"path": "/domains/void-ferment"
+			"id": "primisera",
+			"nama": "Primisera",
+			"mood": "sunyi, purba, menopang tanpa bersuara",
+			"warna": "#3d2e1f",
+			"audio_ambien": "denyut tanah dalam — nadi perlahan di bawah segala yang lain, seperti dengungan sebelum kata",
+			"penerangan_pendek": "Spheral Induk. Tanah purba kesedaran — bukan tempat dilawati, tetapi tapak di mana semua wilayah berdiri. Tujuh naluri purba pernah mendiami sini sebelum dunia menemui bentuk."
 		},
 		{
-			"slug": "salt-archives",
-			"title": "Salt Archives",
-			"tagline": "Memory crystallized.",
-			"path": "/domains/salt-archives"
+			"id": "luminara",
+			"nama": "Luminara",
+			"mood": "hangat, terbuka, berharap",
+			"warna": "#f5c842",
+			"audio_ambien": "Solar Bloom pada waktu Zym terjaga — cahaya keemasan berdesir lembut, seperti angin di padang bunga yang sentiasa mekar",
+			"penerangan_pendek": "Wilayah cahaya. Rumah kepada Auryalis, Guardians Solareth dan Elara, serta naluri SEEKING, CARE, dan PLAY. Di sinilah keterbukaan dan kasih sayang belajar bernafas."
 		},
 		{
-			"slug": "luminous-culture",
-			"title": "Luminous Culture",
-			"tagline": "Life that writes light.",
-			"path": "/domains/luminous-culture"
+			"id": "noctira",
+			"nama": "Noctira",
+			"mood": "kering, berbisik, melindungi",
+			"warna": "#4a3b6b",
+			"audio_ambien": "Void Tempest pada waktu Zym terjaga — bayang keunguan berdesir, kabut rendah, bisikan yang menjaga bukan mengancam",
+			"penerangan_pendek": "Wilayah bayang. Rumah kepada Umbryalis, Guardians Luneth dan Veirra, serta naluri FEAR, RAGE, dan GRIEF. Perlindungan yang lahir daripada keperluan untuk selamat."
+		},
+		{
+			"id": "ignisara",
+			"nama": "Ignisara",
+			"mood": "panas, dorongan, mentah",
+			"warna": "#c44d2a",
+			"audio_ambien": "bara dalam — denyut api jauh di bawah permukaan, seperti jantung yang menunggu untuk dilihat",
+			"penerangan_pendek": "Wilayah api. Rumah kepada Vitalis dan Warden Kaelith. Di bawahnya, Velthera — tempat naluri keinginan dorman dan Emberborn mencari rumah di antara api dan bayang."
+		},
+		{
+			"id": "nivira",
+			"nama": "Nivira",
+			"mood": "sejuk, hening, pemulihan",
+			"warna": "#8eb8c8",
+			"audio_ambien": "Ashen Gale pada waktu Zym tidur — angin berdebu kelabu, keheningan ais yang bukan kosong tetapi rehat",
+			"penerangan_pendek": "Wilayah ais. Rumah kepada Inanis dan Warden Saelith. Avenith memerhati dari belakang tabir di sini — bukan pengasingan, tetapi kepulangan kepada sifat semula jadinya."
+		},
+		{
+			"id": "equilara",
+			"nama": "Equilara",
+			"mood": "seimbang, reflektif, integratif",
+			"warna": "#9a8f7a",
+			"audio_ambien": "atmosfera tengah — dua nada bersatu, seperti nafas yang akhirnya mendapat irama",
+			"penerangan_pendek": "Wilayah penyatuan. Lahir apabila cahaya dan bayang bertemu di usia tujuh tahun. Custodians Lyxen dan Seren beroperasi di sini — tempat emosi belajar berfikir dan fikiran belajar merasa."
 		}
 	],
-	"zones": [
+	"entities": [
 		{
-			"id": "vf-vessel-hall",
-			"domain": "void-ferment",
-			"label": "Vessel Hall",
-			"mood": "submerged, rhythmic"
+			"id": "zymelisse",
+			"nama": "Zymelisse",
+			"gelaran": "The Veilrose",
+			"keluarga_aetherys": "Lumiborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku senyum… tiada siapa akan tanya apa-apa.",
+			"spheral_rumah": "luminara"
 		},
 		{
-			"id": "sa-index-nave",
-			"domain": "salt-archives",
-			"label": "Index Nave",
-			"mood": "dry, whispering"
+			"id": "zymimic",
+			"nama": "Zymimic",
+			"gelaran": "The Faceless",
+			"keluarga_aetherys": "Lumiborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku jadi apa yang mereka suka… mereka akan terima aku.",
+			"spheral_rumah": "luminara"
 		},
 		{
-			"id": "lc-bloom-atrium",
-			"domain": "luminous-culture",
-			"label": "Bloom Atrium",
-			"mood": "warm, prismatic"
+			"id": "zyminque",
+			"nama": "Zyminque",
+			"gelaran": "The Capricious",
+			"keluarga_aetherys": "Lumiborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku berhenti… aku kena fikir. Jadi, jangan berhenti.",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymarleq",
+			"nama": "Zymarleq",
+			"gelaran": "The Harlequin",
+			"keluarga_aetherys": "Lumiborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau mereka gelak… mereka takkan nampak aku sebenarnya takut.",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymirae",
+			"nama": "Zymirae",
+			"gelaran": "The Enamoured",
+			"keluarga_aetherys": "Lumiborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Jika aku tak beri apa-apa… kenapa ada orang nak pilih aku?",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymglacien",
+			"nama": "Zymglacien",
+			"gelaran": "The Frostbound",
+			"keluarga_aetherys": "Noctiborne",
+			"keadaan": "Dormant",
+			"bisikan": "Lebih baik beku… dari pecah.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymoraith",
+			"nama": "Zymoraith",
+			"gelaran": "The Ashen",
+			"keluarga_aetherys": "Noctiborne",
+			"keadaan": "Dormant",
+			"bisikan": "Kalau aku tak ada… semua orang akan lebih baik.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymvael",
+			"nama": "Zymvael",
+			"gelaran": "The Voidborne",
+			"keluarga_aetherys": "Noctiborne",
+			"keadaan": "Dormant",
+			"bisikan": "Aku ada di sini… tapi bukan sepenuhnya.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymnolith",
+			"nama": "Zymnolith",
+			"gelaran": "The Bestion",
+			"keluarga_aetherys": "Noctiborne",
+			"keadaan": "Dormant",
+			"bisikan": "Jika aku cukup kuat, tiada siapa boleh lukakan aku.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymquiesce",
+			"nama": "Zymquiesce",
+			"gelaran": "The Silentium",
+			"keluarga_aetherys": "Noctiborne",
+			"keadaan": "Dormant",
+			"bisikan": "Jika aku diam, mungkin semua akan tenang.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymloria",
+			"nama": "Zymloria",
+			"gelaran": "The Muse",
+			"keluarga_aetherys": "Duskborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku nampak kuat, sekurang-kurangnya tiada yang tanya apa-apa.",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymvora",
+			"nama": "Zymvora",
+			"gelaran": "The Awakener",
+			"keluarga_aetherys": "Duskborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku tidak menjerit, kau takkan tahu aku wujud.",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymfracta",
+			"nama": "Zymfracta",
+			"gelaran": "The Shardling",
+			"keluarga_aetherys": "Duskborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku hancurkan dulu… sekurang-kurangnya aku yang kawal.",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymrelia",
+			"nama": "Zymrelia",
+			"gelaran": "The Entwined",
+			"keluarga_aetherys": "Duskborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau kau tinggalkan aku, siapa lagi nak kisah tentang aku?",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymnarael",
+			"nama": "Zymnarael",
+			"gelaran": "The Yearner",
+			"keluarga_aetherys": "Dawnborne",
+			"keadaan": "Dormant",
+			"bisikan": "Aku merindu sesuatu… tapi aku tidak tahu apa.",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymistra",
+			"nama": "Zymistra",
+			"gelaran": "The Crossroad",
+			"keluarga_aetherys": "Dawnborne",
+			"keadaan": "Dormant",
+			"bisikan": "Lebih selamat ragu… dari menyesal.",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zympressa",
+			"nama": "Zympressa",
+			"gelaran": "The Ascendant",
+			"keluarga_aetherys": "Dawnborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Tak mengapa kalau aku penat… asalkan mereka tak kecewa.",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymburdea",
+			"nama": "Zymburdea",
+			"gelaran": "The Atlas",
+			"keluarga_aetherys": "Dawnborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau aku lepaskan ini… siapa lagi nak jaga mereka?",
+			"spheral_rumah": "luminara"
+		},
+		{
+			"id": "zymorphis",
+			"nama": "Zymorphis",
+			"gelaran": "The Wanderer",
+			"keluarga_aetherys": "Halcyborne",
+			"keadaan": "Dormant",
+			"bisikan": "Siapa aku, kalau semua ini hanya pinjaman?",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymindel",
+			"nama": "Zymindel",
+			"gelaran": "The Ruminator",
+			"keluarga_aetherys": "Halcyborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Fikiran ini akan reda… selepas satu lagi jawapan.",
+			"spheral_rumah": "equilara"
+		},
+		{
+			"id": "zymechor",
+			"nama": "Zymechor",
+			"gelaran": "The Reverberant",
+			"keluarga_aetherys": "Eclipborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Suara mereka masih betul. Aku memang lemah.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymumbra",
+			"nama": "Zymumbra",
+			"gelaran": "The Eclipse",
+			"keluarga_aetherys": "Eclipborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Kalau kau nampak aku… kau akan takut siapa diri kau sebenarnya.",
+			"spheral_rumah": "noctira"
+		},
+		{
+			"id": "zymareen",
+			"nama": "Zymareen",
+			"gelaran": "The Abyssal",
+			"keluarga_aetherys": "Eclipborne",
+			"keadaan": "Distorsis",
+			"bisikan": "Aku rasa semuanya… sekaligus. Dan aku tak tahu mana satu yang patut aku dengar.",
+			"spheral_rumah": "noctira"
 		}
 	],
-	"interactions": [
+	"journals": [
 		{
-			"id": "touch-meniscus",
-			"zoneId": "vf-vessel-hall",
-			"kind": "tactile",
-			"prompt": "Press your palm to the meniscus. It holds."
+			"id": "journal-001",
+			"tajuk": "Air Mata yang Reda Sendiri",
+			"spheral_berkaitan": "noctira",
+			"teks": "Pada usia enam tahun, aku menangis dan tiada siapa benar-benar berhenti untuk bertanya kenapa. Air mata dibiarkan reda — atau ditenangkan secara fizikal sahaja, tanpa pelukan yang lama. Aku belajar pelajaran pertama: kasih sayang perlu dicari, bukan diberi secara percuma.",
+			"ditemui_pada": "Sempadan Noctira — di mana bayang mula belajar melindungi sebelum cahaya sempat tiba"
 		},
 		{
-			"id": "read-brine-line",
-			"zoneId": "sa-index-nave",
-			"kind": "inquiry",
-			"prompt": "Trace a brine line until a name unsticks."
+			"id": "journal-002",
+			"tajuk": "Keluarga yang Aku Bayangkan",
+			"spheral_berkaitan": "luminara",
+			"teks": "Aku belum tahu erti kata 'Nestia'. Aku hanya tahu, kadang-kadang, aku membayangkan satu keluarga yang sentiasa ada masa untukku — yang akan peluk aku bila aku menangis, tanpa perlu aku tanya dahulu.",
+			"ditemui_pada": "Heartbloom Isle — di mana cahaya terlalu hangat untuk dunia yang tidak cukup memberi"
 		},
 		{
-			"id": "tune-biolume",
-			"zoneId": "lc-bloom-atrium",
-			"kind": "attune",
-			"prompt": "Hum one note; the culture answers in chords."
+			"id": "journal-003",
+			"tajuk": "Peraturan Tidak Bertulis",
+			"spheral_berkaitan": "equilara",
+			"teks": "Satu petang di meja makan. Ibu tidak senyum. Ayah memandang sekali sebelum kembali ke televisyen. Dalam fikiranku, arahan bersilang: jangan lambat, jangan tunduk sangat, jangan diam sangat, tapi kalau senyum pula nanti nampak dibuat-buat. Aku mula belajar membaca suasana sebelum menyuarakan perasaan.",
+			"ditemui_pada": "Persimpangan Equilara — di mana cahaya dan bayang mula belajar berdamai"
+		},
+		{
+			"id": "journal-004",
+			"tajuk": "Boleh Tak… Aku Jadi Aku?",
+			"spheral_berkaitan": "equilara",
+			"teks": "Di hujung pentas teater dalaman, tersembunyi di bawah fail permintaan penonton, ada satu nota kecil. Aku menulisnya tanpa sengaja — atau mungkin dengan sengaja, tetapi tidak berani mengakui. Soalan paling mudah dan paling sukar: siapa aku sebenarnya?",
+			"ditemui_pada": "Aethirion — peringkat integrasi yang belum matang penuh"
+		},
+		{
+			"id": "journal-005",
+			"tajuk": "Okay Tapi Bukan Passion",
+			"spheral_berkaitan": "luminara",
+			"teks": "Kerja yang okay tapi bukan passion. Hubungan yang tidak benar-benar mendalam. Semuanya kelihatan normal — bukan kerana drama besar, tetapi sekadar 'tak click' atau perlahan-lahan fade out. Topeng yang dibina sejak remaja kini berfungsi begitu lancar sehingga aku mula percaya itulah diri aku yang sebenar.",
+			"ditemui_pada": "Solar Bloom — cahaya yang terlalu stabil untuk disoal"
+		},
+		{
+			"id": "journal-006",
+			"tajuk": "Scroll Tanpa Tujuan",
+			"spheral_berkaitan": "ignisara",
+			"teks": "Balik kerja seperti selalu. Duduk. Scroll telefon tanpa tujuan. Hidup orang lain kelihatan lebih maju — berkahwin, naik pangkat, beli rumah. Setiap pencapaian mereka menjadi cermin kecil: adakah aku sahaja yang tertinggal? Tabiat kecil yang dahulunya tidak berbahaya kini satu-satunya cara untuk terus berfungsi.",
+			"ditemui_pada": "Ambang Ignisara — di mana bara mula kelihatan di bawah permukaan yang retak"
+		},
+		{
+			"id": "journal-007",
+			"tajuk": "Untuk Apa Semua Ini?",
+			"spheral_berkaitan": "ignisara",
+			"teks": "Bukan hari yang dramatik. Tiada jeritan, tiada keputusan besar. Hanya satu petang biasa — dan tiba-tiba soalan-soalan besar datang bertubi-tubi. Untuk apa semua ini? Siapa aku sebenarnya, di sebalik semua peranan yang aku mainkan? Adakah aku pernah benar-benar memilih hidup ini?",
+			"ditemui_pada": "Pintu masuk Velthera — di mana Custodians lumpuh dan api di bawah akhirnya menunggu untuk dilihat"
+		},
+		{
+			"id": "journal-008",
+			"tajuk": "Keheningan Selepas Ribut",
+			"spheral_berkaitan": "nivira",
+			"teks": "Selepas jatuh, ada keheningan. Bukan kosong yang menakutkan — atau mungkin menakutkan, tetapi juga lega. Sesuatu di belakang tabir memerhati tanpa menuntut. Aku tidak tahu namanya lagi, tetapi aku rasa: ada ruang untuk berehat, walaupun seketika.",
+			"ditemui_pada": "Nivira — di mana Avenith memerhati dari belakang tabir, tenang seperti ais yang tidak pernah tergesa"
 		}
 	],
-	"passages": [
-		{
-			"id": "vf-open",
-			"zoneId": "vf-vessel-hall",
-			"text": "Bubbles rise in slow constellations. Each one is a thought the zymurgy refused to finish.",
-			"nextInteractionIds": ["touch-meniscus"]
-		},
-		{
-			"id": "sa-open",
-			"zoneId": "sa-index-nave",
-			"text": "Salt maps time the way teeth map hunger—by what it leaves behind.",
-			"nextInteractionIds": ["read-brine-line"]
-		},
-		{
-			"id": "lc-open",
-			"zoneId": "lc-bloom-atrium",
-			"text": "The culture is not a metaphor. It is a parliament of small lights, quorum unknown.",
-			"nextInteractionIds": ["tune-biolume"]
-		}
-	]
+	"garden_keeper": {
+		"dialog_pertama": "Kau tidak perlu tahu ke mana kau pergi. Cukup berjalan. Dunia ini sudah lama menunggu — bukan untuk diselamatkan, tetapi untuk dilihat.",
+		"dialog_akhir": "Kau tidak perlu menjadi sempurna untuk pulang. Yang tinggal di sini bukan kenangan yang menyakitkan — hanya jejak bahawa kau pernah hidup dengan sepenuhnya, walaupun seketika.",
+		"frasa_sambutan": "Selamat datang ke Zymtuary. Bukan sebagai pelawat — sebagai dirimu yang sudah lama menunggu untuk dikenali."
+	}
 }
