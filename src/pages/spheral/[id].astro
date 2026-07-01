@@ -1,0 +1,63 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import zipModel from '../../data/zip-model.json';
+
+const AMBIEN: Record<string, string> = {
+	primisera: '#3d2e1f',
+	luminara: '#d4a843',
+	noctira: '#5c4a8a',
+	ignisara: '#c44d2a',
+	nivira: '#8eb8c8',
+	equilara: '#b8bcc4',
+};
+
+const MOOD_SINGKAT: Record<string, string> = {
+	primisera: 'sunyi',
+	luminara: 'terbuka',
+	noctira: 'melindungi',
+	ignisara: 'dorongan',
+	nivira: 'hening',
+	equilara: 'seimbang',
+};
+
+export function getStaticPaths() {
+	return zipModel.spherals.map((spheral) => ({
+		params: { id: spheral.id },
+		props: { spheral },
+	}));
+}
+
+const { spheral } = Astro.props;
+const color = AMBIEN[spheral.id] ?? spheral.warna;
+const moodSingkat = MOOD_SINGKAT[spheral.id] ?? spheral.mood.split(',')[0].trim();
+---
+
+<Layout title={`${spheral.nama} · Zymtuary`} immersive>
+	<main
+		class="fixed inset-0 flex flex-col items-center justify-center bg-black px-8"
+		style={`--spheral-glow: ${color}33`}
+	>
+		<div
+			class="pointer-events-none absolute h-64 w-64 rounded-full opacity-40 blur-3xl"
+			style={`background: radial-gradient(circle, ${color}55, transparent 70%)`}
+			aria-hidden="true"
+		/>
+
+		<div class="relative z-10 flex max-w-md flex-col items-center text-center">
+			<p
+				class="text-[0.65rem] uppercase tracking-[0.35em] text-[#f5f0e8]/30"
+			>
+				{moodSingkat}
+			</p>
+			<h1
+				class="mt-4 text-2xl font-light tracking-[0.15em] text-[#f5f0e8]/90 md:text-3xl"
+				style={`text-shadow: 0 0 40px ${color}55`}
+			>
+				{spheral.nama}
+			</h1>
+			<p class="mt-10 text-sm font-light leading-relaxed text-[#f5f0e8]/50">
+				{spheral.penerangan_pendek}
+			</p>
+		</div>
+	</main>
+</Layout>
