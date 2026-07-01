@@ -1,21 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import EntranceExperience from '../components/entities/EntranceExperience';
 import zipModel from '../data/zip-model.json';
 
 const { garden_keeper, meta } = zipModel;
+const gardenKeeperLine = 'Kau tidak perlu tahu ke mana kau pergi. Cukup berjalan.';
 ---
 
-<Layout
-	title="Zymtuary"
-	description={meta.zipModelNote}
->
-	<main class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-20">
-		<p class="text-center text-sm uppercase tracking-[0.35em] text-zinc-600">Zymtuary</p>
-		<p class="mt-12 text-center text-lg font-light leading-relaxed text-zinc-300">
-			{garden_keeper.frasa_sambutan}
-		</p>
-		<p class="mt-16 text-center text-sm leading-relaxed text-zinc-600">
-			{garden_keeper.dialog_pertama}
-		</p>
-	</main>
+<Layout title="Zymtuary" description={meta.zipModelNote} immersive>
+	<EntranceExperience client:load gardenKeeperLine={gardenKeeperLine} />
 </Layout>
