@@ -1,0 +1,21 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SpheralExperience from '../../components/entities/SpheralExperience';
+import zipModel from '../../data/zip-model.json';
+
+export function getStaticPaths() {
+	return zipModel.spherals.map((spheral) => ({
+		params: { slug: spheral.id },
+		props: {
+			spheral,
+			entities: zipModel.entities.filter((e) => e.spheral_rumah === spheral.id),
+		},
+	}));
+}
+
+const { spheral, entities } = Astro.props;
+---
+
+<Layout title={`${spheral.nama} · Zymtuary`} immersive>
+	<SpheralExperience client:load spheral={spheral} entities={entities} />
+</Layout>

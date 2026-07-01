@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import WorldMap from '../components/entities/WorldMap';
+import zipModel from '../data/zip-model.json';
+---
+
+<Layout title="Zymtuary" immersive>
+	<WorldMap client:load spherals={zipModel.spherals} />
+</Layout>
