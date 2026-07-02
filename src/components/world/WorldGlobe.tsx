@@ -106,7 +106,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							{hoveredEntity.nama}
 						</span>
 						<span className="font-body text-[0.6rem] uppercase tracking-[0.28em] text-[#f5f0e8]/40">
-							Ketik untuk dengar bisikan
+							Ketik cahaya untuk bisikan
 						</span>
 					</motion.div>
 				) : null}
