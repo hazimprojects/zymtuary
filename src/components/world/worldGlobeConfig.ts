@@ -49,6 +49,23 @@ export function getHemisferaAfiniti(entity: EntityEntry): HemisferaAfiniti {
 	return 'horizon';
 }
 
+export type SpheralRegionId = 'luminara' | 'noctira' | 'equilara';
+
+/**
+ * Klasifikasikan satu titik pada permukaan globe (arah normal -1..1 pada
+ * paksi-y) kepada Spheral sebenar mengikut dokumen — dunia terbahagi kepada
+ * Luminara (hemisfera cahaya), Noctira (hemisfera bayang), dan Equilara
+ * (jalur khatulistiwa). Lebar jalur ini sepadan dengan pewarnaan hemisfera
+ * dalam globeShader.ts (uLuminara/uNoctira melebar dari lat 0→0.7, uEquilara
+ * tertumpu pada |lat| < 0.28) supaya apa yang dilihat sepadan dengan ke mana
+ * ketikan membawa anda.
+ */
+export function classifyDirectionToSpheral(y: number): SpheralRegionId {
+	if (y > 0.28) return 'luminara';
+	if (y < -0.28) return 'noctira';
+	return 'equilara';
+}
+
 export type ResonancePlacement = {
 	entity: EntityEntry;
 	position: [number, number, number];

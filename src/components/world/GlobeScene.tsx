@@ -11,6 +11,7 @@ import {
 	layoutResonancePoints,
 	ZOOM_THRESHOLDS,
 	type EntityEntry,
+	type SpheralRegionId,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
@@ -21,7 +22,7 @@ import { ResponsiveCamera } from './ResponsiveCamera';
 type GlobeSceneProps = {
 	entities: EntityEntry[];
 	onHover: (entity: EntityEntry | null) => void;
-	onSelect: (entity: EntityEntry) => void;
+	onSurfaceTap: (spheral: SpheralRegionId) => void;
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
@@ -35,7 +36,7 @@ function easeInOutCubic(t: number): number {
 export function GlobeScene({
 	entities,
 	onHover,
-	onSelect,
+	onSurfaceTap,
 	hoveredEntity,
 	isMobile,
 	interactionPaused,
@@ -143,7 +144,7 @@ export function GlobeScene({
 					segments={segments}
 					placements={placements}
 					onHover={onHover}
-					onSelect={onSelect}
+					onSurfaceTap={onSurfaceTap}
 					hoveredEntity={hoveredEntity}
 					interactionPaused={interactionPaused || descentActive}
 					forceProximity={descentActive ? 1 : undefined}
@@ -155,8 +156,6 @@ export function GlobeScene({
 				anchor={descentAnchor}
 				interactionPaused={interactionPaused}
 				isMobile={isMobile}
-				placements={placements}
-				onSelect={onSelect}
 				onRequestExit={beginExitDescent}
 				onAnchorChange={setDescentAnchor}
 			/>

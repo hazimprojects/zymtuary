@@ -2,7 +2,14 @@ import { forwardRef, useImperativeHandle, useEffect, useMemo, useRef } from 'rea
 import { useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS, getProximity, type EntityEntry, type ResonancePlacement } from './worldGlobeConfig';
+import {
+	GLOBE_RADIUS,
+	classifyDirectionToSpheral,
+	getProximity,
+	type EntityEntry,
+	type ResonancePlacement,
+	type SpheralRegionId,
+} from './worldGlobeConfig';
 import { createEntityGlowUniforms, updateEntityGlowUniforms } from './entityGlowUniforms';
 import { createGlobeMaterial } from './globeShader';
 import { pickNearestEntity, setHoverGlow } from './pickNearestEntity';
@@ -11,7 +18,7 @@ type GlobeSurfaceProps = {
 	segments: number;
 	placements: ResonancePlacement[];
 	onHover: (entity: EntityEntry | null) => void;
-	onSelect: (entity: EntityEntry) => void;
+	onSurfaceTap: (spheral: SpheralRegionId) => void;
 	hoveredEntity: EntityEntry | null;
 	interactionPaused: boolean;
 	forceProximity?: number;
@@ -21,7 +28,7 @@ export type GlobeSurfaceHandle = THREE.Mesh;
 
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 	function GlobeSurface(
-		{ segments, placements, onHover, onSelect, hoveredEntity, interactionPaused, forceProximity },
+		{ segments, placements, onHover, onSurfaceTap, hoveredEntity, interactionPaused, forceProximity },
 		ref,
 	) {
 		const meshRef = useRef<THREE.Mesh>(null);
@@ -50,17 +57,19 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);
 		});
 
-		const hitNormal = (e: ThreeEvent<PointerEvent>) => {
-			const n = e.object.worldToLocal(e.point.clone()).normalize();
-			return pickNearestEntity(n.x, n.y, n.z, placements, 0.88);
+		const hitNormal = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) => {
+			return e.object.worldToLocal(e.point.clone()).normalize();
 		};
 
 		const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
 			if (interactionPaused) return;
 			e.stopPropagation();
-			const entity = hitNormal(e);
+			const n = hitNormal(e);
+			const entity = pickNearestEntity(n.x, n.y, n.z, placements, 0.88);
 			onHover(entity);
-			document.body.style.cursor = entity ? 'pointer' : 'default';
+			// Seluruh permukaan kini boleh diketik untuk masuk wilayah — bukan
+			// hanya titik resonans entiti — jadi kursor sentiasa pointer.
+			document.body.style.cursor = 'pointer';
 		};
 
 		const handlePointerOut = () => {
@@ -71,8 +80,8 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 		const handleClick = (e: ThreeEvent<MouseEvent>) => {
 			if (interactionPaused) return;
 			e.stopPropagation();
-			const entity = hitNormal(e);
-			if (entity) onSelect(entity);
+			const n = hitNormal(e);
+			onSurfaceTap(classifyDirectionToSpheral(n.y));
 		};
 
 		return (

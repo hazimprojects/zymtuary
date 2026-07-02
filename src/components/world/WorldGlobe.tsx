@@ -1,19 +1,24 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
-import { EntityWhisperOverlay } from './EntityWhisperOverlay';
 import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import {
 	FAMILY_COLORS,
 	HEMISPHERE_COLORS,
 	type EntityEntry,
+	type SpheralRegionId,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { GlobeScene } from './GlobeScene';
 
+const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
+	luminara: 'Luminara',
+	noctira: 'Noctira',
+	equilara: 'Equilara',
+};
+
 export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [hoveredEntity, setHoveredEntity] = useState<EntityEntry | null>(null);
-	const [activeEntity, setActiveEntity] = useState<EntityEntry | null>(null);
 	const [isMobile, setIsMobile] = useState(false);
 	const [ready, setReady] = useState(false);
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
@@ -46,17 +51,10 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
 
-	useEffect(() => {
-		if (canvasEl.current) canvasEl.current.style.touchAction = activeEntity ? 'auto' : 'none';
-	}, [activeEntity]);
-
-	const handleSelect = useCallback((entity: EntityEntry) => {
-		setHoveredEntity(null);
-		setActiveEntity(entity);
-	}, []);
-
-	const handleClose = useCallback(() => {
-		setActiveEntity(null);
+	/** Ketik permukaan globe → masuk ke halaman Spheral sebenar bagi wilayah itu
+	 * (bukan lagi membuka "page watak" bagi titik terdekat). */
+	const handleSurfaceTap = useCallback((spheral: SpheralRegionId) => {
+		window.location.href = `/spheral/${spheral}`;
 	}, []);
 
 	const familyColor = hoveredEntity
@@ -65,18 +63,14 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 	return (
 		<div className="fixed inset-0 bg-[#020408]">
-			<motion.div
-				className="absolute inset-0"
-				animate={{ filter: activeEntity ? 'brightness(0.22)' : 'brightness(1)' }}
-				transition={{ duration: 2.2, ease: [0.22, 1, 0.36, 1] }}
-			>
+			<div className="absolute inset-0">
 				{ready ? (
 					<Canvas
 						key={canvasKey}
 						camera={{ position: [0, 0.05, 6.8], fov: 48, near: 0.08, far: 100 }}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
-						style={{ touchAction: activeEntity ? 'auto' : 'none' }}
+						style={{ touchAction: 'none' }}
 						onCreated={handleCanvasCreated}
 					>
 						<color attach="background" args={['#020408']} />
@@ -84,26 +78,22 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							<GlobeScene
 								entities={entities}
 								onHover={setHoveredEntity}
-								onSelect={handleSelect}
+								onSurfaceTap={handleSurfaceTap}
 								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
-							interactionPaused={!!activeEntity}
-							onZoomModeChange={setZoomMode}
-						/>
+								interactionPaused={false}
+								onZoomModeChange={setZoomMode}
+							/>
 						</Suspense>
 					</Canvas>
 				) : null}
-			</motion.div>
+			</div>
 
 			<div className="pointer-events-none absolute inset-x-0 top-0 z-[60] flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
 				<ImmersiveRefresh className="pointer-events-auto" />
 			</div>
 
-			<motion.header
-				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]"
-				animate={{ opacity: activeEntity ? 0.12 : 1 }}
-				transition={{ duration: 2 }}
-			>
+			<header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]">
 				<a
 					href="/"
 					className="pointer-events-auto font-body text-[0.55rem] uppercase tracking-[0.3em] text-[#f5f0e8]/30 transition-colors active:text-[#f5f0e8]/55"
@@ -113,10 +103,10 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 				<p className="font-display mt-8 text-base font-light tracking-[0.18em] text-[#f5f0e8]/45 md:text-lg">
 					Equilara
 				</p>
-			</motion.header>
+			</header>
 
 			<AnimatePresence>
-				{hoveredEntity && !activeEntity ? (
+				{hoveredEntity ? (
 					<motion.div
 						key={hoveredEntity.id}
 						className="pointer-events-none absolute bottom-28 left-0 right-0 flex flex-col items-center gap-2 px-6 md:bottom-24"
@@ -132,37 +122,25 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							{hoveredEntity.nama}
 						</span>
 						<span className="font-body text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/25">
-							bisikan dari dalam
+							{hoveredEntity.wilayah ? `${hoveredEntity.kawasan} · ${SPHERAL_NAMA[hoveredEntity.spheral_rumah as SpheralRegionId] ?? hoveredEntity.wilayah}` : 'cahaya dari dalam'}
 						</span>
 					</motion.div>
 				) : null}
 			</AnimatePresence>
 
-			<AnimatePresence>
-				{activeEntity ? (
-					<EntityWhisperOverlay
-						key={activeEntity.id}
-						entity={activeEntity}
-						onClose={handleClose}
-					/>
-				) : null}
-			</AnimatePresence>
-
-			{!activeEntity ? (
-				<motion.p
-					key={zoomMode}
-					className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/28"
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
-				>
-					{zoomMode === 'descent'
-						? 'Seret satu jari untuk pandang ~360° · ketik dua kali untuk melangkah ke depan · cubit keluar untuk naik'
-						: zoomMode === 'atmosphere'
-							? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
-							: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik di mana ia terasa'}
-				</motion.p>
-			) : null}
+			<motion.p
+				key={zoomMode}
+				className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/28"
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
+			>
+				{zoomMode === 'descent'
+					? 'Seret satu jari untuk pandang ~360° · ketik dua kali untuk melangkah ke depan · cubit keluar untuk naik'
+					: zoomMode === 'atmosphere'
+						? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
+						: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik untuk masuk wilayah'}
+			</motion.p>
 		</div>
 	);
 }
