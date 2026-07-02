@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EntityWhisperOverlay } from './EntityWhisperOverlay';
+import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import {
 	FAMILY_COLORS,
 	HEMISPHERE_COLORS,
@@ -67,9 +68,14 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 			) : null}
 			</motion.div>
 
+			{/* Muat semula — sentiasa boleh diakses */}
+			<div className="pointer-events-none absolute inset-x-0 top-0 z-[60] flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+				<ImmersiveRefresh className="pointer-events-auto" />
+			</div>
+
 			{/* Navigasi & konteks */}
 			<motion.header
-				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]"
+				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-3 px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]"
 				animate={{ opacity: activeEntity ? 0.15 : 1 }}
 				transition={{ duration: 2 }}
 			>

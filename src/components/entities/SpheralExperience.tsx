@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 
 export type SpheralData = {
 	id: string;
@@ -66,6 +67,10 @@ export default function SpheralExperience({
 
 	return (
 		<div className="fixed inset-0 overflow-y-auto bg-black">
+			<div className="pointer-events-none absolute inset-x-0 top-0 z-[60] flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+				<ImmersiveRefresh className="pointer-events-auto" />
+			</div>
+
 			<div
 				className="pointer-events-none fixed inset-0 opacity-50"
 				style={{

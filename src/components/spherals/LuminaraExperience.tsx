@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import type { EntityData, SpheralData } from '../entities/SpheralExperience';
+import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import LuminaraParticles from './LuminaraParticles';
 
 const GOLD = '#d4a843';
@@ -48,6 +49,10 @@ export default function LuminaraExperience({
 
 	return (
 		<div className="luminara-world fixed inset-0 overflow-hidden bg-black">
+			<div className="pointer-events-none absolute inset-x-0 top-0 z-[60] flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+				<ImmersiveRefresh className="pointer-events-auto" />
+			</div>
+
 			{/* Cahaya menyusup — bloom masuk */}
 			<motion.div
 				className="pointer-events-none absolute inset-0 z-0"

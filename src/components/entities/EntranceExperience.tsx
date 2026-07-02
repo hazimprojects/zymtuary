@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 
 type EntranceExperienceProps = {
 	gardenKeeperLine: string;
@@ -24,6 +25,10 @@ export default function EntranceExperience({
 }: EntranceExperienceProps) {
 	return (
 		<div className="fixed inset-0 flex flex-col items-center justify-center bg-black px-8">
+			<div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+				<ImmersiveRefresh className="pointer-events-auto" />
+			</div>
+
 			<div className="flex max-w-md flex-col items-center text-center">
 				<motion.p
 					className="text-lg font-light tracking-wide text-[#f5f0e8] md:text-xl"
