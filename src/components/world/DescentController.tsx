@@ -149,6 +149,14 @@ export function DescentController({
 		};
 
 		const onPointerDown = (e: PointerEvent) => {
+			// Tanpa capture, jari yang bergerak laju/jauh (seret "kiri-kanan") boleh
+			// terlepas daripada canvas di sesetengah pelayar mobile dan pointermove
+			// berhenti sampai — capture pastikan semua event untuk jari ini terus ke sini.
+			try {
+				el.setPointerCapture(e.pointerId);
+			} catch {
+				// pointerId mungkin sudah tidak sah — abaikan
+			}
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			if (pointers.current.size === 1) {
 				dragging.current = true;
@@ -187,7 +195,9 @@ export function DescentController({
 					DESCENT_CONFIG.maxAltitude + 0.08,
 				);
 				altitude.current = next;
-				if (next >= DESCENT_CONFIG.maxAltitude * 0.92 && scale > 1.06) {
+				// Cubit keluar dengan jelas (jarak jari bertambah >35%) sentiasa naik keluar —
+				// tak perlu sudah berada dekat ketinggian maksimum dahulu.
+				if (scale > 1.35) {
 					onRequestExit();
 				}
 				return;

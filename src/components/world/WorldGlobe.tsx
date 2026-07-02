@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EntityWhisperOverlay } from './EntityWhisperOverlay';
@@ -18,6 +18,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [ready, setReady] = useState(false);
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
 	const [canvasKey, setCanvasKey] = useState(0);
+	const canvasEl = useRef<HTMLCanvasElement | null>(null);
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -32,11 +33,22 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	 * tanpa ini, planet kekal kosong selama-lamanya sehingga muat semula manual. */
 	const handleCanvasCreated = useCallback(({ gl }: { gl: { domElement: HTMLCanvasElement } }) => {
 		const canvas = gl.domElement;
+		canvasEl.current = canvas;
+		// `style` pada <Canvas> hanya terpakai pada div pembungkus, bukan elemen
+		// <canvas> sebenar yang menerima sentuhan — set terus di sini supaya
+		// gerak isyarat asli pelayar (skrol, pinch-zoom halaman) tidak merampas
+		// seret/cubit sebelum pengendali penuding kita sempat menerimanya.
+		canvas.style.touchAction = 'none';
+		canvas.style.overscrollBehavior = 'none';
 		const onLost = (e: Event) => e.preventDefault();
 		const onRestored = () => setCanvasKey((k) => k + 1);
 		canvas.addEventListener('webglcontextlost', onLost, false);
 		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
+
+	useEffect(() => {
+		if (canvasEl.current) canvasEl.current.style.touchAction = activeEntity ? 'auto' : 'none';
+	}, [activeEntity]);
 
 	const handleSelect = useCallback((entity: EntityEntry) => {
 		setHoveredEntity(null);
