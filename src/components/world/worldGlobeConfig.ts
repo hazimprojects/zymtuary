@@ -1,3 +1,8 @@
+export type SpotUtama = {
+	nama: string;
+	deskripsi: string;
+};
+
 export type EntityEntry = {
 	id: string;
 	nama: string;
@@ -6,6 +11,10 @@ export type EntityEntry = {
 	keadaan: string;
 	bisikan: string;
 	spheral_rumah: string;
+	wilayah?: string;
+	kawasan?: string;
+	kawasan_deskripsi?: string;
+	spot_utama?: SpotUtama[];
 };
 
 /** Warna hemisfera — orientasi geografi, bukan alam berasingan */
@@ -28,17 +37,15 @@ export const GLOBE_RADIUS = 1.55;
 
 export type HemisferaAfiniti = 'luminara' | 'noctira' | 'horizon';
 
-/** Afiniti hemisfera berdasarkan keluarga + spheral_rumah arkib */
+/**
+ * Afiniti hemisfera ikut geografi rasmi (5.2 Peta Geografi Zymtuary):
+ * Ascendari (Duskborne) & Mendari (Lumiborne) di Luminara; Veldari (Noctiborne)
+ * & Threndari (Dawnborne) di Noctira; Wandari (Halcyborne) & Resonari
+ * (Eclipborne) di Equilara — spheral_rumah kini padan terus dengan wilayah.
+ */
 export function getHemisferaAfiniti(entity: EntityEntry): HemisferaAfiniti {
-	const { keluarga_aetherys, spheral_rumah } = entity;
-
-	if (keluarga_aetherys === 'Duskborne' || keluarga_aetherys === 'Eclipborne') {
-		return 'horizon';
-	}
-	if (keluarga_aetherys === 'Halcyborne') return 'horizon';
-	if (keluarga_aetherys === 'Dawnborne') return 'luminara';
-	if (spheral_rumah === 'luminara') return 'luminara';
-	if (spheral_rumah === 'noctira') return 'noctira';
+	if (entity.spheral_rumah === 'luminara') return 'luminara';
+	if (entity.spheral_rumah === 'noctira') return 'noctira';
 	return 'horizon';
 }
 

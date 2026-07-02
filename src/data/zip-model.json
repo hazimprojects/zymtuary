@@ -1,5 +1,5 @@
 {
-	"version": "2.0.0",
+	"version": "3.0.0",
 	"meta": {
 		"mythos": "Zymtuary Mythos",
 		"zipModelNote": "Zymtuary Integrative Psychomythology Model — data untuk pengalaman immersive Descent/Ascent.",
@@ -18,18 +18,24 @@
 		{
 			"id": "luminara",
 			"nama": "Luminara",
+			"julukan": "Hemisfera Cahaya",
 			"mood": "hangat, terbuka, berharap",
 			"warna": "#f5c842",
 			"audio_ambien": "Solar Bloom pada waktu Zym terjaga — cahaya keemasan berdesir lembut, seperti angin di padang bunga yang sentiasa mekar",
-			"penerangan_pendek": "Wilayah cahaya. Rumah kepada Auryalis, Guardians Solareth dan Elara, serta naluri SEEKING, CARE, dan PLAY. Di sinilah keterbukaan dan kasih sayang belajar bernafas."
+			"penerangan_pendek": "Wilayah cahaya. Rumah kepada Auryalis, Guardians Solareth dan Elara, serta naluri SEEKING, CARE, dan PLAY. Di sinilah keterbukaan dan kasih sayang belajar bernafas.",
+			"iklim": { "siang": "Solar Bloom", "malam": "Stellar Drift" },
+			"wilayah": ["mendari", "ascendari"]
 		},
 		{
 			"id": "noctira",
 			"nama": "Noctira",
+			"julukan": "Hemisfera Bayang",
 			"mood": "kering, berbisik, melindungi",
 			"warna": "#4a3b6b",
 			"audio_ambien": "Void Tempest pada waktu Zym terjaga — bayang keunguan berdesir, kabut rendah, bisikan yang menjaga bukan mengancam",
-			"penerangan_pendek": "Wilayah bayang. Rumah kepada Umbryalis, Guardians Luneth dan Veirra, serta naluri FEAR, RAGE, dan GRIEF. Perlindungan yang lahir daripada keperluan untuk selamat."
+			"penerangan_pendek": "Wilayah bayang. Rumah kepada Umbryalis, Guardians Luneth dan Veirra, serta naluri FEAR, RAGE, dan GRIEF. Perlindungan yang lahir daripada keperluan untuk selamat.",
+			"iklim": { "siang": "Ashen Gale", "malam": "Void Tempest" },
+			"wilayah": ["veldari", "threndari"]
 		},
 		{
 			"id": "ignisara",
@@ -37,7 +43,9 @@
 			"mood": "panas, dorongan, mentah",
 			"warna": "#c44d2a",
 			"audio_ambien": "bara dalam — denyut api jauh di bawah permukaan, seperti jantung yang menunggu untuk dilihat",
-			"penerangan_pendek": "Wilayah api. Rumah kepada Vitalis dan Warden Kaelith. Di bawahnya, Velthera — tempat naluri keinginan dorman dan Emberborn mencari rumah di antara api dan bayang."
+			"penerangan_pendek": "Wilayah api. Rumah kepada Vitalis dan Warden Kaelith. Di bawahnya, Velthera — tempat naluri keinginan dorman dan Emberborn mencari rumah di antara api dan bayang.",
+			"bawah_tanah": true,
+			"deskripsi_bawah_tanah": "Udara di sini panas dan kering, berbau logam terbakar, dengan cahaya kemerahan yang berdenyut dari celah-celah batu berapi. Tiada wilayah Aetherys formal di sini kerana Emberborn belum melalui laluan biasa untuk 'naik taraf.'"
 		},
 		{
 			"id": "nivira",
@@ -45,17 +53,100 @@
 			"mood": "sejuk, hening, pemulihan",
 			"warna": "#8eb8c8",
 			"audio_ambien": "Ashen Gale pada waktu Zym tidur — angin berdebu kelabu, keheningan ais yang bukan kosong tetapi rehat",
-			"penerangan_pendek": "Wilayah ais. Rumah kepada Inanis dan Warden Saelith. Avenith memerhati dari belakang tabir di sini — bukan pengasingan, tetapi kepulangan kepada sifat semula jadinya."
+			"penerangan_pendek": "Wilayah ais. Rumah kepada Inanis dan Warden Saelith. Avenith memerhati dari belakang tabir di sini — bukan pengasingan, tetapi kepulangan kepada sifat semula jadinya.",
+			"bawah_tanah": true,
+			"deskripsi_bawah_tanah": "Ruang yang sentiasa membeku sunyi, tanpa bunyi langsung kecuali desiran angin sejuk yang tidak pernah berhenti. Tiada Idelys atau wilayah Aetherys tersendiri."
 		},
 		{
 			"id": "equilara",
 			"nama": "Equilara",
+			"julukan": "Garisan Khatulistiwa",
 			"mood": "seimbang, reflektif, integratif",
 			"warna": "#9a8f7a",
 			"audio_ambien": "atmosfera tengah — dua nada bersatu, seperti nafas yang akhirnya mendapat irama",
-			"penerangan_pendek": "Wilayah penyatuan. Lahir apabila cahaya dan bayang bertemu di usia tujuh tahun. Custodians Lyxen dan Seren beroperasi di sini — tempat emosi belajar berfikir dan fikiran belajar merasa."
+			"penerangan_pendek": "Wilayah penyatuan. Lahir apabila cahaya dan bayang bertemu di usia tujuh tahun. Custodians Lyxen dan Seren beroperasi di sini — tempat emosi belajar berfikir dan fikiran belajar merasa.",
+			"wilayah": ["wandari", "resonari", "mediari"]
+		},
+		{
+			"id": "velthera",
+			"nama": "Velthera",
+			"mood": "purba, gelap-hangat, menunggu",
+			"warna": "#6b3350",
+			"audio_ambien": "denyutan lembut yang dirasai lebih daripada didengar — seperti degupan jantung dunia sendiri",
+			"penerangan_pendek": "Lapisan paling dalam Zymtuary. Tempat Velosia dan Primals yang berundur mendiami, menunggu naluri keinginan matang untuk bangun.",
+			"bawah_tanah": true,
+			"deskripsi_bawah_tanah": "Gua kristal yang gelap tetapi hangat, dengan denyutan lembut yang dirasai lebih daripada didengar — seperti degupan jantung dunia sendiri."
 		}
 	],
+	"wilayah": [
+		{
+			"id": "mendari",
+			"nama": "Mendari",
+			"spheral_induk": "luminara",
+			"keluarga_aetherys": "Lumiborne",
+			"warna": "#e8c96a",
+			"deskripsi": "Kota-taman yang terlalu sempurna untuk dipercayai. Jalan-jalannya berturap batu pasir keemasan yang sentiasa hangat disentuh kaki, dan setiap bumbung rumah dilitupi bunga bougainvillea yang tidak pernah layu — pelik, kerana bunga sepatutnya gugur mengikut musim, tetapi di Mendari, musim tidak pernah membenarkan sesuatu mati. Udara berbau seperti gula-gula kapas bercampur embun pagi, manis sehingga kadangkala menyesakkan dada. Bunyi paling dominan di sini bukan perbualan, tetapi tawa — tawa yang bergema dari setiap penjuru, kadangkala terlalu kerap sehingga terasa dilakonkan. Cahaya di Mendari sentiasa keemasan, tidak pernah benar-benar terang atau redup, seperti waktu senja yang dibekukan selama-lamanya.",
+			"nota_atmosfera": "Mendari kelihatan paling 'sempurna' pada waktu Solar Bloom (siang), tetapi pada waktu Stellar Drift (malam), cahaya keemasannya bertukar menjadi kelabu perak yang lebih jujur — seperti riasan yang mula luntur."
+		},
+		{
+			"id": "ascendari",
+			"nama": "Ascendari",
+			"spheral_induk": "luminara",
+			"keluarga_aetherys": "Duskborne",
+			"warna": "#a89078",
+			"deskripsi": "Menara tunggal yang menjulang lebih tinggi daripada mana-mana struktur lain di Luminara, dibina daripada batu pasir keemasan di bahagian luar tetapi granit kelabu gelap di bahagian dalam — seolah-olah dua bangunan berbeza dipaksa bersatu. Dari kejauhan, Ascendari kelihatan bercahaya seperti mercu tanda kejayaan, tetapi apabila didekati, dindingnya sejuk disentuh, dan bayang di dalam koridornya tidak pernah benar-benar hilang walaupun pada waktu siang. Bunyi paling ketara di sini ialah gema langkah kaki sendiri, kerana bunyi lain sukar bertahan lama di ruang menegak yang sempit ini. Baunya seperti buku lama dan lilin yang sudah padam.",
+			"nota_atmosfera": "Semakin tinggi seseorang mendaki Ascendari, semakin gelap dan sunyi menara ini terasa — walaupun dari luar ia kelihatan semakin bercahaya di bawah sinar matahari."
+		},
+		{
+			"id": "veldari",
+			"nama": "Veldari",
+			"spheral_induk": "noctira",
+			"keluarga_aetherys": "Noctiborne",
+			"warna": "#7a6898",
+			"deskripsi": "Kampung yang kelihatan seperti telah lama ditinggalkan — rumput di antara batu jalan tumbuh liar, tetapi terlalu kemas untuk benar-benar terbiar, seolah-olah seseorang masih menjaga tempat ini secara senyap. Salji nipis melapisi bumbung rumah kayu berwarna kelabu tua, dan tiada asap keluar dari mana-mana cerobong walaupun udara sejuk menggigit. Baunya seperti kayu basah dan ais yang baru cair. Bunyi paling dominan di sini ialah keheningan itu sendiri — begitu senyap sehingga bunyi langkah kaki sendiri terasa terlalu kuat.",
+			"nota_atmosfera": "Veldari tidak pernah benar-benar gelap sepenuhnya — cahaya bulan pucat sentiasa menembusi kabus, cukup untuk melihat bentuk tetapi tidak cukup untuk melihat wajah dengan jelas."
+		},
+		{
+			"id": "threndari",
+			"nama": "Threndari",
+			"spheral_induk": "noctira",
+			"keluarga_aetherys": "Dawnborne",
+			"warna": "#c4a86a",
+			"deskripsi": "Padang luas terbentang tanpa hujung kelihatan, rumputnya berwarna kelabu-ungu seperti senja yang dibekukan, dan langit di atasnya sentiasa separuh gelap separuh cerah — awan bergerak perlahan, kadangkala mendedahkan jalur oren pucat, kadangkala menutupnya semula dengan kelabu. Angin di sini sentiasa bertiup lembut, membawa bau tanah basah bercampur sesuatu yang manis dan samar, seperti bunga yang mekar jauh di kejauhan yang tidak pernah dapat ditemui. Bunyi yang kedengaran hanyalah desiran rumput dan, sekali-sekala, dentingan loceng jauh yang tidak pernah dapat dikesan sumbernya.",
+			"nota_atmosfera": "Threndari tidak pernah mencapai kegelapan penuh atau cahaya penuh — ia sentiasa berada dalam keadaan peralihan, seperti waktu tepat sebelum subuh yang tidak pernah benar-benar menjadi pagi."
+		},
+		{
+			"id": "wandari",
+			"nama": "Wandari",
+			"spheral_induk": "equilara",
+			"keluarga_aetherys": "Halcyborne",
+			"warna": "#8eb8a8",
+			"deskripsi": "Gugusan pulau-pulau kecil yang terapung di atas kabus tebal, tidak pernah kekal di satu kedudukan — bergerak perlahan seperti awan yang berat. Warna langit di sini bercampur antara keemasan Luminara dan ungu senja Noctira, kadangkala kedua-duanya wujud serentak dalam satu pandangan, seperti dua lukisan cat air yang belum kering bertindih. Tanah pulau-pulau ini terasa lembut dan tidak stabil di bawah kaki, seperti berjalan di atas span yang direndam air. Bunyi di sini bergema aneh — kadangkala jelas, kadangkala jauh, seolah-olah jarak tidak bermakna sama di Wandari.",
+			"nota_atmosfera": "Wandari sentiasa sejuk-hangat serentak — bahagian badan yang terkena bayang terasa sejuk, manakala yang terkena cahaya terasa hangat, walaupun kedua-duanya berlaku pada masa yang sama."
+		},
+		{
+			"id": "resonari",
+			"nama": "Resonari",
+			"spheral_induk": "equilara",
+			"keluarga_aetherys": "Eclipborne",
+			"warna": "#8a7aa8",
+			"deskripsi": "Rangkaian gua bawah tanah yang saling berhubung melalui lorong-lorong sempit, dindingnya diselaputi kristal ungu gelap yang memancarkan cahaya sangat samar — cukup untuk melihat bentuk, tidak cukup untuk melihat warna sebenar. Udara di sini lembap dan sejuk, berbau batu basah dan sesuatu yang manis-pahit seperti dupa yang telah lama padam. Setiap bunyi — walau sekecil mana — bergema berkali-kali sebelum akhirnya hilang ditelan kegelapan, menjadikan kesunyian di sini terasa hidup dan berdenyut.",
+			"nota_atmosfera": "Resonari ialah satu-satunya wilayah di Zymtuary yang tidak pernah mengalami sebarang bentuk cahaya siang — ia kekal dalam senjakala keunguan yang sama sepanjang masa."
+		},
+		{
+			"id": "mediari",
+			"nama": "Mediari",
+			"spheral_induk": "equilara",
+			"keluarga_aetherys": null,
+			"warna": "#9a8f7a",
+			"deskripsi": "Garisan tengah Equilara, tempat Interborne sendiri tinggal (sebagai Idelys, bukan Aetherys), dan tempat Lyxen serta Seren beroperasi. Di sini, cahaya dan bayang bertukar ganti dengan lancar tanpa pertembungan — bukan kekaburan, tetapi keseimbangan yang tenang, seperti senja yang berpuas hati menjadi dirinya sendiri tanpa perlu bertukar menjadi malam.",
+			"nota_atmosfera": null
+		}
+	],
+	"aethirion": {
+		"nama": "Aethirion",
+		"deskripsi": "Pulau terapung yang bergerak mengelilingi keseluruhan garisan Equilara, merentasi Wandari dan Resonari, boleh dicapai apabila seseorang cukup matang. Dari kejauhan, ia kelihatan seperti gumpalan cahaya keputihan yang berdenyut lembut, tidak pernah diam di satu kedudukan cukup lama untuk dipetakan dengan tepat."
+	},
 	"entities": [
 		{
 			"id": "zymelisse",
@@ -64,7 +155,15 @@
 			"keluarga_aetherys": "Lumiborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku senyum… tiada siapa akan tanya apa-apa.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "luminara",
+			"wilayah": "mendari",
+			"kawasan": "Veilrose Quarter",
+			"kawasan_deskripsi": "Veilrose Quarter ialah jantung Mendari — pasar terbuka yang dipenuhi gerai bunga mawar dalam pelbagai warna jambu, dari merah jambu pudar sehingga fuchsia menyala.",
+			"spot_utama": [
+				{ "nama": "The Memory Room of Smiling Frames", "deskripsi": "Bangunan rendah berdinding kaca legap, dan di dalamnya tergantung beribu bingkai gambar — setiap satu menangkap detik seseorang tersenyum, sekecil manapun senyuman itu." },
+				{ "nama": "The Applause Steps", "deskripsi": "Tangga marmar putih di tengah pasar, licin kerana telah dipijak beribu kali oleh mereka yang naik untuk 'dipuji.'" },
+				{ "nama": "The Mask Vendor's Row", "deskripsi": "Berbau kayu dan cat, gerai-gerai yang menjual topeng senyuman dalam pelbagai saiz — dari yang paling nipis dan lutsinar sehingga yang tebal dan sukar ditanggalkan." }
+			]
 		},
 		{
 			"id": "zymimic",
@@ -73,7 +172,15 @@
 			"keluarga_aetherys": "Lumiborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku jadi apa yang mereka suka… mereka akan terima aku.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "luminara",
+			"wilayah": "mendari",
+			"kawasan": "Faceless Bazaar",
+			"kawasan_deskripsi": "Faceless Bazaar sentiasa bertukar wajah — kedai-kedainya berpindah susun setiap kali seseorang kembali, seolah-olah ia tidak pernah mahu dikenali sebagai tetap.",
+			"spot_utama": [
+				{ "nama": "The Gallery of Faces", "deskripsi": "Lorong sempit berdinding cermin dari lantai ke siling, dan cermin-cermin ini tidak memantulkan wajah pemiliknya, tetapi wajah orang lain yang pernah lalu di situ." },
+				{ "nama": "The Fitting Maze", "deskripsi": "Berbau kain baru dan kapur jahit, bilik-bilik kecil yang bersambung tanpa logik, setiap satu penuh cermin tiga muka." },
+				{ "nama": "The Echo Market", "deskripsi": "Menjual barangan yang sentiasa berubah mengikut apa yang sedang 'digemari' — hari ini payung berwarna biru, esok mungkin topi jerami, dan penjualnya sendiri turut berubah wajah." }
+			]
 		},
 		{
 			"id": "zyminque",
@@ -82,7 +189,15 @@
 			"keluarga_aetherys": "Lumiborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku berhenti… aku kena fikir. Jadi, jangan berhenti.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "luminara",
+			"wilayah": "mendari",
+			"kawasan": "Idlewick",
+			"kawasan_deskripsi": "Idlewick berdenyut dengan cahaya neon lembut warna pastel — merah jambu, biru muda, kuning lemon — dan muzik yang tidak pernah henti, seperti radio yang terlupa dimatikan.",
+			"spot_utama": [
+				{ "nama": "The Idle Arcade", "deskripsi": "Berbau gula-gula terbakar dan minyak mesin, bunyi mesin permainan yang berbunyi ting-ting tanpa gaya tersusun." },
+				{ "nama": "The Carousel That Never Stops", "deskripsi": "Berputar dengan kuda-kuda kayu berwarna-warni yang catnya sudah pudar di bahagian yang paling kerap disentuh." },
+				{ "nama": "The Confetti Alley", "deskripsi": "Sentiasa dipenuhi habuk kertas warna-warni yang tidak pernah benar-benar mendarat ke tanah, melayang-layang seperti salji yang enggan berhenti." }
+			]
 		},
 		{
 			"id": "zymarleq",
@@ -91,7 +206,14 @@
 			"keluarga_aetherys": "Lumiborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau mereka gelak… mereka takkan nampak aku sebenarnya takut.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "luminara",
+			"wilayah": "mendari",
+			"kawasan": "Harlequin's Corner",
+			"kawasan_deskripsi": "Harlequin's Corner lebih kecil dan lebih intim, berbau kopi pekat dan asap lilin.",
+			"spot_utama": [
+				{ "nama": "The Punchline Parlour", "deskripsi": "Kafe redup dengan kerusi empuk merah, dan setiap dinding dilukis dengan gambar orang ketawa dalam pelbagai gaya." },
+				{ "nama": "The Laughing Wall", "deskripsi": "Dinding batu bercat yang dipasang lampu LED tersembunyi, berkelip mengikut irama seperti ketawa yang direkodkan." }
+			]
 		},
 		{
 			"id": "zymirae",
@@ -100,7 +222,14 @@
 			"keluarga_aetherys": "Lumiborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Jika aku tak beri apa-apa… kenapa ada orang nak pilih aku?",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "luminara",
+			"wilayah": "mendari",
+			"kawasan": "Velvet Alcove",
+			"kawasan_deskripsi": "Velvet Alcove ialah kawasan paling teduh di Mendari, dinaungi pokok-pokok rendang yang daunnya berwarna merah jambu lembut.",
+			"spot_utama": [
+				{ "nama": "The Velvet Alcove", "deskripsi": "Ruang tersembunyi berlangsir kain lembut warna merah wain, penuh kusyen dan bantal empuk." },
+				{ "nama": "The Giving Grove", "deskripsi": "Kebun kecil di sebelahnya, pokok-pokoknya sentiasa berbuah tidak kira musim, dan buahnya jatuh sendiri ke tangan sesiapa yang lalu tanpa perlu dipetik." }
+			]
 		},
 		{
 			"id": "zymglacien",
@@ -109,7 +238,14 @@
 			"keluarga_aetherys": "Noctiborne",
 			"keadaan": "Dormant",
 			"bisikan": "Lebih baik beku… dari pecah.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "noctira",
+			"wilayah": "veldari",
+			"kawasan": "Frostbound Hollow",
+			"kawasan_deskripsi": "Frostbound Hollow terletak di pinggir kampung, tanah lapang yang dilitupi kabus rendah yang tidak pernah hilang.",
+			"spot_utama": [
+				{ "nama": "The Grave of Uncried Tears", "deskripsi": "Tanah perkuburan kecil dengan batu-batu nisan kelabu tanpa ukiran nama, dan di atas setiap batu terdapat lapisan ais nipis yang tidak pernah cair walaupun pada waktu Ashen Gale." },
+				{ "nama": "The Frozen Orchard", "deskripsi": "Kebun buah yang membeku separuh masak — epal-epal keras seperti batu tergantung di dahan yang juga membeku, kilauan ais menyelaputi setiap permukaannya." }
+			]
 		},
 		{
 			"id": "zymoraith",
@@ -118,7 +254,14 @@
 			"keluarga_aetherys": "Noctiborne",
 			"keadaan": "Dormant",
 			"bisikan": "Kalau aku tak ada… semua orang akan lebih baik.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "noctira",
+			"wilayah": "veldari",
+			"kawasan": "Ashen Row",
+			"kawasan_deskripsi": "Ashen Row ialah barisan rumah kayu rendah di tengah kampung, tingkap-tingkapnya berlangsir tebal yang sentiasa tertutup.",
+			"spot_utama": [
+				{ "nama": "The Unanswered Door", "deskripsi": "Sebuah rumah dengan pintu berwarna kelabu pudar, dan walau berapa kali diketuk, tiada bunyi balasan dari dalam." },
+				{ "nama": "The Apology Well", "deskripsi": "Perigi batu di halaman belakang rumah itu, dan apabila seseorang membisikkan sesuatu ke dalamnya, gema suara sendiri kembali beberapa saat kemudian, seolah-olah perigi itu 'mendengar' tetapi tidak pernah menjawab." }
+			]
 		},
 		{
 			"id": "zymvael",
@@ -127,7 +270,14 @@
 			"keluarga_aetherys": "Noctiborne",
 			"keadaan": "Dormant",
 			"bisikan": "Aku ada di sini… tapi bukan sepenuhnya.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "noctira",
+			"wilayah": "veldari",
+			"kawasan": "Still Abyss",
+			"kawasan_deskripsi": "Still Abyss menduduki kawasan tengah kampung, dataran batu kosong yang luas dengan satu telaga besar di tengahnya.",
+			"spot_utama": [
+				{ "nama": "The Still Abyss", "deskripsi": "Tidak berdasar sejauh mana pun disuluh cahaya ke dalamnya — airnya hitam legam dan permukaannya sentiasa tenang tanpa riak walaupun angin bertiup kuat." },
+				{ "nama": "The Empty Square", "deskripsi": "Mengelilingi telaga itu, bangku-bangku batu kosong tersusun rapi menghadap ke arah yang berbeza-beza, seolah-olah pernah menunggu perhimpunan yang tidak pernah berlaku." }
+			]
 		},
 		{
 			"id": "zymnolith",
@@ -136,7 +286,14 @@
 			"keluarga_aetherys": "Noctiborne",
 			"keadaan": "Dormant",
 			"bisikan": "Jika aku cukup kuat, tiada siapa boleh lukakan aku.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "noctira",
+			"wilayah": "veldari",
+			"kawasan": "Sanctum of Stillstone",
+			"kawasan_deskripsi": "Sanctum of Stillstone berdiri di hujung kampung, kubu batu bersudut tegas dengan dinding setebal lengan orang dewasa, tanpa tingkap langsung.",
+			"spot_utama": [
+				{ "nama": "The Sanctum of Stillstone", "deskripsi": "Sunyi dan gelap, hanya diterangi oleh satu unggun api kecil yang tidak pernah membesar atau mengecil." },
+				{ "nama": "The Iron Garden", "deskripsi": "Taman berpagar besi berkarat, tanahnya kering dan retak, tiada sehelai daun hijau kelihatan." }
+			]
 		},
 		{
 			"id": "zymquiesce",
@@ -145,7 +302,14 @@
 			"keluarga_aetherys": "Noctiborne",
 			"keadaan": "Dormant",
 			"bisikan": "Jika aku diam, mungkin semua akan tenang.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "noctira",
+			"wilayah": "veldari",
+			"kawasan": "Chamber of Unspoken",
+			"kawasan_deskripsi": "Chamber of Unspoken tersembunyi di bawah salah satu rumah kosong, diakses melalui tangga batu yang curam.",
+			"spot_utama": [
+				{ "nama": "The Chamber of Unspoken", "deskripsi": "Bilik bawah tanah yang lembap, dindingnya berlumut halus, dan udara di dalamnya terasa berat seperti menahan sesuatu yang tidak pernah dikeluarkan." },
+				{ "nama": "The Muted Hearth", "deskripsi": "Dapur lama di sudut bilik itu, abunya sejuk sejak entah bila, periuk-periuk tergantung berdebu tanpa pernah digunakan lagi." }
+			]
 		},
 		{
 			"id": "zymloria",
@@ -154,7 +318,14 @@
 			"keluarga_aetherys": "Duskborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku nampak kuat, sekurang-kurangnya tiada yang tanya apa-apa.",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "luminara",
+			"wilayah": "ascendari",
+			"kawasan": "Theatre Tier",
+			"kawasan_deskripsi": "Theatre Tier menduduki tingkat paling bawah menara, dewan besar berlangsir merah tua dengan lampu gantung kristal yang sentiasa menyala walaupun tiada persembahan berlangsung.",
+			"spot_utama": [
+				{ "nama": "The Theatre of Appearance", "deskripsi": "Pentas utama, kayunya berkilat kerana sentiasa dilap, tetapi kerusi penonton kosong berbaris rapi, berdebu di bahagian yang tidak kelihatan." },
+				{ "nama": "The Applause Chamber", "deskripsi": "Bilik kecil di sebelah pentas, dan apabila seseorang masuk, bunyi tepukan tangan bergema dari dinding walaupun tiada sesiapa yang bertepuk." }
+			]
 		},
 		{
 			"id": "zymvora",
@@ -163,7 +334,13 @@
 			"keluarga_aetherys": "Duskborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku tidak menjerit, kau takkan tahu aku wujud.",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "luminara",
+			"wilayah": "ascendari",
+			"kawasan": "The Silent Bell Tower",
+			"kawasan_deskripsi": "Struktur nipis menjulang dari tengah menara ke langit, dan di puncaknya tergantung loceng gangsa besar yang lidahnya sengaja diikat dengan kain supaya tidak berbunyi.",
+			"spot_utama": [
+				{ "nama": "The Silent Bell Tower", "deskripsi": "Kadangkala, tanpa amaran, ikatan pada loceng terlerai dan loceng berdentum sekali sahaja — bunyi yang begitu kuat sehingga bergema ke seluruh Ascendari sebelum kembali senyap." }
+			]
 		},
 		{
 			"id": "zymfracta",
@@ -172,7 +349,14 @@
 			"keluarga_aetherys": "Duskborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku hancurkan dulu… sekurang-kurangnya aku yang kawal.",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "luminara",
+			"wilayah": "ascendari",
+			"kawasan": "Before-Joy Wing",
+			"kawasan_deskripsi": "Before-Joy Wing ialah koridor gelap di tingkat pertengahan, berbau debu dan kayu lama.",
+			"spot_utama": [
+				{ "nama": "The Room Before Joy", "deskripsi": "Hanya berisi kotak-kotak berbalut kertas kado yang tidak pernah dibuka, bertimbun sehingga siling." },
+				{ "nama": "The Unopened Hall", "deskripsi": "Lorong panjang berpintu di kiri dan kanan, semuanya berkunci, dan tiada siapa tahu kunci mana yang sepadan dengan pintu mana." }
+			]
 		},
 		{
 			"id": "zymrelia",
@@ -181,7 +365,14 @@
 			"keluarga_aetherys": "Duskborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau kau tinggalkan aku, siapa lagi nak kisah tentang aku?",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "luminara",
+			"wilayah": "ascendari",
+			"kawasan": "Threadvale",
+			"kawasan_deskripsi": "Threadvale mengelilingi bahagian luar menara seperti jaring labah-labah raksasa yang diperbuat daripada benang emas nipis, menghubungkan tingkap-tingkap yang berselerak di sekeliling bangunan.",
+			"spot_utama": [
+				{ "nama": "The Threadvale Web", "deskripsi": "Bergetar lembut apabila angin bertiup, mengeluarkan bunyi seperti dawai gitar yang dipetik perlahan." },
+				{ "nama": "The Waiting Balconies", "deskripsi": "Balkoni-balkoni kecil yang menjenguk ke arah Luminara di kejauhan, kerusi-kerusi kosong yang sentiasa menghadap ke luar." }
+			]
 		},
 		{
 			"id": "zymnarael",
@@ -190,7 +381,14 @@
 			"keluarga_aetherys": "Dawnborne",
 			"keadaan": "Dormant",
 			"bisikan": "Aku merindu sesuatu… tapi aku tidak tahu apa.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "noctira",
+			"wilayah": "threndari",
+			"kawasan": "Lantern Field",
+			"kawasan_deskripsi": "Lantern Field terbentang luas dengan beratus-ratus lampu kecil bertiang kayu tertanam di rumput, masing-masing menyala dengan api lembut warna kuning pudar walaupun tiada sesiapa pernah dilihat menyalakannya.",
+			"spot_utama": [
+				{ "nama": "The Lantern Field", "deskripsi": "Pada waktu malam kelihatan seperti bintang yang jatuh ke bumi, cahayanya berkelip perlahan mengikut irama yang tidak menentu." },
+				{ "nama": "The Waiting Path", "deskripsi": "Laluan tanah berliku yang seolah-olah menghala ke suatu destinasi, tetapi berapa jauh pun dijejaki, ia tidak pernah sampai ke mana-mana, hanya kembali semula ke Lantern Field." }
+			]
 		},
 		{
 			"id": "zymistra",
@@ -199,7 +397,14 @@
 			"keluarga_aetherys": "Dawnborne",
 			"keadaan": "Dormant",
 			"bisikan": "Lebih selamat ragu… dari menyesal.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "noctira",
+			"wilayah": "threndari",
+			"kawasan": "Garden of Ifs",
+			"kawasan_deskripsi": "Garden of Ifs ialah taman bercabang dengan pagar bunga liar berduri halus, laluan-laluannya bersimpang setiap beberapa langkah.",
+			"spot_utama": [
+				{ "nama": "The Garden of Ifs", "deskripsi": "Sentiasa berbau bunga lavender yang tenang, tetapi setiap simpang membawa perasaan berat di dada — seperti keputusan yang perlu dibuat tetapi tidak pernah cukup maklumat untuk membuatnya." },
+				{ "nama": "The Turning Point", "deskripsi": "Persimpangan paling besar di tengah taman, dengan tujuh papan tanda kayu tua yang tulisannya sudah pudar dan tidak terbaca." }
+			]
 		},
 		{
 			"id": "zympressa",
@@ -208,7 +413,14 @@
 			"keluarga_aetherys": "Dawnborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Tak mengapa kalau aku penat… asalkan mereka tak kecewa.",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "noctira",
+			"wilayah": "threndari",
+			"kawasan": "Silent Honors",
+			"kawasan_deskripsi": "Silent Honors berdiri seperti runtuhan muzium di tengah padang, tiang-tiang batunya retak tetapi masih berdiri megah, ditumbuhi lumut kelabu-hijau.",
+			"spot_utama": [
+				{ "nama": "The Atrium of Silent Honors", "deskripsi": "Menyimpan rak-rak piala dan pingat berdebu, tetapi setiap tempat nama pada plak-plaknya kosong." },
+				{ "nama": "The Endless Ladder", "deskripsi": "Tangga kayu tinggi bersandar pada salah satu tiang, dan puncaknya tidak kelihatan walau berapa jauh mata memandang ke atas." }
+			]
 		},
 		{
 			"id": "zymburdea",
@@ -217,7 +429,14 @@
 			"keluarga_aetherys": "Dawnborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau aku lepaskan ini… siapa lagi nak jaga mereka?",
-			"spheral_rumah": "luminara"
+			"spheral_rumah": "noctira",
+			"wilayah": "threndari",
+			"kawasan": "Pillar Hall",
+			"kawasan_deskripsi": "Pillar Hall ialah runtuhan tiang-tiang batu besar yang berdiri berselerak di padang terbuka, seperti sisa kuil purba yang telah lama musnah bumbungnya.",
+			"spot_utama": [
+				{ "nama": "The Pillar Hall", "deskripsi": "Pada waktu senja mencampakkan bayang panjang yang bertindih antara satu sama lain di atas rumput." },
+				{ "nama": "The Carrying Stones", "deskripsi": "Batu-batu bulat besar yang tersusun di tepi tiang, kononnya perlu diangkut ke suatu tempat, tetapi beratnya seperti tidak berkesudahan dan destinasinya tidak pernah jelas." }
+			]
 		},
 		{
 			"id": "zymorphis",
@@ -226,7 +445,14 @@
 			"keluarga_aetherys": "Halcyborne",
 			"keadaan": "Dormant",
 			"bisikan": "Siapa aku, kalau semua ini hanya pinjaman?",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "equilara",
+			"wilayah": "wandari",
+			"kawasan": "Prismhall",
+			"kawasan_deskripsi": "Prismhall ialah dewan bulat berdinding cermin berbeza sudut, berputar perlahan sehingga pantulan di dalamnya sentiasa berubah.",
+			"spot_utama": [
+				{ "nama": "The Prismhall", "deskripsi": "Memantulkan bukan sahaja wajah, tetapi warna cahaya yang berbeza setiap saat — merah jambu bertukar biru, bertukar keemasan, tanpa corak yang dapat diramal." },
+				{ "nama": "The Borrowed Faces Market", "deskripsi": "Pasar kecil di sebelahnya, gerai-gerai menjual topeng cermin nipis yang boleh 'dipinjam' untuk memakai wajah orang lain buat sementara." }
+			]
 		},
 		{
 			"id": "zymindel",
@@ -235,7 +461,14 @@
 			"keluarga_aetherys": "Halcyborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Fikiran ini akan reda… selepas satu lagi jawapan.",
-			"spheral_rumah": "equilara"
+			"spheral_rumah": "equilara",
+			"wilayah": "wandari",
+			"kawasan": "Tower of Thought",
+			"kawasan_deskripsi": "Tower of Thought menjulang nipis dan tinggi dari salah satu pulau terapung, dindingnya berkilau seperti kaca berkabus.",
+			"spot_utama": [
+				{ "nama": "The Tower of Thought", "deskripsi": "Sunyi kecuali bunyi degupan yang tidak jelas sumbernya — seperti jantung yang berdenyut di suatu tempat yang tidak dapat dijumpai." },
+				{ "nama": "The Looping Stair", "deskripsi": "Tangga spiral di dalam menara, dan sesiapa yang menaikinya akan mendapati diri kembali ke tempat permulaan tanpa pernah sampai ke puncak." }
+			]
 		},
 		{
 			"id": "zymechor",
@@ -244,7 +477,14 @@
 			"keluarga_aetherys": "Eclipborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Suara mereka masih betul. Aku memang lemah.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "equilara",
+			"wilayah": "resonari",
+			"kawasan": "Hollow Chimeway",
+			"kawasan_deskripsi": "Hollow Chimeway ialah lorong panjang dengan beratus-ratus loceng kecil gangsa tergantung dari siling gua, masing-masing berlainan saiz.",
+			"spot_utama": [
+				{ "nama": "The Hollow Chimeway", "deskripsi": "Berbunyi setiap kali ada pergerakan udara — dentingan halus yang bertindih antara satu sama lain, kadangkala membentuk melodi yang hampir dikenali tetapi tidak pernah selesai." },
+				{ "nama": "The Repeating Hall", "deskripsi": "Dewan gema di hujung lorong, dan setiap perkataan yang dilaungkan di sana akan diulang oleh dinding sebanyak tujuh kali sebelum senyap." }
+			]
 		},
 		{
 			"id": "zymumbra",
@@ -253,7 +493,14 @@
 			"keluarga_aetherys": "Eclipborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Kalau kau nampak aku… kau akan takut siapa diri kau sebenarnya.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "equilara",
+			"wilayah": "resonari",
+			"kawasan": "Shadowwell",
+			"kawasan_deskripsi": "Shadowwell menduduki gua paling besar dalam Resonari, dengan telaga gelap tergali di tengah lantai batu.",
+			"spot_utama": [
+				{ "nama": "The Shadowwell", "deskripsi": "Airnya hitam pekat, dan walaupun ditenungi lama, tiada pantulan kelihatan di permukaannya." },
+				{ "nama": "The Unlit Chamber", "deskripsi": "Bilik kecil bersebelahan, dan setiap kali seseorang cuba membawa cahaya masuk — sama ada obor atau lampu — apinya akan malap sendiri sebaik sahaja melintasi ambang pintu." }
+			]
 		},
 		{
 			"id": "zymareen",
@@ -262,7 +509,14 @@
 			"keluarga_aetherys": "Eclipborne",
 			"keadaan": "Distorsis",
 			"bisikan": "Aku rasa semuanya… sekaligus. Dan aku tak tahu mana satu yang patut aku dengar.",
-			"spheral_rumah": "noctira"
+			"spheral_rumah": "equilara",
+			"wilayah": "resonari",
+			"kawasan": "Sea Without Shore",
+			"kawasan_deskripsi": "Sea Without Shore ialah tasik bawah tanah paling luas di seluruh Zymtuary, airnya tenang dan gelap, terbentang sejauh mata memandang tanpa tebing kelihatan walau ke arah mana sekalipun.",
+			"spot_utama": [
+				{ "nama": "The Sea Without Shore", "deskripsi": "Memantulkan kristal-kristal dinding gua di atasnya seperti bintang yang terbalik." },
+				{ "nama": "The Drifting Dock", "deskripsi": "Pengkalan kayu kecil yang terapung bebas di permukaan air, tidak berlabuh pada mana-mana titik, bergerak perlahan mengikut arus yang tidak dapat dikesan." }
+			]
 		}
 	],
 	"journals": [
