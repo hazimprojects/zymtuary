@@ -49,7 +49,6 @@ export type ResonancePlacement = {
 	hemisfera: HemisferaAfiniti;
 };
 
-
 /** Taburkan titik resonans — arah dari pusat untuk cahaya dalaman */
 export function layoutResonancePoints(entities: EntityEntry[]): ResonancePlacement[] {
 	const golden = Math.PI * (3 - Math.sqrt(5));
@@ -92,4 +91,54 @@ function hash(s: string): number {
 	let h = 0;
 	for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000;
 	return h / 1000;
+}
+
+export type ZoomMode = 'orbit' | 'atmosphere' | 'surface';
+
+/** Ambang jarak kamera → mod zoom immersive */
+export const ZOOM_THRESHOLDS = {
+	atmosphereEnter: 4.2,
+	surfaceEnter: 2.65,
+} as const;
+
+export function getZoomMode(distance: number): ZoomMode {
+	if (distance <= ZOOM_THRESHOLDS.surfaceEnter) return 'surface';
+	if (distance <= ZOOM_THRESHOLDS.atmosphereEnter) return 'atmosphere';
+	return 'orbit';
+}
+
+/** 0 = orbit jauh, 1 = hampir permukaan */
+export function getProximity(distance: number): number {
+	const near = GLOBE_RADIUS + 0.18;
+	const far = ZOOM_THRESHOLDS.atmosphereEnter;
+	return 1 - Math.min(1, Math.max(0, (distance - near) / (far - near)));
+}
+
+export function getOrbitControlsForMode(mode: ZoomMode, isMobile: boolean) {
+	const surfaceMin = isMobile ? 1.78 : 1.72;
+	const base = isMobile
+			? { maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.45, minPolarAngle: 0.15, maxPolarAngle: Math.PI - 0.15 }
+		: { maxDistance: 6.5, zoomSpeed: 0.85, rotateSpeed: 0.55, minPolarAngle: 0.12, maxPolarAngle: Math.PI - 0.12 };
+
+	switch (mode) {
+		case 'surface':
+			return {
+				...base,
+				minDistance: surfaceMin,
+				rotateSpeed: base.rotateSpeed * 0.75,
+				minPolarAngle: 0.05,
+				maxPolarAngle: Math.PI - 0.05,
+			};
+		case 'atmosphere':
+			return {
+				...base,
+				minDistance: surfaceMin,
+				rotateSpeed: base.rotateSpeed * 0.9,
+			};
+		default:
+			return {
+				...base,
+				minDistance: isMobile ? 4.2 : 3.0,
+			};
+	}
 }

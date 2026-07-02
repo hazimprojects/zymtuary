@@ -7,6 +7,7 @@ import {
 	FAMILY_COLORS,
 	HEMISPHERE_COLORS,
 	type EntityEntry,
+	type ZoomMode,
 } from './worldGlobeConfig';
 import { GlobeScene } from './GlobeScene';
 
@@ -15,6 +16,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [activeEntity, setActiveEntity] = useState<EntityEntry | null>(null);
 	const [isMobile, setIsMobile] = useState(false);
 	const [ready, setReady] = useState(false);
+	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -47,7 +49,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 			>
 				{ready ? (
 					<Canvas
-						camera={{ position: [0, 0.05, 6.8], fov: 48, near: 0.1, far: 100 }}
+						camera={{ position: [0, 0.05, 6.8], fov: 48, near: 0.08, far: 100 }}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
 						style={{ touchAction: activeEntity ? 'auto' : 'none' }}
@@ -61,6 +63,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
 							interactionPaused={!!activeEntity}
+							onZoomModeChange={setZoomMode}
 						/>
 						</Suspense>
 					</Canvas>
@@ -122,12 +125,17 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 			{!activeEntity ? (
 				<motion.p
+					key={zoomMode}
 					className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/28"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
-					transition={{ delay: 2, duration: 2.5 }}
+					transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 				>
-					Perhatikan cahaya yang menyusup · putar · ketik di mana ia terasa
+					{zoomMode === 'surface'
+						? 'Anda dalam atmosfera Equilara · putar untuk lihat ufuk · ketik di mana cahaya terasa'
+						: zoomMode === 'atmosphere'
+							? 'Zoom masuk · rasai kabut Equilara · awan bergerak di atas dunia'
+							: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik di mana ia terasa'}
 				</motion.p>
 			) : null}
 		</div>
