@@ -104,14 +104,14 @@ export function createSpheralAmbient(spheralId: string): AmbientHandle {
 		}
 
 		if (config.pulse) {
-			const lfo = ctx.createOscillator();
-			const lfoGain = ctx.createGain();
-			lfo.frequency.setValueAtTime(0.08, ctx.currentTime);
-			lfoGain.gain.setValueAtTime(6, ctx.currentTime);
-			lfo.connect(lfoGain);
-			lfoGain.connect(osc.frequency);
-			lfo.start();
-			nodes.push(lfo, lfoGain);
+			const breath = ctx.createOscillator();
+			const breathDepth = ctx.createGain();
+			breath.frequency.setValueAtTime(0.04, ctx.currentTime);
+			breathDepth.gain.setValueAtTime(0.012, ctx.currentTime);
+			breath.connect(breathDepth);
+			breathDepth.connect(gain.gain);
+			breath.start();
+			nodes.push(breath, breathDepth);
 		}
 
 		if (ctx.state === 'suspended') await ctx.resume();
