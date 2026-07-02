@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { EntityData, SpheralData } from '../entities/SpheralExperience';
-import { createFileAmbient } from '../../lib/ambientPlayer';
 import LuminaraParticles from './LuminaraParticles';
 
 const GOLD = '#d4a843';
@@ -46,30 +45,6 @@ export default function LuminaraExperience({
 	const [activeEntity, setActiveEntity] = useState<EntityData | null>(null);
 	const layers = useMemo(() => splitLayers(spheral.penerangan_pendek), [spheral.penerangan_pendek]);
 	const layerBase = 2.4;
-
-	useEffect(() => {
-		const ambient = createFileAmbient({
-			src: '/audio/luminara/ambient.mp3',
-			volume: 0.34,
-			fadeInSeconds: 5,
-		});
-		let started = false;
-
-		const begin = () => {
-			if (started) return;
-			started = true;
-			void ambient.start();
-		};
-
-		begin();
-		const onGesture = () => begin();
-		document.addEventListener('pointerdown', onGesture, { once: true });
-
-		return () => {
-			document.removeEventListener('pointerdown', onGesture);
-			ambient.stop();
-		};
-	}, []);
 
 	return (
 		<div className="luminara-world fixed inset-0 overflow-hidden bg-black">
