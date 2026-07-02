@@ -145,7 +145,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 					transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 				>
 					{zoomMode === 'descent'
-						? 'Anda melayang dalam Equilara · seret untuk pandang ~360° · angkat kepala ke matahari & awan · cubit keluar untuk naik'
+						? 'Seret satu jari untuk pandang ~360° · ketik dua kali untuk melangkah ke depan · cubit keluar untuk naik'
 						: zoomMode === 'atmosphere'
 							? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
 							: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik di mana ia terasa'}

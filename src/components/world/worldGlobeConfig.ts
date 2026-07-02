@@ -111,10 +111,14 @@ export const ZOOM_THRESHOLDS = {
 export const DESCENT_CONFIG = {
 	minAltitude: 0.05,
 	maxAltitude: 0.55,
-	minPitch: -0.28,
-	maxPitch: 1.42,
+	// hampir julat penuh menegak supaya bumi di bawah boleh dipandang terus,
+	// bukan hanya langit — dahulu minPitch -0.28 menyekat pandangan ke bawah
+	minPitch: -1.4,
+	maxPitch: 1.4,
 	fov: 68,
 	orbitExitDistance: 4.6,
+	walkStepAngle: 0.22,
+	walkDuration: 0.6,
 } as const;
 
 export function getZoomMode(distance: number, descentActive: boolean): ZoomMode {
