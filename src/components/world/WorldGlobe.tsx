@@ -17,6 +17,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [isMobile, setIsMobile] = useState(false);
 	const [ready, setReady] = useState(false);
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
+	const [canvasKey, setCanvasKey] = useState(0);
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -25,6 +26,16 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		mq.addEventListener('change', update);
 		setReady(true);
 		return () => mq.removeEventListener('change', update);
+	}, []);
+
+	/** GPU mudah "hilang" konteks WebGL di mobile (latar belakang tab, tekanan memori) —
+	 * tanpa ini, planet kekal kosong selama-lamanya sehingga muat semula manual. */
+	const handleCanvasCreated = useCallback(({ gl }: { gl: { domElement: HTMLCanvasElement } }) => {
+		const canvas = gl.domElement;
+		const onLost = (e: Event) => e.preventDefault();
+		const onRestored = () => setCanvasKey((k) => k + 1);
+		canvas.addEventListener('webglcontextlost', onLost, false);
+		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
 
 	const handleSelect = useCallback((entity: EntityEntry) => {
@@ -49,10 +60,12 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 			>
 				{ready ? (
 					<Canvas
+						key={canvasKey}
 						camera={{ position: [0, 0.05, 6.8], fov: 48, near: 0.08, far: 100 }}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
 						style={{ touchAction: activeEntity ? 'auto' : 'none' }}
+						onCreated={handleCanvasCreated}
 					>
 						<color attach="background" args={['#020408']} />
 						<Suspense fallback={null}>
