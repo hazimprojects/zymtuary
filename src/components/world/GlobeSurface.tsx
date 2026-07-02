@@ -1,8 +1,8 @@
 import { forwardRef, useImperativeHandle, useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS, type EntityEntry, type ResonancePlacement } from './worldGlobeConfig';
+import { GLOBE_RADIUS, getProximity, type EntityEntry, type ResonancePlacement } from './worldGlobeConfig';
 import { createEntityGlowUniforms, updateEntityGlowUniforms } from './entityGlowUniforms';
 import { createGlobeMaterial } from './globeShader';
 import { pickNearestEntity, setHoverGlow } from './pickNearestEntity';
@@ -24,6 +24,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 		ref,
 	) {
 		const meshRef = useRef<THREE.Mesh>(null);
+		const { camera } = useThree();
 		const glowUniforms = useMemo(() => createEntityGlowUniforms(), []);
 		const material = useMemo(() => {
 			const mat = createGlobeMaterial(glowUniforms);
@@ -41,6 +42,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		useFrame(({ clock }) => {
 			material.uniforms.uTime.value = clock.elapsedTime;
+			material.uniforms.uProximity.value = getProximity(camera.position.length());
 
 			const hovered = placements.find((p) => p.entity.id === hoveredEntity?.id);
 			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);
@@ -73,10 +75,9 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		return (
 			<group>
-				{/* Teras pepejal penuh */}
 				<mesh renderOrder={0}>
 					<sphereGeometry args={[GLOBE_RADIUS, segments, segments]} />
-					<meshBasicMaterial color="#030608" depthWrite depthTest />
+					<meshBasicMaterial color="#061018" depthWrite depthTest />
 				</mesh>
 
 				<mesh

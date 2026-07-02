@@ -3,8 +3,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLOBE_RADIUS } from './worldGlobeConfig';
 
-/** Selubung kabut Equilara — rasa organik, bukan planet app */
-export function AtmosphereVeil() {
+type AtmosphereVeilProps = {
+	intensity?: number;
+};
+
+/** Selubung kabut Equilara — lebih kuat apabila masuk atmosfera */
+export function AtmosphereVeil({ intensity = 0.025 }: AtmosphereVeilProps) {
 	const ref = useRef<THREE.Mesh>(null);
 
 	useFrame(({ clock }) => {
@@ -14,12 +18,12 @@ export function AtmosphereVeil() {
 	});
 
 	return (
-			<mesh ref={ref} renderOrder={4}>
+		<mesh ref={ref} renderOrder={4}>
 			<sphereGeometry args={[GLOBE_RADIUS * 1.18, 40, 40]} />
 			<meshBasicMaterial
-				color="#9a8f7a"
+				color="#c4b89a"
 				transparent
-				opacity={0.025}
+				opacity={intensity}
 				side={THREE.BackSide}
 				depthWrite={false}
 				blending={THREE.AdditiveBlending}
