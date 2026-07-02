@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export function ResponsiveCamera({ isMobile }: { isMobile: boolean }) {
+export function ResponsiveCamera({ isMobile, disabled = false }: { isMobile: boolean; disabled?: boolean }) {
 	const { camera, size } = useThree();
 
 	useEffect(() => {
+		if (disabled) return;
 		if (!(camera instanceof THREE.PerspectiveCamera)) return;
 
 		const portrait = size.height > size.width;
@@ -23,7 +24,7 @@ export function ResponsiveCamera({ isMobile }: { isMobile: boolean }) {
 		camera.near = 0.1;
 		camera.far = 100;
 		camera.updateProjectionMatrix();
-	}, [camera, size.width, size.height, isMobile]);
+	}, [camera, size.width, size.height, isMobile, disabled]);
 
 	return null;
 }

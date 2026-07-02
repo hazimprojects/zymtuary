@@ -131,10 +131,10 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 					animate={{ opacity: 1 }}
 					transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 				>
-					{zoomMode === 'surface'
-						? 'Anda dalam atmosfera Equilara · putar untuk lihat ufuk · ketik di mana cahaya terasa'
+					{zoomMode === 'descent'
+						? 'Anda melayang dalam Equilara · seret untuk pandang ~360° · angkat kepala ke matahari & awan · cubit keluar untuk naik'
 						: zoomMode === 'atmosphere'
-							? 'Zoom masuk · rasai kabut Equilara · awan bergerak di atas dunia'
+							? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
 							: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik di mana ia terasa'}
 				</motion.p>
 			) : null}

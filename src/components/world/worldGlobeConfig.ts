@@ -93,46 +93,48 @@ function hash(s: string): number {
 	return h / 1000;
 }
 
-export type ZoomMode = 'orbit' | 'atmosphere' | 'surface';
+export type ZoomMode = 'orbit' | 'atmosphere' | 'descent';
 
 /** Ambang jarak kamera → mod zoom immersive */
 export const ZOOM_THRESHOLDS = {
 	atmosphereEnter: 4.2,
-	surfaceEnter: 2.65,
+	descentEnter: 2.75,
 } as const;
 
-export function getZoomMode(distance: number): ZoomMode {
-	if (distance <= ZOOM_THRESHOLDS.surfaceEnter) return 'surface';
+export const DESCENT_CONFIG = {
+	minAltitude: 0.05,
+	maxAltitude: 0.55,
+	minPitch: -0.28,
+	maxPitch: 1.42,
+	fov: 68,
+	orbitExitDistance: 4.6,
+} as const;
+
+export function getZoomMode(distance: number, descentActive: boolean): ZoomMode {
+	if (descentActive) return 'descent';
+	if (distance <= ZOOM_THRESHOLDS.descentEnter) return 'atmosphere';
 	if (distance <= ZOOM_THRESHOLDS.atmosphereEnter) return 'atmosphere';
 	return 'orbit';
 }
 
-/** 0 = orbit jauh, 1 = hampir permukaan */
-export function getProximity(distance: number): number {
+/** 0 = orbit jauh, 1 = dalam atmosfera / descent */
+export function getProximity(distance: number, descentActive = false): number {
+	if (descentActive) return 1;
 	const near = GLOBE_RADIUS + 0.18;
 	const far = ZOOM_THRESHOLDS.atmosphereEnter;
 	return 1 - Math.min(1, Math.max(0, (distance - near) / (far - near)));
 }
 
 export function getOrbitControlsForMode(mode: ZoomMode, isMobile: boolean) {
-	const surfaceMin = isMobile ? 1.78 : 1.72;
 	const base = isMobile
-			? { maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.45, minPolarAngle: 0.15, maxPolarAngle: Math.PI - 0.15 }
+		? { maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.45, minPolarAngle: 0.15, maxPolarAngle: Math.PI - 0.15 }
 		: { maxDistance: 6.5, zoomSpeed: 0.85, rotateSpeed: 0.55, minPolarAngle: 0.12, maxPolarAngle: Math.PI - 0.12 };
 
 	switch (mode) {
-		case 'surface':
-			return {
-				...base,
-				minDistance: surfaceMin,
-				rotateSpeed: base.rotateSpeed * 0.75,
-				minPolarAngle: 0.05,
-				maxPolarAngle: Math.PI - 0.05,
-			};
 		case 'atmosphere':
 			return {
 				...base,
-				minDistance: surfaceMin,
+				minDistance: isMobile ? 2.0 : 1.85,
 				rotateSpeed: base.rotateSpeed * 0.9,
 			};
 		default:

@@ -14,13 +14,14 @@ type GlobeSurfaceProps = {
 	onSelect: (entity: EntityEntry) => void;
 	hoveredEntity: EntityEntry | null;
 	interactionPaused: boolean;
+	forceProximity?: number;
 };
 
 export type GlobeSurfaceHandle = THREE.Mesh;
 
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 	function GlobeSurface(
-		{ segments, placements, onHover, onSelect, hoveredEntity, interactionPaused },
+		{ segments, placements, onHover, onSelect, hoveredEntity, interactionPaused, forceProximity },
 		ref,
 	) {
 		const meshRef = useRef<THREE.Mesh>(null);
@@ -42,7 +43,8 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		useFrame(({ clock }) => {
 			material.uniforms.uTime.value = clock.elapsedTime;
-			material.uniforms.uProximity.value = getProximity(camera.position.length());
+			material.uniforms.uProximity.value =
+				forceProximity ?? getProximity(camera.position.length());
 
 			const hovered = placements.find((p) => p.entity.id === hoveredEntity?.id);
 			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);

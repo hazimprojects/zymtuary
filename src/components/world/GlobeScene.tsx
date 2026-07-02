@@ -1,17 +1,20 @@
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import {
+	DESCENT_CONFIG,
 	getOrbitControlsForMode,
 	getProximity,
 	getZoomMode,
 	layoutResonancePoints,
+	ZOOM_THRESHOLDS,
 	type EntityEntry,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
+import { DescentController } from './DescentController';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
@@ -24,6 +27,10 @@ type GlobeSceneProps = {
 	interactionPaused: boolean;
 	onZoomModeChange?: (mode: ZoomMode) => void;
 };
+
+function easeInOutCubic(t: number): number {
+	return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
 
 export function GlobeScene({
 	entities,
@@ -38,62 +45,95 @@ export function GlobeScene({
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
 	const controlsRef = useRef<OrbitControlsImpl>(null);
 	const [dragging, setDragging] = useState(false);
-	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
-	const [atmosphereIntensity, setAtmosphereIntensity] = useState(0.03);
+	const [descentActive, setDescentActive] = useState(false);
+	const [exitingDescent, setExitingDescent] = useState(false);
+	const [descentAnchor, setDescentAnchor] = useState(() => new THREE.Vector3(0, 0.6, 0.8));
+	const exitProgress = useRef(0);
+	const exitFrom = useRef(new THREE.Vector3());
+	const exitTo = useRef(new THREE.Vector3());
 	const { camera } = useThree();
-	const segments = isMobile ? 40 : 56;
+	const segments = isMobile ? 48 : 64;
 
 	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
+	const distance = camera.position.length();
+	const zoomMode = getZoomMode(distance, descentActive);
 	const orbitConfig = useMemo(() => getOrbitControlsForMode(zoomMode, isMobile), [zoomMode, isMobile]);
+	const [atmosphereIntensity, setAtmosphereIntensity] = useState(0.03);
 
 	useEffect(() => {
 		onZoomModeChange?.(zoomMode);
 	}, [onZoomModeChange, zoomMode]);
 
+	const beginExitDescent = useCallback(() => {
+		if (exitingDescent) return;
+		exitFrom.current.copy(camera.position);
+		exitTo.current.copy(descentAnchor).normalize().multiplyScalar(DESCENT_CONFIG.orbitExitDistance);
+		exitProgress.current = 0;
+		setExitingDescent(true);
+		setDescentActive(false);
+	}, [camera, descentAnchor, exitingDescent]);
+
 	useFrame((_, delta) => {
-		const distance = camera.position.length();
-		const nextMode = getZoomMode(distance);
-		if (nextMode !== zoomMode) setZoomMode(nextMode);
+		if (exitingDescent && camera instanceof THREE.PerspectiveCamera) {
+			exitProgress.current = Math.min(1, exitProgress.current + delta * 1.1);
+			const t = easeInOutCubic(exitProgress.current);
+			camera.position.lerpVectors(exitFrom.current, exitTo.current, t);
+			camera.lookAt(0, 0, 0);
+			camera.fov = THREE.MathUtils.lerp(DESCENT_CONFIG.fov, isMobile ? 50 : 45, t);
+			camera.near = 0.08;
+			camera.updateProjectionMatrix();
+			if (exitProgress.current >= 1) {
+				setExitingDescent(false);
+				controlsRef.current?.update();
+			}
+			return;
+		}
 
-		const proximity = getProximity(distance);
-		setAtmosphereIntensity(0.03 + proximity * 0.12);
+		if (!descentActive && !exitingDescent && !interactionPaused) {
+			const dist = camera.position.length();
+			if (dist <= ZOOM_THRESHOLDS.descentEnter) {
+				setDescentAnchor(camera.position.clone().normalize());
+				setDescentActive(true);
+			}
+		}
 
-		if (!groupRef.current || dragging || interactionPaused) return;
-		if (nextMode !== 'orbit') return;
+		const proximity = getProximity(camera.position.length(), descentActive);
+		setAtmosphereIntensity(0.03 + proximity * 0.14);
+
+		if (!groupRef.current || dragging || interactionPaused || descentActive || exitingDescent) return;
+		if (zoomMode !== 'orbit') return;
 		groupRef.current.rotation.y += delta * 0.035;
 	});
 
-	useFrame(() => {
-		if (!(camera instanceof THREE.PerspectiveCamera)) return;
-		const near = zoomMode === 'surface' ? 0.02 : 0.08;
-		if (Math.abs(camera.near - near) > 0.001) {
-			camera.near = near;
-			camera.updateProjectionMatrix();
-		}
-	});
-
-	const fogNear = zoomMode === 'surface' ? 2.5 : zoomMode === 'atmosphere' ? 4.5 : 8;
-	const fogFar = zoomMode === 'surface' ? 20 : 22;
+	const fogNear = descentActive ? 0.8 : zoomMode === 'atmosphere' ? 4.5 : 8;
+	const fogFar = descentActive ? 14 : 22;
+	const fogColor = descentActive ? '#9ab8d8' : '#0a1420';
 
 	return (
 		<>
-			<fog attach="fog" args={['#0a1420', fogNear, fogFar]} />
-			<ResponsiveCamera isMobile={isMobile} />
+			<fog attach="fog" args={[fogColor, fogNear, fogFar]} />
+			<ResponsiveCamera isMobile={isMobile} disabled={descentActive || exitingDescent} />
 
-			<ambientLight intensity={0.38} color="#8aa0b0" />
-			<directionalLight position={[4, 6, 5]} intensity={0.85} color="#f0e6d0" />
+			<ambientLight intensity={descentActive ? 0.55 : 0.38} color={descentActive ? '#c8d8e8' : '#8aa0b0'} />
+			<directionalLight
+				position={[4, 6, 5]}
+				intensity={descentActive ? 1.1 : 0.85}
+				color="#f0e6d0"
+			/>
 			<pointLight position={[2, 4, 5]} intensity={0.45} color="#c4a86a" distance={14} />
 			<pointLight position={[-3, -2, -4]} intensity={0.28} color="#6a5898" distance={14} />
 
-			<Stars
-				radius={90}
-				depth={50}
-				count={isMobile ? 600 : 1400}
-				factor={2}
-				saturation={0}
-				fade
-				speed={0.15}
-			/>
+			{!descentActive ? (
+				<Stars
+					radius={90}
+					depth={50}
+					count={isMobile ? 600 : 1400}
+					factor={2}
+					saturation={0}
+					fade
+					speed={0.15}
+				/>
+			) : null}
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
 				<AtmosphereVeil intensity={atmosphereIntensity} />
@@ -105,13 +145,24 @@ export function GlobeScene({
 					onHover={onHover}
 					onSelect={onSelect}
 					hoveredEntity={hoveredEntity}
-					interactionPaused={interactionPaused}
+					interactionPaused={interactionPaused || descentActive}
+					forceProximity={descentActive ? 1 : undefined}
 				/>
 			</group>
 
+			<DescentController
+				active={descentActive && !exitingDescent}
+				anchor={descentAnchor}
+				interactionPaused={interactionPaused}
+				isMobile={isMobile}
+				placements={placements}
+				onSelect={onSelect}
+				onRequestExit={beginExitDescent}
+			/>
+
 			<OrbitControls
 				ref={controlsRef}
-				enabled={!interactionPaused}
+				enabled={!interactionPaused && !descentActive && !exitingDescent}
 				enablePan={false}
 				enableZoom
 				enableDamping
