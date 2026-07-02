@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import type { EntityData, SpheralData } from '../entities/SpheralExperience';
-import { createLuminaraAmbient } from '../../lib/luminaraAmbient';
+import { createFileAmbient } from '../../lib/ambientPlayer';
 import LuminaraParticles from './LuminaraParticles';
 
 const GOLD = '#d4a843';
@@ -48,7 +48,11 @@ export default function LuminaraExperience({
 	const layerBase = 2.4;
 
 	useEffect(() => {
-		const ambient = createLuminaraAmbient();
+		const ambient = createFileAmbient({
+			src: '/audio/luminara/ambient.mp3',
+			volume: 0.34,
+			fadeInSeconds: 5,
+		});
 		let started = false;
 
 		const begin = () => {
