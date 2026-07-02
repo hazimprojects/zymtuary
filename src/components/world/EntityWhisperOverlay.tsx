@@ -22,80 +22,70 @@ export function EntityWhisperOverlay({ entity, onClose }: EntityWhisperOverlayPr
 
 	return (
 		<>
-			{/* Kabut — redupkan dunia */}
 			<motion.div
-				className="fixed inset-0 z-40 bg-black/80 backdrop-blur-[4px]"
+				className="fixed inset-0 z-40 bg-black/88 backdrop-blur-md"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				transition={{ duration: 2 }}
+				transition={{ duration: 1.6 }}
 				aria-hidden
 			/>
 
-			{/* Bisikan — seluruh skrin boleh diketik untuk lepaskan */}
 			<motion.button
 				type="button"
-				className="fixed inset-0 z-50 flex flex-col items-center justify-center px-10 pb-16 pt-24"
+				className="fixed inset-0 z-50 flex flex-col items-center justify-center px-8 pb-16 pt-20"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				transition={{ duration: 2, ease }}
+				transition={{ duration: 1.8, ease }}
 				onClick={onClose}
 				aria-label="Lepaskan bisikan"
 			>
-				<div className="max-w-md text-center">
+				<div className="max-w-sm text-center">
 					<motion.p
-						className="font-body text-[0.55rem] uppercase tracking-[0.42em]"
-						style={{ color: `${familyColor}55` }}
+						className="font-body text-[0.6rem] uppercase tracking-[0.38em]"
+						style={{ color: familyColor }}
 						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ duration: 2.2, delay: 0.5, ease }}
+						animate={{ opacity: 0.7 }}
+						transition={{ duration: 1.8, delay: 0.3, ease }}
 					>
 						{entity.keluarga_aetherys}
 					</motion.p>
 
 					<motion.p
-						className="font-body mt-6 text-[0.6rem] uppercase tracking-[0.38em] text-[#f5f0e8]/22"
+						className="font-body mt-5 text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/45"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
-						transition={{ duration: 2.4, delay: 0.8, ease }}
+						transition={{ duration: 1.8, delay: 0.5, ease }}
 					>
 						{entity.gelaran}
 					</motion.p>
 
 					<motion.p
-						className="font-display mt-10 text-xl font-light italic leading-[1.75] text-[#f5f0e8]/68 md:text-2xl md:leading-relaxed"
-						initial={{ opacity: 0, filter: 'blur(10px)' }}
+						className="font-display mt-9 text-[1.35rem] font-light italic leading-[1.7] text-[#f5f0e8]/88 md:text-2xl md:leading-relaxed"
+						style={{ textShadow: `0 0 40px ${familyColor}33` }}
+						initial={{ opacity: 0, filter: 'blur(8px)' }}
 						animate={{ opacity: 1, filter: 'blur(0px)' }}
-						transition={{ duration: 3.6, delay: 1.2, ease }}
+						transition={{ duration: 2.8, delay: 0.8, ease }}
 					>
 						&ldquo;{entity.bisikan}&rdquo;
 					</motion.p>
 
 					<motion.p
-						className="font-display mt-12 text-sm font-light tracking-[0.14em] text-[#f5f0e8]/28"
+						className="font-display mt-10 text-base font-light tracking-[0.1em] text-[#f5f0e8]/50"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
-						transition={{ duration: 2.8, delay: 2.2, ease }}
+						transition={{ duration: 2, delay: 1.6, ease }}
 					>
 						{entity.nama}
-					</motion.p>
-
-					<motion.p
-						className="font-body mt-14 text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/18"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ duration: 2, delay: 3, ease }}
-					>
-						{entity.keadaan === 'Dormant' ? 'dormant · echo' : 'distorsis · echo'}
 					</motion.p>
 				</div>
 
 				<motion.span
-					className="font-body absolute bottom-[max(2rem,env(safe-area-inset-bottom))] text-[0.6rem] uppercase tracking-[0.28em] text-[#f5f0e8]/30"
+					className="font-body absolute bottom-[max(2rem,env(safe-area-inset-bottom))] text-[0.6rem] uppercase tracking-[0.28em] text-[#f5f0e8]/40"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
-					transition={{ duration: 2, delay: 2.5, ease }}
+					transition={{ duration: 1.5, delay: 2, ease }}
 				>
 					ketik untuk lepaskan
 				</motion.span>

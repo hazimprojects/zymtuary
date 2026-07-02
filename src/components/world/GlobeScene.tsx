@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
-import { InnerGlow } from './InnerGlow';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
 type GlobeSceneProps = {
@@ -15,7 +14,6 @@ type GlobeSceneProps = {
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
-	whisperOpen: boolean;
 };
 
 export function GlobeScene({
@@ -25,7 +23,6 @@ export function GlobeScene({
 	hoveredEntity,
 	isMobile,
 	interactionPaused,
-	whisperOpen,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
@@ -74,15 +71,6 @@ export function GlobeScene({
 					hoveredEntity={hoveredEntity}
 					interactionPaused={interactionPaused}
 				/>
-
-				{placements.map((placement) => (
-					<InnerGlow
-						key={placement.entity.id}
-						placement={placement}
-						isHovered={hoveredEntity?.id === placement.entity.id}
-						dimmed={whisperOpen}
-					/>
-				))}
 			</group>
 
 			<OrbitControls

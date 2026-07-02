@@ -60,9 +60,8 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 								onSelect={handleSelect}
 								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
-								interactionPaused={!!activeEntity}
-								whisperOpen={!!activeEntity}
-							/>
+							interactionPaused={!!activeEntity}
+						/>
 						</Suspense>
 					</Canvas>
 				) : null}

@@ -49,7 +49,6 @@ export type ResonancePlacement = {
 	hemisfera: HemisferaAfiniti;
 };
 
-export const INNER_GLOW_RADIUS = GLOBE_RADIUS * 0.84;
 
 /** Taburkan titik resonans — arah dari pusat untuk cahaya dalaman */
 export function layoutResonancePoints(entities: EntityEntry[]): ResonancePlacement[] {

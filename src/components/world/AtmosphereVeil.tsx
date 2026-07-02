@@ -14,12 +14,12 @@ export function AtmosphereVeil() {
 	});
 
 	return (
-		<mesh ref={ref} renderOrder={3}>
-			<sphereGeometry args={[GLOBE_RADIUS * 1.22, 48, 48]} />
+			<mesh ref={ref} renderOrder={4}>
+			<sphereGeometry args={[GLOBE_RADIUS * 1.18, 40, 40]} />
 			<meshBasicMaterial
 				color="#9a8f7a"
 				transparent
-				opacity={0.045}
+				opacity={0.025}
 				side={THREE.BackSide}
 				depthWrite={false}
 				blending={THREE.AdditiveBlending}
