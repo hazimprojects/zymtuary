@@ -2,34 +2,35 @@ import { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-	CORE_RADIUS,
-	GLOBE_RADIUS,
-	MOOD_SINGKAT,
-	type SpheralEntry,
-} from './worldGlobeConfig';
-import { GlobeCore } from './GlobeCore';
+import { GLOBE_RADIUS, layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
 import { GlobeSurface } from './GlobeSurface';
+import { ResonancePoint } from './ResonancePoint';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
 type GlobeSceneProps = {
-	spherals: SpheralEntry[];
-	onHover: (id: string | null) => void;
-	onSelect: (id: string) => void;
-	hoveredId: string | null;
+	entities: EntityEntry[];
+	onHover: (entity: EntityEntry | null) => void;
+	onSelect: (entity: EntityEntry) => void;
+	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 };
 
-export function GlobeScene({ spherals, onHover, onSelect, hoveredId, isMobile }: GlobeSceneProps) {
+export function GlobeScene({
+	entities,
+	onHover,
+	onSelect,
+	hoveredEntity,
+	isMobile,
+}: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const [dragging, setDragging] = useState(false);
 	const segments = isMobile ? 36 : 48;
 
-	const byId = useMemo(() => Object.fromEntries(spherals.map((s) => [s.id, s])), [spherals]);
+	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
 
 	useFrame((_, delta) => {
 		if (!groupRef.current || dragging) return;
-		groupRef.current.rotation.y += delta * 0.06;
+		groupRef.current.rotation.y += delta * 0.05;
 	});
 
 	const controls = isMobile
@@ -40,9 +41,9 @@ export function GlobeScene({ spherals, onHover, onSelect, hoveredId, isMobile }:
 		<>
 			<ResponsiveCamera isMobile={isMobile} />
 
-			<ambientLight intensity={0.2} />
-			<pointLight position={[4, 6, 4]} intensity={0.55} color="#f5d78e" />
-			<pointLight position={[-5, -3, -4]} intensity={0.3} color="#6b5a9a" />
+			<ambientLight intensity={0.22} />
+			<pointLight position={[3, 5, 4]} intensity={0.5} color="#f5d78e" />
+			<pointLight position={[-4, -4, -3]} intensity={0.35} color="#6b5a9a" />
 
 			<Stars
 				radius={80}
@@ -55,37 +56,32 @@ export function GlobeScene({ spherals, onHover, onSelect, hoveredId, isMobile }:
 			/>
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
-				{/* Aura luar */}
+				{/* Aura Equilara */}
 				<mesh>
-					<sphereGeometry args={[GLOBE_RADIUS * 1.12, 32, 32]} />
+					<sphereGeometry args={[GLOBE_RADIUS * 1.14, 32, 32]} />
 					<meshStandardMaterial
 						color="#1a1510"
 						emissive="#2a2218"
-						emissiveIntensity={0.12}
+						emissiveIntensity={0.1}
 						transparent
-						opacity={0.1}
+						opacity={0.08}
 						side={THREE.BackSide}
 						depthWrite={false}
 					/>
 				</mesh>
 
-				<GlobeSurface
-					onHover={onHover}
-					onSelect={onSelect}
-					hoveredId={hoveredId}
-					segments={segments}
-				/>
+				<GlobeSurface segments={segments} />
 
-				{byId.primisera ? (
-					<GlobeCore
-						nama={byId.primisera.nama}
-						moodSingkat={MOOD_SINGKAT.primisera}
-						radius={CORE_RADIUS}
+				{placements.map(({ entity, position }) => (
+					<ResonancePoint
+						key={entity.id}
+						entity={entity}
+						position={position}
 						onHover={onHover}
 						onSelect={onSelect}
-						hoveredId={hoveredId}
+						isHovered={hoveredEntity?.id === entity.id}
 					/>
-				) : null}
+				))}
 			</group>
 
 			<OrbitControls
