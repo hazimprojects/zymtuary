@@ -39,6 +39,11 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 	return (
 		<div className="fixed inset-0 bg-black">
+			<motion.div
+				className="absolute inset-0"
+				animate={{ filter: activeEntity ? 'brightness(0.28)' : 'brightness(1)' }}
+				transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
+			>
 			{ready ? (
 				<Canvas
 					camera={{ position: [0, 0.05, 6.8], fov: 50, near: 0.1, far: 100 }}
@@ -55,13 +60,19 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							hoveredEntity={hoveredEntity}
 							isMobile={isMobile}
 							interactionPaused={!!activeEntity}
+							whisperOpen={!!activeEntity}
 						/>
 					</Suspense>
 				</Canvas>
 			) : null}
+			</motion.div>
 
 			{/* Navigasi & konteks */}
-			<header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+			<motion.header
+				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]"
+				animate={{ opacity: activeEntity ? 0.15 : 1 }}
+				transition={{ duration: 2 }}
+			>
 				<a
 					href="/"
 					className="pointer-events-auto font-body text-[0.55rem] uppercase tracking-[0.3em] text-[#f5f0e8]/35 transition-colors active:text-[#f5f0e8]/60"
@@ -76,17 +87,21 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 						Atmosfera Zymtuary — daratan, laut, dan hutan di bawah langit yang sama
 					</p>
 				</div>
-			</header>
+			</motion.header>
 
 			{/* Label hemisfera */}
-			<div className="pointer-events-none absolute inset-x-0 top-[22vh] flex justify-between px-6 md:top-[20vh] md:px-12">
+			<motion.div
+				className="pointer-events-none absolute inset-x-0 top-[22vh] flex justify-between px-6 md:top-[20vh] md:px-12"
+				animate={{ opacity: activeEntity ? 0.1 : 1 }}
+				transition={{ duration: 2 }}
+			>
 				<p className="font-body text-[0.55rem] uppercase tracking-[0.25em] text-[#d4a843]/35">
 					Luminara ↑
 				</p>
 				<p className="font-body text-[0.55rem] uppercase tracking-[0.25em] text-[#5c4a8a]/35">
 					↓ Noctira
 				</p>
-			</div>
+			</motion.div>
 
 			{/* Hover entity */}
 			<AnimatePresence>

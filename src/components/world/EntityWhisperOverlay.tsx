@@ -24,7 +24,7 @@ export function EntityWhisperOverlay({ entity, onClose }: EntityWhisperOverlayPr
 		<>
 			{/* Kabut — redupkan dunia */}
 			<motion.div
-				className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[3px]"
+				className="fixed inset-0 z-40 bg-black/80 backdrop-blur-[4px]"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
