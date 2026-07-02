@@ -2,9 +2,10 @@ import { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { GLOBE_RADIUS, layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
+import { layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
+import { AtmosphereVeil } from './AtmosphereVeil';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
-import { ResonancePoint } from './ResonancePoint';
+import { InnerGlow } from './InnerGlow';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
 type GlobeSceneProps = {
@@ -35,57 +36,50 @@ export function GlobeScene({
 
 	useFrame((_, delta) => {
 		if (!groupRef.current || dragging || interactionPaused) return;
-		groupRef.current.rotation.y += delta * 0.05;
+		groupRef.current.rotation.y += delta * 0.035;
 	});
 
 	const controls = isMobile
-		? { minDistance: 4.2, maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.5 }
-		: { minDistance: 2.8, maxDistance: 6, zoomSpeed: 0.6, rotateSpeed: 0.6 };
+		? { minDistance: 4.5, maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.45 }
+		: { minDistance: 3.2, maxDistance: 6.5, zoomSpeed: 0.6, rotateSpeed: 0.55 };
 
 	return (
 		<>
+			<fog attach="fog" args={['#020408', 7, 20]} />
 			<ResponsiveCamera isMobile={isMobile} />
 
-			<ambientLight intensity={0.22} />
-			<pointLight position={[3, 5, 4]} intensity={0.5} color="#f5d78e" />
-			<pointLight position={[-4, -4, -3]} intensity={0.35} color="#6b5a9a" />
+			<ambientLight intensity={0.12} color="#6a8090" />
+			<pointLight position={[2, 4, 5]} intensity={0.35} color="#c4a86a" distance={12} />
+			<pointLight position={[-3, -2, -4]} intensity={0.2} color="#5c4a8a" distance={12} />
 
 			<Stars
-				radius={80}
-				depth={40}
-				count={isMobile ? 900 : 2200}
-				factor={2.5}
+				radius={90}
+				depth={50}
+				count={isMobile ? 600 : 1400}
+				factor={2}
 				saturation={0}
 				fade
-				speed={0.3}
+				speed={0.15}
 			/>
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
-				{/* Aura Equilara */}
-				<mesh>
-					<sphereGeometry args={[GLOBE_RADIUS * 1.14, 32, 32]} />
-					<meshStandardMaterial
-						color="#1a1510"
-						emissive="#2a2218"
-						emissiveIntensity={0.1}
-						transparent
-						opacity={0.08}
-						side={THREE.BackSide}
-						depthWrite={false}
-					/>
-				</mesh>
+				<AtmosphereVeil />
 
-				<GlobeSurface ref={globeRef} segments={segments} />
+				<GlobeSurface
+					ref={globeRef}
+					segments={segments}
+					placements={placements}
+					onHover={onHover}
+					onSelect={onSelect}
+					hoveredEntity={hoveredEntity}
+					interactionPaused={interactionPaused}
+				/>
 
-				{placements.map(({ entity, position }) => (
-					<ResonancePoint
-						key={entity.id}
-						entity={entity}
-						position={position}
-						onHover={onHover}
-						onSelect={onSelect}
-						isHovered={hoveredEntity?.id === entity.id}
-						isMobile={isMobile}
+				{placements.map((placement) => (
+					<InnerGlow
+						key={placement.entity.id}
+						placement={placement}
+						isHovered={hoveredEntity?.id === placement.entity.id}
 						dimmed={whisperOpen}
 					/>
 				))}
@@ -96,7 +90,7 @@ export function GlobeScene({
 				enablePan={false}
 				enableZoom
 				enableDamping
-				dampingFactor={0.08}
+				dampingFactor={0.09}
 				minDistance={controls.minDistance}
 				maxDistance={controls.maxDistance}
 				rotateSpeed={controls.rotateSpeed}
@@ -104,11 +98,6 @@ export function GlobeScene({
 				touches={{
 					ONE: THREE.TOUCH.ROTATE,
 					TWO: THREE.TOUCH.DOLLY_ROTATE,
-				}}
-				mouseButtons={{
-					LEFT: THREE.MOUSE.ROTATE,
-					MIDDLE: THREE.MOUSE.DOLLY,
-					RIGHT: THREE.MOUSE.ROTATE,
 				}}
 				onStart={() => setDragging(true)}
 				onEnd={() => setDragging(false)}

@@ -39,77 +39,55 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		: HEMISPHERE_COLORS.equilara;
 
 	return (
-		<div className="fixed inset-0 bg-black">
+		<div className="fixed inset-0 bg-[#020408]">
 			<motion.div
 				className="absolute inset-0"
-				animate={{ filter: activeEntity ? 'brightness(0.28)' : 'brightness(1)' }}
-				transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
+				animate={{ filter: activeEntity ? 'brightness(0.22)' : 'brightness(1)' }}
+				transition={{ duration: 2.2, ease: [0.22, 1, 0.36, 1] }}
 			>
-			{ready ? (
-				<Canvas
-					camera={{ position: [0, 0.05, 6.8], fov: 50, near: 0.1, far: 100 }}
-					dpr={isMobile ? [1, 1.75] : [1, 2]}
-					gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
-					style={{ touchAction: activeEntity ? 'auto' : 'none' }}
-				>
-					<color attach="background" args={['#020408']} />
-					<Suspense fallback={null}>
-						<GlobeScene
-							entities={entities}
-							onHover={setHoveredEntity}
-							onSelect={handleSelect}
-							hoveredEntity={hoveredEntity}
-							isMobile={isMobile}
-							interactionPaused={!!activeEntity}
-							whisperOpen={!!activeEntity}
-						/>
-					</Suspense>
-				</Canvas>
-			) : null}
+				{ready ? (
+					<Canvas
+						camera={{ position: [0, 0.05, 6.8], fov: 48, near: 0.1, far: 100 }}
+						dpr={isMobile ? [1, 1.75] : [1, 2]}
+						gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
+						style={{ touchAction: activeEntity ? 'auto' : 'none' }}
+					>
+						<color attach="background" args={['#020408']} />
+						<Suspense fallback={null}>
+							<GlobeScene
+								entities={entities}
+								onHover={setHoveredEntity}
+								onSelect={handleSelect}
+								hoveredEntity={hoveredEntity}
+								isMobile={isMobile}
+								interactionPaused={!!activeEntity}
+								whisperOpen={!!activeEntity}
+							/>
+						</Suspense>
+					</Canvas>
+				) : null}
 			</motion.div>
 
-			{/* Muat semula — sentiasa boleh diakses */}
 			<div className="pointer-events-none absolute inset-x-0 top-0 z-[60] flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
 				<ImmersiveRefresh className="pointer-events-auto" />
 			</div>
 
-			{/* Navigasi & konteks */}
 			<motion.header
-				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center gap-3 px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]"
-				animate={{ opacity: activeEntity ? 0.15 : 1 }}
+				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]"
+				animate={{ opacity: activeEntity ? 0.12 : 1 }}
 				transition={{ duration: 2 }}
 			>
 				<a
 					href="/"
-					className="pointer-events-auto font-body text-[0.55rem] uppercase tracking-[0.3em] text-[#f5f0e8]/35 transition-colors active:text-[#f5f0e8]/60"
+					className="pointer-events-auto font-body text-[0.55rem] uppercase tracking-[0.3em] text-[#f5f0e8]/30 transition-colors active:text-[#f5f0e8]/55"
 				>
 					← Keluar
 				</a>
-				<div className="text-center">
-					<p className="font-display text-lg font-light tracking-[0.12em] text-[#f5f0e8]/75 md:text-xl">
-						Equilara
-					</p>
-					<p className="font-body mt-1 text-[0.6rem] leading-relaxed tracking-[0.12em] text-[#f5f0e8]/40">
-						Atmosfera Zymtuary — daratan, laut, dan hutan di bawah langit yang sama
-					</p>
-				</div>
+				<p className="font-display mt-8 text-base font-light tracking-[0.18em] text-[#f5f0e8]/45 md:text-lg">
+					Equilara
+				</p>
 			</motion.header>
 
-			{/* Label hemisfera */}
-			<motion.div
-				className="pointer-events-none absolute inset-x-0 top-[22vh] flex justify-between px-6 md:top-[20vh] md:px-12"
-				animate={{ opacity: activeEntity ? 0.1 : 1 }}
-				transition={{ duration: 2 }}
-			>
-				<p className="font-body text-[0.55rem] uppercase tracking-[0.25em] text-[#d4a843]/35">
-					Luminara ↑
-				</p>
-				<p className="font-body text-[0.55rem] uppercase tracking-[0.25em] text-[#5c4a8a]/35">
-					↓ Noctira
-				</p>
-			</motion.div>
-
-			{/* Hover entity */}
 			<AnimatePresence>
 				{hoveredEntity && !activeEntity ? (
 					<motion.div
@@ -118,16 +96,16 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 						initial={{ opacity: 0, y: 12 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: 8 }}
-						transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+						transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
 					>
 						<span
-							className="font-display text-xl font-light tracking-[0.12em] text-[#f5f0e8]/85 md:text-2xl"
-							style={{ textShadow: `0 0 28px ${familyColor}55`, color: familyColor }}
+							className="font-display text-lg font-light italic tracking-wide text-[#f5f0e8]/55 md:text-xl"
+							style={{ textShadow: `0 0 32px ${familyColor}44` }}
 						>
 							{hoveredEntity.nama}
 						</span>
-						<span className="font-body text-[0.6rem] uppercase tracking-[0.28em] text-[#f5f0e8]/40">
-							Ketik cahaya untuk bisikan
+						<span className="font-body text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/25">
+							bisikan dari dalam
 						</span>
 					</motion.div>
 				) : null}
@@ -145,12 +123,12 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 			{!activeEntity ? (
 				<motion.p
-					className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-5 text-center font-body text-[0.6rem] leading-relaxed tracking-[0.15em] text-[#f5f0e8]/40"
+					className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/28"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
-					transition={{ delay: 1.5, duration: 2 }}
+					transition={{ delay: 2, duration: 2.5 }}
 				>
-					Putar dunia · cubit untuk zoom · ketik titik cahaya
+					Perhatikan cahaya yang menyusup · putar · ketik di mana ia terasa
 				</motion.p>
 			) : null}
 		</div>

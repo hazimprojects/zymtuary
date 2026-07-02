@@ -1,43 +1,90 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS } from './worldGlobeConfig';
+import { GLOBE_RADIUS, type EntityEntry, type ResonancePlacement } from './worldGlobeConfig';
+import { createEntityGlowUniforms, updateEntityGlowUniforms } from './entityGlowUniforms';
 import { createGlobeMaterial } from './globeShader';
+import { pickNearestEntity, setHoverGlow } from './pickNearestEntity';
 
 type GlobeSurfaceProps = {
 	segments: number;
+	placements: ResonancePlacement[];
+	onHover: (entity: EntityEntry | null) => void;
+	onSelect: (entity: EntityEntry) => void;
+	hoveredEntity: EntityEntry | null;
+	interactionPaused: boolean;
 };
 
 export type GlobeSurfaceHandle = THREE.Mesh;
 
-/** Selubung Equilara — permukaan opaque, teras pepejal di dalam */
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
-	function GlobeSurface({ segments }, ref) {
+	function GlobeSurface(
+		{ segments, placements, onHover, onSelect, hoveredEntity, interactionPaused },
+		ref,
+	) {
 		const meshRef = useRef<THREE.Mesh>(null);
+		const glowUniforms = useMemo(() => createEntityGlowUniforms(), []);
 		const material = useMemo(() => {
-			const mat = createGlobeMaterial();
+			const mat = createGlobeMaterial(glowUniforms);
 			mat.depthWrite = true;
 			mat.depthTest = true;
 			mat.side = THREE.FrontSide;
 			return mat;
-		}, []);
+		}, [glowUniforms]);
 
 		useImperativeHandle(ref, () => meshRef.current as THREE.Mesh);
 
+		useEffect(() => {
+			updateEntityGlowUniforms(glowUniforms, placements);
+		}, [glowUniforms, placements]);
+
 		useFrame(({ clock }) => {
 			material.uniforms.uTime.value = clock.elapsedTime;
+
+			const hovered = placements.find((p) => p.entity.id === hoveredEntity?.id);
+			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);
 		});
+
+		const hitNormal = (e: ThreeEvent<PointerEvent>) => {
+			const n = e.object.worldToLocal(e.point.clone()).normalize();
+			return pickNearestEntity(n.x, n.y, n.z, placements);
+		};
+
+		const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+			if (interactionPaused) return;
+			e.stopPropagation();
+			const entity = hitNormal(e);
+			onHover(entity);
+			document.body.style.cursor = entity ? 'pointer' : 'default';
+		};
+
+		const handlePointerOut = () => {
+			onHover(null);
+			document.body.style.cursor = 'default';
+		};
+
+		const handleClick = (e: ThreeEvent<MouseEvent>) => {
+			if (interactionPaused) return;
+			e.stopPropagation();
+			const entity = hitNormal(e);
+			if (entity) onSelect(entity);
+		};
 
 		return (
 			<group>
-				{/* Teras pepejal — elak tembus pandang */}
 				<mesh renderOrder={0}>
 					<sphereGeometry args={[GLOBE_RADIUS * 0.992, segments, segments]} />
-					<meshBasicMaterial color="#061018" depthWrite depthTest />
+					<meshBasicMaterial color="#040810" depthWrite depthTest />
 				</mesh>
 
-				{/* Permukaan terrain */}
-				<mesh ref={meshRef} renderOrder={1}>
+				<mesh
+					ref={meshRef}
+					renderOrder={1}
+					onPointerMove={handlePointerMove}
+					onPointerOut={handlePointerOut}
+					onClick={handleClick}
+				>
 					<sphereGeometry args={[GLOBE_RADIUS, segments, segments]} />
 					<primitive object={material} attach="material" />
 				</mesh>
