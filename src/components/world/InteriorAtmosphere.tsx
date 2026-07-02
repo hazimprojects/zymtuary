@@ -8,26 +8,37 @@ const SUN_DIR = new THREE.Vector3(0.35, 0.55, 0.75).normalize();
 
 type InteriorAtmosphereProps = {
 	active: boolean;
+	isMobile?: boolean;
 };
 
-export function InteriorAtmosphere({ active }: InteriorAtmosphereProps) {
+export function InteriorAtmosphere({ active, isMobile = false }: InteriorAtmosphereProps) {
 	const sunRef = useRef<THREE.Group>(null);
 	const haloRef = useRef<THREE.Mesh>(null);
 	const { camera } = useThree();
 
+	// Shell awan bertindih dengan shader noise yang mahal boleh menjunam kadar
+	// bingkai di GPU mobile — kurangkan bilangan shell, resolusi, dan kos shader.
 	const cloudMaterials = useMemo(
-		() => [
-			createInteriorCloudMaterial(0.55),
-			createInteriorCloudMaterial(0.38),
-			createInteriorCloudMaterial(0.22),
-		],
-		[],
+		() =>
+			isMobile
+				? [createInteriorCloudMaterial(0.5, 'low'), createInteriorCloudMaterial(0.3, 'low')]
+				: [
+						createInteriorCloudMaterial(0.55),
+						createInteriorCloudMaterial(0.38),
+						createInteriorCloudMaterial(0.22),
+					],
+		[isMobile],
 	);
 
 	const shellRadii = useMemo(
-		() => [GLOBE_RADIUS + 0.12, GLOBE_RADIUS + 0.28, GLOBE_RADIUS + 0.48],
-		[],
+		() =>
+			isMobile
+				? [GLOBE_RADIUS + 0.16, GLOBE_RADIUS + 0.4]
+				: [GLOBE_RADIUS + 0.12, GLOBE_RADIUS + 0.28, GLOBE_RADIUS + 0.48],
+		[isMobile],
 	);
+
+	const shellSegments = isMobile ? 22 : 48;
 
 	useFrame(({ clock }) => {
 		if (!active) return;
@@ -47,7 +58,7 @@ export function InteriorAtmosphere({ active }: InteriorAtmosphereProps) {
 		<group>
 			{shellRadii.map((radius, i) => (
 				<mesh key={radius} renderOrder={10 + i}>
-					<sphereGeometry args={[radius, 48, 48]} />
+					<sphereGeometry args={[radius, shellSegments, shellSegments]} />
 					<primitive object={cloudMaterials[i]} attach="material" />
 				</mesh>
 			))}

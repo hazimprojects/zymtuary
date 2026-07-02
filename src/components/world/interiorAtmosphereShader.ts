@@ -12,7 +12,8 @@ void main() {
 }
 `;
 
-export const interiorCloudFragment = /* glsl */ `
+function buildFragmentShader(octaves: number, doubleLayer: boolean): string {
+	return /* glsl */ `
 uniform float uTime;
 uniform float uOpacity;
 uniform vec3 uSunDir;
@@ -50,7 +51,7 @@ float noise(vec3 p) {
 float fbm(vec3 p) {
 	float v = 0.0;
 	float a = 0.5;
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < ${octaves}; i++) {
 		v += a * noise(p);
 		p *= 2.05;
 		a *= 0.5;
@@ -61,7 +62,7 @@ float fbm(vec3 p) {
 void main() {
 	vec3 drift = vec3(uTime * 0.04, uTime * 0.01, uTime * 0.03);
 	float density = fbm(normalize(vWorldPos) * 4.5 + drift);
-	density += fbm(normalize(vWorldPos) * 7.5 + drift * 1.4) * 0.45;
+	${doubleLayer ? 'density += fbm(normalize(vWorldPos) * 7.5 + drift * 1.4) * 0.45;' : ''}
 	float alpha = smoothstep(0.42, 0.72, density) * uOpacity;
 
 	float sunGlow = pow(max(dot(normalize(vLocalNormal), normalize(uSunDir)), 0.0), 6.0);
@@ -70,11 +71,20 @@ void main() {
 	gl_FragColor = vec4(col, alpha);
 }
 `;
+}
 
-export function createInteriorCloudMaterial(opacity: number): THREE.ShaderMaterial {
+export const interiorCloudFragment = buildFragmentShader(4, true);
+/** Kos per-piksel jauh lebih rendah (~4x kurang sampel noise) — untuk mobile,
+ * di mana shell awan yang tumpang-tindih semasa descent boleh menjunam kadar bingkai. */
+export const interiorCloudFragmentLow = buildFragmentShader(2, false);
+
+export function createInteriorCloudMaterial(
+	opacity: number,
+	quality: 'high' | 'low' = 'high',
+): THREE.ShaderMaterial {
 	return new THREE.ShaderMaterial({
 		vertexShader: interiorCloudVertex,
-		fragmentShader: interiorCloudFragment,
+		fragmentShader: quality === 'low' ? interiorCloudFragmentLow : interiorCloudFragment,
 		uniforms: {
 			uTime: { value: 0 },
 			uOpacity: { value: opacity },
