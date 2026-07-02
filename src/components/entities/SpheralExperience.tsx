@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
-import { createSpheralAmbient } from '../../lib/spheralAmbient';
+import { useMemo, useState } from 'react';
 
 export type SpheralData = {
 	id: string;
@@ -64,27 +63,6 @@ export default function SpheralExperience({
 	const moodSingkat = MOOD_SINGKAT[spheral.id] ?? spheral.mood.split(',')[0].trim();
 	const layers = useMemo(() => splitLayers(spheral.penerangan_pendek), [spheral.penerangan_pendek]);
 	const layerBaseDelay = 1.2;
-
-	useEffect(() => {
-		const ambient = createSpheralAmbient(spheral.id);
-		let started = false;
-
-		const begin = () => {
-			if (started) return;
-			started = true;
-			void ambient.start();
-		};
-
-		begin();
-
-		const onGesture = () => begin();
-		document.addEventListener('pointerdown', onGesture, { once: true });
-
-		return () => {
-			document.removeEventListener('pointerdown', onGesture);
-			ambient.stop();
-		};
-	}, [spheral.id]);
 
 	return (
 		<div className="fixed inset-0 overflow-y-auto bg-black">

@@ -1,3 +1,4 @@
+/** Pemain audio fail — KIV: muzik ditangguhkan, fokus design dahulu. */
 export type AmbientHandle = {
 	start: () => Promise<void>;
 	stop: () => void;
