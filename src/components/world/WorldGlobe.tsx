@@ -32,9 +32,9 @@ export default function WorldGlobe({ spherals }: { spherals: SpheralEntry[] }) {
 		<div className="fixed inset-0 bg-black">
 			{ready ? (
 				<Canvas
-					camera={{ position: [0, 0.4, 4.2], fov: 45 }}
-					dpr={isMobile ? [1, 1.5] : [1, 2]}
-					gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+					camera={{ position: [0, 0.05, 6.8], fov: 50, near: 0.1, far: 100 }}
+					dpr={isMobile ? [1, 1.75] : [1, 2]}
+					gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
 					style={{ touchAction: 'none' }}
 				>
 					<color attach="background" args={['#000000']} />
@@ -79,12 +79,12 @@ export default function WorldGlobe({ spherals }: { spherals: SpheralEntry[] }) {
 
 			{/* Petunjuk halus */}
 			<motion.p
-				className="pointer-events-none absolute bottom-8 left-0 right-0 text-center font-body text-[0.6rem] uppercase tracking-[0.35em] text-[#f5f0e8]/25"
+				className="pointer-events-none absolute bottom-6 left-0 right-0 px-4 text-center font-body text-[0.55rem] uppercase leading-relaxed tracking-[0.22em] text-[#f5f0e8]/25 md:bottom-8 md:text-[0.6rem] md:tracking-[0.35em]"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ delay: 2.5, duration: 2 }}
 			>
-				{isMobile ? 'Sentuh & putar' : 'Putar untuk meneroka'}
+				{isMobile ? 'Putar · cubit untuk zoom · ketik untuk masuk' : 'Putar untuk meneroka · skrol untuk zoom'}
 			</motion.p>
 		</div>
 	);
