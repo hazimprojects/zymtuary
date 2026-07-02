@@ -1,19 +1,13 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import {
-	DESCENT_CONFIG,
-	GLOBE_RADIUS,
-	type EntityEntry,
-	type ResonancePlacement,
-} from './worldGlobeConfig';
+import { DESCENT_CONFIG, GLOBE_RADIUS } from './worldGlobeConfig';
 import {
 	applyDescentPose,
 	anglesFromDirection,
 	buildSurfaceFrame,
 	lookDirectionFromAngles,
 } from './surfaceFrame';
-import { pickNearestEntity } from './pickNearestEntity';
 import { InteriorAtmosphere } from './InteriorAtmosphere';
 
 type DescentControllerProps = {
@@ -21,8 +15,6 @@ type DescentControllerProps = {
 	anchor: THREE.Vector3;
 	interactionPaused: boolean;
 	isMobile: boolean;
-	placements: ResonancePlacement[];
-	onSelect: (entity: EntityEntry) => void;
 	onRequestExit: () => void;
 	onAnchorChange?: (anchor: THREE.Vector3) => void;
 };
@@ -51,8 +43,6 @@ export function DescentController({
 	anchor,
 	interactionPaused,
 	isMobile,
-	placements,
-	onSelect,
 	onRequestExit,
 	onAnchorChange,
 }: DescentControllerProps) {
@@ -66,10 +56,7 @@ export function DescentController({
 	const lastPointer = useRef({ x: 0, y: 0 });
 	const pinchStart = useRef<{ dist: number; alt: number } | null>(null);
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
-	const raycaster = useRef(new THREE.Raycaster());
-	const globeHit = useRef(new THREE.Vector3());
 	const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
-	const pendingSelectTimer = useRef<number | null>(null);
 	const walk = useRef<WalkState | null>(null);
 
 	const initFromCamera = useCallback(() => {
@@ -124,28 +111,6 @@ export function DescentController({
 			const dx = pts[1].x - pts[0].x;
 			const dy = pts[1].y - pts[0].y;
 			return Math.hypot(dx, dy);
-		};
-
-		const clearPendingSelect = () => {
-			if (pendingSelectTimer.current !== null) {
-				window.clearTimeout(pendingSelectTimer.current);
-				pendingSelectTimer.current = null;
-			}
-		};
-
-		/** Cari entiti yang ditenung kamera sekarang — dibetulkan: intersectSphere hidup pada Ray, bukan Raycaster. */
-		const raycastEntity = (): EntityEntry | null => {
-			if (!(camera instanceof THREE.PerspectiveCamera)) return null;
-			const lookDir = new THREE.Vector3();
-			camera.getWorldDirection(lookDir);
-			raycaster.current.set(camera.position, lookDir);
-			const hit = raycaster.current.ray.intersectSphere(
-				new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS * 1.002),
-				globeHit.current,
-			);
-			if (!hit) return null;
-			const n = globeHit.current.clone().normalize();
-			return pickNearestEntity(n.x, n.y, n.z, placements, 0.86);
 		};
 
 		const onPointerDown = (e: PointerEvent) => {
@@ -236,6 +201,8 @@ export function DescentController({
 			dragging.current = false;
 			if (!wasTap) return;
 
+			// Satu-satunya kegunaan ketik dalam descent: ketik dua kali untuk melangkah.
+			// Ketik sekali tidak buat apa-apa (dahulu ia membuka "page watak" — dibuang).
 			const now = performance.now();
 			const prev = lastTap.current;
 			const isDoubleTap =
@@ -245,19 +212,10 @@ export function DescentController({
 
 			if (isDoubleTap) {
 				lastTap.current = null;
-				clearPendingSelect();
 				beginWalk();
-				return;
+			} else {
+				lastTap.current = { time: now, x: e.clientX, y: e.clientY };
 			}
-
-			// Tunggu sekejap untuk pastikan ini bukan separuh pertama ketik-dua-kali
-			lastTap.current = { time: now, x: e.clientX, y: e.clientY };
-			clearPendingSelect();
-			const entity = raycastEntity();
-			pendingSelectTimer.current = window.setTimeout(() => {
-				pendingSelectTimer.current = null;
-				if (entity) onSelect(entity);
-			}, DOUBLE_TAP_WINDOW);
 		};
 
 		const onWheel = (e: WheelEvent) => {
@@ -287,9 +245,8 @@ export function DescentController({
 			el.removeEventListener('pointercancel', onPointerUp);
 			el.removeEventListener('wheel', onWheel);
 			el.removeEventListener('dblclick', onDoubleClick);
-			clearPendingSelect();
 		};
-	}, [active, interactionPaused, isMobile, gl, placements, onSelect, onRequestExit, camera, beginWalk]);
+	}, [active, interactionPaused, isMobile, gl, onRequestExit, beginWalk]);
 
 	useFrame((_, delta) => {
 		if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
