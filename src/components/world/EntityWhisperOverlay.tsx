@@ -7,6 +7,8 @@ type EntityWhisperOverlayProps = {
 	onClose: () => void;
 };
 
+const ease = [0.22, 1, 0.36, 1] as const;
+
 export function EntityWhisperOverlay({ entity, onClose }: EntityWhisperOverlayProps) {
 	const familyColor = FAMILY_COLORS[entity.keluarga_aetherys] ?? '#c9a96e';
 
@@ -20,62 +22,84 @@ export function EntityWhisperOverlay({ entity, onClose }: EntityWhisperOverlayPr
 
 	return (
 		<>
-			<motion.button
-				type="button"
-				className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+			{/* Kabut — redupkan dunia */}
+			<motion.div
+				className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[3px]"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				transition={{ duration: 0.4 }}
-				onClick={onClose}
-				aria-label="Tutup bisikan"
+				transition={{ duration: 2 }}
+				aria-hidden
 			/>
 
-			<motion.div
-				className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center px-5 pb-10 pt-20 md:items-center md:pb-0"
-				initial={{ opacity: 0, y: 24 }}
-				animate={{ opacity: 1, y: 0 }}
-				exit={{ opacity: 0, y: 16 }}
-				transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="whisper-title"
+			{/* Bisikan — seluruh skrin boleh diketik untuk lepaskan */}
+			<motion.button
+				type="button"
+				className="fixed inset-0 z-50 flex flex-col items-center justify-center px-10 pb-16 pt-24"
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				transition={{ duration: 2, ease }}
+				onClick={onClose}
+				aria-label="Lepaskan bisikan"
 			>
-				<div className="pointer-events-auto w-full max-w-md rounded-2xl border border-[#f5f0e8]/10 bg-[#0a0908]/95 px-6 py-8 shadow-2xl md:px-8 md:py-10">
-					<p
-						className="font-body text-center text-[0.6rem] uppercase tracking-[0.35em]"
-						style={{ color: `${familyColor}99` }}
+				<div className="max-w-md text-center">
+					<motion.p
+						className="font-body text-[0.55rem] uppercase tracking-[0.42em]"
+						style={{ color: `${familyColor}55` }}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 2.2, delay: 0.5, ease }}
 					>
 						{entity.keluarga_aetherys}
-					</p>
+					</motion.p>
 
-					<h2
-						id="whisper-title"
-						className="font-display mt-3 text-center text-2xl font-light tracking-wide text-[#f5f0e8]/95 md:text-3xl"
+					<motion.p
+						className="font-body mt-6 text-[0.6rem] uppercase tracking-[0.38em] text-[#f5f0e8]/22"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 2.4, delay: 0.8, ease }}
+					>
+						{entity.gelaran}
+					</motion.p>
+
+					<motion.p
+						className="font-display mt-10 text-xl font-light italic leading-[1.75] text-[#f5f0e8]/68 md:text-2xl md:leading-relaxed"
+						initial={{ opacity: 0, filter: 'blur(10px)' }}
+						animate={{ opacity: 1, filter: 'blur(0px)' }}
+						transition={{ duration: 3.6, delay: 1.2, ease }}
+					>
+						&ldquo;{entity.bisikan}&rdquo;
+					</motion.p>
+
+					<motion.p
+						className="font-display mt-12 text-sm font-light tracking-[0.14em] text-[#f5f0e8]/28"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 2.8, delay: 2.2, ease }}
 					>
 						{entity.nama}
-					</h2>
-					<p className="font-body mt-1 text-center text-xs tracking-[0.18em] text-[#f5f0e8]/45">
-						{entity.gelaran}
-					</p>
+					</motion.p>
 
-					<p className="font-display mt-8 text-center text-base font-light italic leading-relaxed text-[#f5f0e8]/80 md:text-lg">
-						&ldquo;{entity.bisikan}&rdquo;
-					</p>
-
-					<p className="font-body mt-6 text-center text-[0.55rem] uppercase tracking-[0.28em] text-[#f5f0e8]/30">
-						{entity.keadaan === 'Dormant' ? 'dormant · echo' : 'distorsis · echo'}
-					</p>
-
-					<button
-						type="button"
-						onClick={onClose}
-						className="font-body mt-8 flex w-full items-center justify-center rounded-full border border-[#f5f0e8]/20 py-3.5 text-sm uppercase tracking-[0.25em] text-[#f5f0e8]/70 transition-colors active:bg-[#f5f0e8]/10 md:mt-10"
+					<motion.p
+						className="font-body mt-14 text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/18"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 2, delay: 3, ease }}
 					>
-						Tutup
-					</button>
+						{entity.keadaan === 'Dormant' ? 'dormant · echo' : 'distorsis · echo'}
+					</motion.p>
 				</div>
-			</motion.div>
+
+				<motion.span
+					className="font-body absolute bottom-[max(2rem,env(safe-area-inset-bottom))] text-[0.6rem] uppercase tracking-[0.28em] text-[#f5f0e8]/30"
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					transition={{ duration: 2, delay: 2.5, ease }}
+				>
+					ketik untuk lepaskan
+				</motion.span>
+			</motion.button>
 		</>
 	);
 }

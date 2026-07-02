@@ -101,6 +101,11 @@ export function GlobeScene({
 					ONE: THREE.TOUCH.ROTATE,
 					TWO: THREE.TOUCH.DOLLY_ROTATE,
 				}}
+				mouseButtons={{
+					LEFT: THREE.MOUSE.ROTATE,
+					MIDDLE: THREE.MOUSE.DOLLY,
+					RIGHT: THREE.MOUSE.ROTATE,
+				}}
 				onStart={() => setDragging(true)}
 				onEnd={() => setDragging(false)}
 			/>
