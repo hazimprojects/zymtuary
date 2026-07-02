@@ -14,7 +14,7 @@ const {
 } = Astro.props;
 
 const bodyClass = immersive
-	? 'min-h-dvh overflow-hidden bg-black text-[#f5f0e8] antialiased'
+	? 'min-h-dvh bg-black text-[#f5f0e8] antialiased'
 	: 'min-h-dvh bg-zinc-950 text-zinc-100 antialiased';
 ---
 
@@ -23,7 +23,7 @@ const bodyClass = immersive
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
