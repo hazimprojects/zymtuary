@@ -1,8 +1,16 @@
-import { useRef, useState, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef, useState, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
-import { layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
+import {
+	getOrbitControlsForMode,
+	getProximity,
+	getZoomMode,
+	layoutResonancePoints,
+	type EntityEntry,
+	type ZoomMode,
+} from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResponsiveCamera } from './ResponsiveCamera';
@@ -14,6 +22,7 @@ type GlobeSceneProps = {
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
+	onZoomModeChange?: (mode: ZoomMode) => void;
 };
 
 export function GlobeScene({
@@ -23,31 +32,58 @@ export function GlobeScene({
 	hoveredEntity,
 	isMobile,
 	interactionPaused,
+	onZoomModeChange,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
+	const controlsRef = useRef<OrbitControlsImpl>(null);
 	const [dragging, setDragging] = useState(false);
-	const segments = isMobile ? 36 : 48;
+	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
+	const [atmosphereIntensity, setAtmosphereIntensity] = useState(0.03);
+	const { camera } = useThree();
+	const segments = isMobile ? 40 : 56;
 
 	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
+	const orbitConfig = useMemo(() => getOrbitControlsForMode(zoomMode, isMobile), [zoomMode, isMobile]);
+
+	useEffect(() => {
+		onZoomModeChange?.(zoomMode);
+	}, [onZoomModeChange, zoomMode]);
 
 	useFrame((_, delta) => {
+		const distance = camera.position.length();
+		const nextMode = getZoomMode(distance);
+		if (nextMode !== zoomMode) setZoomMode(nextMode);
+
+		const proximity = getProximity(distance);
+		setAtmosphereIntensity(0.03 + proximity * 0.12);
+
 		if (!groupRef.current || dragging || interactionPaused) return;
+		if (nextMode !== 'orbit') return;
 		groupRef.current.rotation.y += delta * 0.035;
 	});
 
-	const controls = isMobile
-		? { minDistance: 4.5, maxDistance: 10, zoomSpeed: 1.0, rotateSpeed: 0.45 }
-		: { minDistance: 3.2, maxDistance: 6.5, zoomSpeed: 0.6, rotateSpeed: 0.55 };
+	useFrame(() => {
+		if (!(camera instanceof THREE.PerspectiveCamera)) return;
+		const near = zoomMode === 'surface' ? 0.02 : 0.08;
+		if (Math.abs(camera.near - near) > 0.001) {
+			camera.near = near;
+			camera.updateProjectionMatrix();
+		}
+	});
+
+	const fogNear = zoomMode === 'surface' ? 2.5 : zoomMode === 'atmosphere' ? 4.5 : 8;
+	const fogFar = zoomMode === 'surface' ? 20 : 22;
 
 	return (
 		<>
-			<fog attach="fog" args={['#020408', 7, 20]} />
+			<fog attach="fog" args={['#0a1420', fogNear, fogFar]} />
 			<ResponsiveCamera isMobile={isMobile} />
 
-			<ambientLight intensity={0.12} color="#6a8090" />
-			<pointLight position={[2, 4, 5]} intensity={0.35} color="#c4a86a" distance={12} />
-			<pointLight position={[-3, -2, -4]} intensity={0.2} color="#5c4a8a" distance={12} />
+			<ambientLight intensity={0.38} color="#8aa0b0" />
+			<directionalLight position={[4, 6, 5]} intensity={0.85} color="#f0e6d0" />
+			<pointLight position={[2, 4, 5]} intensity={0.45} color="#c4a86a" distance={14} />
+			<pointLight position={[-3, -2, -4]} intensity={0.28} color="#6a5898" distance={14} />
 
 			<Stars
 				radius={90}
@@ -60,7 +96,7 @@ export function GlobeScene({
 			/>
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
-				<AtmosphereVeil />
+				<AtmosphereVeil intensity={atmosphereIntensity} />
 
 				<GlobeSurface
 					ref={globeRef}
@@ -74,15 +110,18 @@ export function GlobeScene({
 			</group>
 
 			<OrbitControls
+				ref={controlsRef}
 				enabled={!interactionPaused}
 				enablePan={false}
 				enableZoom
 				enableDamping
 				dampingFactor={0.09}
-				minDistance={controls.minDistance}
-				maxDistance={controls.maxDistance}
-				rotateSpeed={controls.rotateSpeed}
-				zoomSpeed={controls.zoomSpeed}
+				minDistance={orbitConfig.minDistance}
+				maxDistance={orbitConfig.maxDistance}
+				minPolarAngle={orbitConfig.minPolarAngle}
+				maxPolarAngle={orbitConfig.maxPolarAngle}
+				rotateSpeed={orbitConfig.rotateSpeed}
+				zoomSpeed={orbitConfig.zoomSpeed}
 				touches={{
 					ONE: THREE.TOUCH.ROTATE,
 					TWO: THREE.TOUCH.DOLLY_ROTATE,
