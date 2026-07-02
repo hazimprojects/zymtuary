@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLOBE_RADIUS, layoutResonancePoints, type EntityEntry } from './worldGlobeConfig';
-import { GlobeSurface } from './GlobeSurface';
+import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResonancePoint } from './ResonancePoint';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
@@ -14,6 +14,7 @@ type GlobeSceneProps = {
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
+	whisperOpen: boolean;
 };
 
 export function GlobeScene({
@@ -23,8 +24,10 @@ export function GlobeScene({
 	hoveredEntity,
 	isMobile,
 	interactionPaused,
+	whisperOpen,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
+	const globeRef = useRef<GlobeSurfaceHandle>(null);
 	const [dragging, setDragging] = useState(false);
 	const segments = isMobile ? 36 : 48;
 
@@ -72,7 +75,7 @@ export function GlobeScene({
 					/>
 				</mesh>
 
-				<GlobeSurface segments={segments} />
+				<GlobeSurface ref={globeRef} segments={segments} />
 
 				{placements.map(({ entity, position }) => (
 					<ResonancePoint
@@ -83,6 +86,8 @@ export function GlobeScene({
 						onSelect={onSelect}
 						isHovered={hoveredEntity?.id === entity.id}
 						isMobile={isMobile}
+						dimmed={whisperOpen}
+						globeRef={globeRef}
 					/>
 				))}
 			</group>
