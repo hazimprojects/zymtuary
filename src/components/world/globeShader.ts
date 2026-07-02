@@ -10,10 +10,13 @@ function hexToVec3(hex: string): THREE.Vector3 {
 export const globeVertexShader = /* glsl */ `
 varying vec3 vNormal;
 varying vec3 vObjectNormal;
+varying vec3 vViewDir;
 
 void main() {
 	vNormal = normalize(normalMatrix * normal);
 	vObjectNormal = normalize(normal);
+	vec4 worldPos = modelMatrix * vec4(position, 1.0);
+	vViewDir = normalize(cameraPosition - worldPos.xyz);
 	gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
@@ -34,6 +37,7 @@ uniform float uHoverActive;
 
 varying vec3 vNormal;
 varying vec3 vObjectNormal;
+varying vec3 vViewDir;
 
 float hash(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -73,70 +77,66 @@ float fbm(vec3 p) {
 }
 
 vec3 dreamTerrain(vec3 n) {
-	vec3 p = n * 3.8;
+	vec3 p = n * 3.6;
 	float continent = fbm(p);
-	float elevation = fbm(p * 2.2 + vec3(1.2, 2.0, 0.6));
+	float elevation = fbm(p * 2.1 + vec3(1.1, 1.8, 0.5));
+	float land = smoothstep(0.47, 0.57, continent);
+	float forest = smoothstep(0.36, 0.5, elevation) * land * 0.65;
 
-	float land = smoothstep(0.46, 0.56, continent);
-	float forest = smoothstep(0.35, 0.52, elevation) * land * 0.7;
-	float sea = 1.0 - land;
+	vec3 deep = vec3(0.025, 0.07, 0.13);
+	vec3 water = vec3(0.05, 0.14, 0.22);
+	vec3 landCol = vec3(0.12, 0.16, 0.11);
+	vec3 grove = vec3(0.07, 0.2, 0.13);
 
-	vec3 deep = vec3(0.03, 0.08, 0.14);
-	vec3 water = vec3(0.06, 0.16, 0.24);
-	vec3 landCol = vec3(0.14, 0.18, 0.12);
-	vec3 grove = vec3(0.08, 0.22, 0.14);
-
-	vec3 col = mix(deep, water, sea * 0.8);
-	col = mix(col, landCol, land * 0.65);
+	vec3 col = mix(deep, water, 1.0 - land);
+	col = mix(col, landCol, land * 0.7);
 	col = mix(col, grove, forest);
 	return col;
 }
 
 vec3 hemisphereTint(vec3 col, vec3 n) {
 	float lat = n.y;
-	float northW = smoothstep(0.0, 0.65, lat);
-	float southW = smoothstep(0.0, 0.65, -lat);
-	col = mix(col, col * uLuminara * 1.4, northW * 0.18);
-	col = mix(col, col * uNoctira * 1.3, southW * 0.18);
+	col = mix(col, col * uLuminara * 1.35, smoothstep(0.0, 0.6, lat) * 0.16);
+	col = mix(col, col * uNoctira * 1.25, smoothstep(0.0, 0.6, -lat) * 0.16);
 	return col;
 }
 
-vec3 innerResonance(vec3 n) {
+vec3 innerResonance(vec3 n, float frontMask) {
 	vec3 glow = vec3(0.0);
 	for (int i = 0; i < MAX_GLOWS; i++) {
 		if (i >= uEntityCount) break;
 		float align = dot(n, uEntityDirs[i]);
-		float core = smoothstep(0.955, 0.999, align);
-		float halo = smoothstep(0.78, 0.955, align) * 0.55;
-		float pulse = 0.78 + 0.22 * sin(uTime * 0.9 + float(i) * 1.3);
-		float w = (core * 1.8 + halo) * uEntityStrength[i] * pulse;
+		float core = smoothstep(0.988, 0.9998, align);
+		float bleed = smoothstep(0.972, 0.988, align) * 0.18;
+		float pulse = 0.82 + 0.18 * sin(uTime * 0.75 + float(i) * 1.1);
+		float w = (core * 1.4 + bleed) * uEntityStrength[i] * pulse;
 		glow += uEntityColors[i] * w;
 	}
 
 	float hoverAlign = dot(n, normalize(uHoverDir));
-	float hoverBoost = smoothstep(0.88, 0.995, hoverAlign) * uHoverActive * 0.6;
+	float hoverBoost = smoothstep(0.975, 0.999, hoverAlign) * uHoverActive * 0.5;
 	glow += uEquilara * hoverBoost;
 
-	return glow;
+	return glow * frontMask;
 }
 
 void main() {
 	vec3 n = normalize(vObjectNormal);
+	float frontMask = smoothstep(0.08, 0.35, dot(n, normalize(vViewDir)));
+
 	vec3 col = dreamTerrain(n);
 	col = hemisphereTint(col, n);
 
-	vec3 resonance = innerResonance(n);
-	col += resonance * 0.42;
-	col = mix(col, col + resonance * 0.35, min(length(resonance) * 1.5, 0.75));
+	vec3 resonance = innerResonance(n, frontMask);
+	col += resonance * 0.32;
 
-	float mist = fbm(n * 4.0 + vec3(uTime * 0.015, 0.0, uTime * 0.01));
-	col = mix(col, uEquilara * 0.35, mist * 0.12);
+	float mist = fbm(n * 3.5 + vec3(uTime * 0.012, 0.0, uTime * 0.008));
+	col = mix(col, uEquilara * 0.3, mist * 0.08);
 
-	float breathe = 0.9 + 0.05 * sin(uTime * 0.55);
-	col *= breathe;
+	col *= 0.92 + 0.04 * sin(uTime * 0.5);
 
-	float fresnel = pow(1.0 - abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0))), 2.8);
-	col += fresnel * vec3(0.08, 0.07, 0.06);
+	float fresnel = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 3.0);
+	col += fresnel * vec3(0.06, 0.05, 0.04) * frontMask;
 
 	gl_FragColor = vec4(col, 1.0);
 }

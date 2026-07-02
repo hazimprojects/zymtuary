@@ -43,6 +43,6 @@ export function updateEntityGlowUniforms(
 		uniforms.uEntityDirs.value[i].set(...p.direction);
 		const c = new THREE.Color(FAMILY_COLORS[p.entity.keluarga_aetherys] ?? '#c9a96e');
 		uniforms.uEntityColors.value[i].set(c.r, c.g, c.b);
-		uniforms.uEntityStrength.value[i] = p.entity.keadaan === 'Dormant' ? 0.32 : 0.9;
+		uniforms.uEntityStrength.value[i] = p.entity.keadaan === 'Dormant' ? 0.28 : 0.75;
 	}
 }

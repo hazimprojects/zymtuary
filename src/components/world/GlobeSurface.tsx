@@ -48,7 +48,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		const hitNormal = (e: ThreeEvent<PointerEvent>) => {
 			const n = e.object.worldToLocal(e.point.clone()).normalize();
-			return pickNearestEntity(n.x, n.y, n.z, placements);
+			return pickNearestEntity(n.x, n.y, n.z, placements, 0.88);
 		};
 
 		const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -73,9 +73,10 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		return (
 			<group>
+				{/* Teras pepejal penuh */}
 				<mesh renderOrder={0}>
-					<sphereGeometry args={[GLOBE_RADIUS * 0.992, segments, segments]} />
-					<meshBasicMaterial color="#040810" depthWrite depthTest />
+					<sphereGeometry args={[GLOBE_RADIUS, segments, segments]} />
+					<meshBasicMaterial color="#030608" depthWrite depthTest />
 				</mesh>
 
 				<mesh
@@ -85,7 +86,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 					onPointerOut={handlePointerOut}
 					onClick={handleClick}
 				>
-					<sphereGeometry args={[GLOBE_RADIUS, segments, segments]} />
+					<sphereGeometry args={[GLOBE_RADIUS * 1.001, segments, segments]} />
 					<primitive object={material} attach="material" />
 				</mesh>
 			</group>
