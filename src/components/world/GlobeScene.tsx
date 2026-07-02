@@ -13,6 +13,7 @@ type GlobeSceneProps = {
 	onSelect: (entity: EntityEntry) => void;
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
+	interactionPaused: boolean;
 };
 
 export function GlobeScene({
@@ -21,6 +22,7 @@ export function GlobeScene({
 	onSelect,
 	hoveredEntity,
 	isMobile,
+	interactionPaused,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const [dragging, setDragging] = useState(false);
@@ -29,7 +31,7 @@ export function GlobeScene({
 	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
 
 	useFrame((_, delta) => {
-		if (!groupRef.current || dragging) return;
+		if (!groupRef.current || dragging || interactionPaused) return;
 		groupRef.current.rotation.y += delta * 0.05;
 	});
 
@@ -80,11 +82,13 @@ export function GlobeScene({
 						onHover={onHover}
 						onSelect={onSelect}
 						isHovered={hoveredEntity?.id === entity.id}
+						isMobile={isMobile}
 					/>
 				))}
 			</group>
 
 			<OrbitControls
+				enabled={!interactionPaused}
 				enablePan={false}
 				enableZoom
 				enableDamping
