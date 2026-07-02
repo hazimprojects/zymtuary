@@ -87,7 +87,6 @@ export function GlobeScene({
 						isHovered={hoveredEntity?.id === entity.id}
 						isMobile={isMobile}
 						dimmed={whisperOpen}
-						globeRef={globeRef}
 					/>
 				))}
 			</group>
