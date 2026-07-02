@@ -202,6 +202,25 @@ export default function LuminaraExperience({
 							>
 								&ldquo;{activeEntity.bisikan}&rdquo;
 							</motion.p>
+
+							{activeEntity.kawasan ? (
+								<motion.div
+									className="mt-9 border-t border-[#f5f0e8]/10 pt-5"
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									transition={{ duration: 2.4, delay: 2, ease: [0.22, 1, 0.36, 1] }}
+								>
+									<p className="font-body text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/22">
+										{activeEntity.kawasan}
+										{activeEntity.wilayah ? ` · ${activeEntity.wilayah}` : ''}
+									</p>
+									{activeEntity.spot_utama && activeEntity.spot_utama.length > 0 ? (
+										<p className="font-body mt-3 text-[0.68rem] italic leading-relaxed text-[#f5f0e8]/28">
+											{activeEntity.spot_utama.map((s) => s.nama).join(' · ')}
+										</p>
+									) : null}
+								</motion.div>
+							) : null}
 						</div>
 					</motion.div>
 				) : null}

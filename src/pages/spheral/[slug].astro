@@ -10,11 +10,12 @@ export function getStaticPaths() {
 		props: {
 			spheral,
 			entities: zipModel.entities.filter((e) => e.spheral_rumah === spheral.id),
+			wilayah: zipModel.wilayah.filter((w) => w.spheral_induk === spheral.id),
 		},
 	}));
 }
 
-const { spheral, entities } = Astro.props;
+const { spheral, entities, wilayah } = Astro.props;
 const isLuminara = spheral.id === 'luminara';
 ---
 
@@ -23,7 +24,7 @@ const isLuminara = spheral.id === 'luminara';
 		isLuminara ? (
 			<LuminaraExperience client:load spheral={spheral} entities={entities} />
 		) : (
-			<SpheralExperience client:load spheral={spheral} entities={entities} />
+			<SpheralExperience client:load spheral={spheral} entities={entities} wilayah={wilayah} />
 		)
 	}
 </Layout>

@@ -79,6 +79,28 @@ export function EntityWhisperOverlay({ entity, onClose }: EntityWhisperOverlayPr
 					>
 						{entity.nama}
 					</motion.p>
+
+					{entity.kawasan ? (
+						<motion.div
+							className="mt-8 border-t border-[#f5f0e8]/10 pt-6"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ duration: 2, delay: 2.1, ease }}
+						>
+							<p
+								className="font-body text-[0.6rem] uppercase tracking-[0.32em]"
+								style={{ color: familyColor }}
+							>
+								{entity.kawasan}
+								{entity.wilayah ? ` · ${entity.wilayah}` : ''}
+							</p>
+							{entity.spot_utama && entity.spot_utama.length > 0 ? (
+								<p className="font-body mt-3 text-[0.68rem] italic leading-relaxed text-[#f5f0e8]/35">
+									{entity.spot_utama.map((s) => s.nama).join(' · ')}
+								</p>
+							) : null}
+						</motion.div>
+					) : null}
 				</div>
 
 				<motion.span
