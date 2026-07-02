@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import SpheralExperience from '../../components/entities/SpheralExperience';
+import LuminaraExperience from '../../components/spherals/LuminaraExperience';
 import zipModel from '../../data/zip-model.json';
 
 export function getStaticPaths() {
@@ -14,8 +15,15 @@ export function getStaticPaths() {
 }
 
 const { spheral, entities } = Astro.props;
+const isLuminara = spheral.id === 'luminara';
 ---
 
 <Layout title={`${spheral.nama} · Zymtuary`} immersive>
-	<SpheralExperience client:load spheral={spheral} entities={entities} />
+	{
+		isLuminara ? (
+			<LuminaraExperience client:load spheral={spheral} entities={entities} />
+		) : (
+			<SpheralExperience client:load spheral={spheral} entities={entities} />
+		)
+	}
 </Layout>
