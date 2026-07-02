@@ -16,12 +16,13 @@ export function InteriorAtmosphere({ active, isMobile = false }: InteriorAtmosph
 	const haloRef = useRef<THREE.Mesh>(null);
 	const { camera } = useThree();
 
-	// Shell awan bertindih dengan shader noise yang mahal boleh menjunam kadar
-	// bingkai di GPU mobile — kurangkan bilangan shell, resolusi, dan kos shader.
+	// Shell awan bertindih boleh menjunam kadar bingkai di GPU mobile —
+	// kurangkan bilangan shell & resolusi (bukan shader itu sendiri, supaya
+	// hasil visual kekal sama seperti yang telah disahkan berfungsi).
 	const cloudMaterials = useMemo(
 		() =>
 			isMobile
-				? [createInteriorCloudMaterial(0.5, 'low'), createInteriorCloudMaterial(0.3, 'low')]
+				? [createInteriorCloudMaterial(0.5), createInteriorCloudMaterial(0.3)]
 				: [
 						createInteriorCloudMaterial(0.55),
 						createInteriorCloudMaterial(0.38),

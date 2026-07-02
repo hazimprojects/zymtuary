@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+html,
+body {
+	/* Elak gerak isyarat asli pelayar (pull-to-refresh, navigasi sejarah tepi)
+	   daripada merampas draf/cubit dalam pengalaman globe immersive. */
+	overscroll-behavior: none;
+}
+
 @theme {
 	--font-display: "Cormorant Garamond", Georgia, serif;
 	--font-body: "DM Sans", system-ui, sans-serif;
