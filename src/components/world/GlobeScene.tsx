@@ -158,6 +158,7 @@ export function GlobeScene({
 				placements={placements}
 				onSelect={onSelect}
 				onRequestExit={beginExitDescent}
+				onAnchorChange={setDescentAnchor}
 			/>
 
 			<OrbitControls
