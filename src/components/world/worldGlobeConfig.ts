@@ -25,7 +25,6 @@ export const FAMILY_COLORS: Record<string, string> = {
 };
 
 export const GLOBE_RADIUS = 1.55;
-export const RESONANCE_LIFT = 0.06;
 
 export type HemisferaAfiniti = 'luminara' | 'noctira' | 'horizon';
 
@@ -46,10 +45,13 @@ export function getHemisferaAfiniti(entity: EntityEntry): HemisferaAfiniti {
 export type ResonancePlacement = {
 	entity: EntityEntry;
 	position: [number, number, number];
+	direction: [number, number, number];
 	hemisfera: HemisferaAfiniti;
 };
 
-/** Taburkan titik resonans pada permukaan Equilara */
+export const INNER_GLOW_RADIUS = GLOBE_RADIUS * 0.84;
+
+/** Taburkan titik resonans — arah dari pusat untuk cahaya dalaman */
 export function layoutResonancePoints(entities: EntityEntry[]): ResonancePlacement[] {
 	const golden = Math.PI * (3 - Math.sqrt(5));
 
@@ -71,15 +73,19 @@ export function layoutResonancePoints(entities: EntityEntry[]): ResonancePlaceme
 		}
 
 		const ring = Math.sqrt(Math.max(0, 1 - y * y));
-		const r = GLOBE_RADIUS + RESONANCE_LIFT;
-		const x = ring * Math.sin(theta) * r;
-		const z = ring * Math.cos(theta) * r;
+		const dirX = ring * Math.sin(theta);
+		const dirZ = ring * Math.cos(theta);
+		const dirY = y;
+		const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
 
-		return {
-			entity,
-			position: [x, y * r, z],
-			hemisfera,
-		};
+		const direction: [number, number, number] = [dirX / len, dirY / len, dirZ / len];
+		const position: [number, number, number] = [
+			direction[0] * GLOBE_RADIUS,
+			direction[1] * GLOBE_RADIUS,
+			direction[2] * GLOBE_RADIUS,
+		];
+
+		return { entity, position, direction, hemisfera };
 	});
 }
 
