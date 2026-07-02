@@ -161,8 +161,22 @@ export function DescentController({
 		};
 
 		const onPointerMove = (e: PointerEvent) => {
-			if (!pointers.current.has(e.pointerId)) return;
+			// Jari yang sudah di skrin sebelum descent aktif (cth. cubit yang mencetuskan
+			// peralihan) tidak sempat cetuskan pointerdown pada controller ini — daftar
+			// terus di sini supaya "look" tidak mati sehingga jari diangkat & disentuh semula.
+			const isOrphan = !pointers.current.has(e.pointerId);
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (isOrphan) {
+				if (pointers.current.size === 1) {
+					dragging.current = true;
+					lastPointer.current = { x: e.clientX, y: e.clientY };
+				} else if (pointers.current.size === 2 && !pinchStart.current) {
+					dragging.current = false;
+					pinchStart.current = { dist: pointerDist(), alt: altitude.current };
+				}
+				return;
+			}
 
 			if (pointers.current.size === 2 && pinchStart.current) {
 				const dist = pointerDist();
@@ -304,5 +318,5 @@ export function DescentController({
 		);
 	});
 
-	return <InteriorAtmosphere active={active} />;
+	return <InteriorAtmosphere active={active} isMobile={isMobile} />;
 }
