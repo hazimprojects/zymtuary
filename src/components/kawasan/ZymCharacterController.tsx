@@ -41,6 +41,30 @@ function resolveCameraPosition(
 	return hits[0].point.add(dir.multiplyScalar(-GAME_CONTROL_CONFIG.cameraCollisionPadding));
 }
 
+function resolveCharacterObstacles(
+	pos: THREE.Vector3,
+	anchors: KawasanAnchor[],
+	plazaRadius: number,
+): void {
+	for (const anchor of anchors) {
+		const dx = pos.x - anchor.position.x;
+		const dz = pos.z - anchor.position.z;
+		const dist = Math.hypot(dx, dz);
+		const minDist = GAME_CONTROL_CONFIG.obstacleRadius + anchor.scale * 0.35;
+		if (dist < minDist && dist > 1e-4) {
+			const push = (minDist - dist) / dist;
+			pos.x += dx * push;
+			pos.z += dz * push;
+		}
+	}
+	const horizontal = Math.hypot(pos.x, pos.z);
+	if (horizontal > plazaRadius) {
+		const scale = plazaRadius / horizontal;
+		pos.x *= scale;
+		pos.z *= scale;
+	}
+}
+
 type JoystickState = {
 	pointerId: number;
 	originX: number;
@@ -98,7 +122,8 @@ export function ZymCharacterController({
 	const flyTarget = useRef(0);
 	const flyBlend = useRef(0);
 	const pitchInputSmooth = useRef(0);
-	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, flying: 0, pitchInput: 0 });
+	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, strafe: 0, flying: 0, pitchInput: 0 });
+	const baseFov = useRef(isMobile ? GAME_CONTROL_CONFIG.baseFovMobile : GAME_CONTROL_CONFIG.baseFovDesktop);
 
 	const lookDragging = useRef(false);
 	const lastLookPointer = useRef({ x: 0, y: 0 });
@@ -300,6 +325,7 @@ export function ZymCharacterController({
 		let moveMag = 0;
 		let pitchInputRaw = 0;
 		motionState.current.running = 0;
+		motionState.current.strafe = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
 			const rawMag = Math.hypot(dx, dy) / GAME_CONTROL_CONFIG.maxRadius;
@@ -321,6 +347,8 @@ export function ZymCharacterController({
 					motionState.current.running = isRunning ? 1 : 0;
 					moveDir.normalize();
 					const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+					const strafeAngle = shortestAngleDelta(facingYaw.current, targetYaw);
+					motionState.current.strafe = THREE.MathUtils.clamp(strafeAngle / (Math.PI / 2), -1, 1);
 					facingYaw.current +=
 						shortestAngleDelta(facingYaw.current, targetYaw) *
 						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
@@ -329,12 +357,7 @@ export function ZymCharacterController({
 						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * mag * delta,
 					);
 					characterPos.current.add(step);
-					const horizontal = Math.hypot(characterPos.current.x, characterPos.current.z);
-					if (horizontal > effectiveRadius) {
-						const scale = effectiveRadius / horizontal;
-						characterPos.current.x *= scale;
-						characterPos.current.z *= scale;
-					}
+					resolveCharacterObstacles(characterPos.current, anchors, effectiveRadius);
 				}
 			}
 		}
@@ -378,6 +401,15 @@ export function ZymCharacterController({
 		}
 		camera.position.copy(camSpringPos.current);
 		camera.lookAt(eyeTarget);
+
+		if (camera instanceof THREE.PerspectiveCamera) {
+			const targetFov =
+				baseFov.current +
+				motionState.current.running * GAME_CONTROL_CONFIG.runFovBoost +
+				flyBlend.current * GAME_CONTROL_CONFIG.flyFovBoost;
+			camera.fov += (targetFov - camera.fov) * springAlpha(8, delta);
+			camera.updateProjectionMatrix();
+		}
 
 		if (onNearSpotChange) {
 			let nearest: string | null = null;

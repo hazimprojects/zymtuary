@@ -12,6 +12,8 @@ export type ZymMotionState = {
 	speed: number;
 	/** 0..1 — 1 bila joystick melepasi ambang larian. */
 	running: number;
+	/** -1..1 — negatif = strafe kiri, positif = strafe kanan (animasi 8-arah ringkas). */
+	strafe: number;
 	/** 0..1 peralihan lembut antara pose berjalan (0) dan pose terbang (1). */
 	flying: number;
 	/** -1..1 — positif bila menolak ke depan, negatif bila menarik ke
@@ -88,11 +90,12 @@ export function ZymAvatar({
 			bobPhase.current += delta * 1.1;
 		}
 
-		const { speed, running, flying, pitchInput } = motionRef.current;
+		const { speed, running, strafe, flying, pitchInput } = motionRef.current;
 		walkPhase.current +=
 			delta * WALK_CYCLE_SPEED * (1 + running * 0.55) * Math.max(speed, flying > 0.5 ? 0.6 : 0);
 		const legSwing = Math.sin(walkPhase.current) * MAX_LEG_SWING * (1 - flying) * Math.max(speed, 0.15);
 		const armSwing = Math.sin(walkPhase.current + Math.PI) * MAX_ARM_SWING * (1 - flying) * Math.max(speed, 0.15);
+		const strafeLean = running * strafe * 0.22;
 
 		if (leftLegRef.current) {
 			leftLegRef.current.rotation.x = THREE.MathUtils.lerp(legSwing, FLY_LEG_TRAIL, flying);
@@ -110,15 +113,13 @@ export function ZymAvatar({
 		}
 		if (rootRef.current) {
 			// Condongan semasa terbang ikut arah tolak — menolak ke depan
-			// (pitchInput positif) menambah condong ke depan (menukik), menarik
-			// ke belakang (negatif) mengurangkan/menyongsangkannya (mendaki) —
-			// bukan sekadar condongan tetap seolah-olah terapung statik.
 			const dynamicLean = THREE.MathUtils.clamp(
 				FLY_BASE_LEAN - pitchInput * FLY_DYNAMIC_TILT,
 				-0.95,
 				0.35,
 			);
 			rootRef.current.rotation.x = THREE.MathUtils.lerp(0, dynamicLean, flying);
+			rootRef.current.rotation.z = THREE.MathUtils.lerp(strafeLean, 0, flying);
 			const hover = Math.sin(bobPhase.current) * THREE.MathUtils.lerp(0.035, 0.09, flying);
 			rootRef.current.position.y = hover;
 		}

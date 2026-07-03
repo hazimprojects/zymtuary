@@ -21,6 +21,12 @@ export const GAME_CONTROL_CONFIG = {
 	runSpeedMult: 1.0,
 	runThreshold: 0.48,
 	facingTurnRate: 9,
+	baseFovMobile: 55,
+	baseFovDesktop: 48,
+	runFovBoost: 5,
+	flyFovBoost: 4,
+	/** Jarak halangan bulat sekitar titik spot / landmark */
+	obstacleRadius: 1.15,
 } as const;
 
 /** Remap magnitude joystick selepas deadzone + ease smoothstep (rasa game). */
