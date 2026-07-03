@@ -420,13 +420,15 @@ export function ZymCharacterController({
 		motionState.current.flying = flyBlend.current;
 		motionState.current.pitchInput = pitchInputSmooth.current;
 
-		// Kamera kekal di belakang watak semasa bergerak; semasa berdiri watak
-		// menghadap arah pandang kamera — pola Sky/Genshin.
-		if (moveMag > 0.08) {
+		// Kamera kekal di belakang watak semasa bergerak (kecuali pemain sedang
+		// orbit manual); semasa berdiri watak menghadap arah pandang kamera.
+		if (moveMag > 0.08 && !lookDragging.current) {
+			const runBoost = 1 + motionState.current.running * GAME_CONTROL_CONFIG.cameraFollowRunBoost;
+			const followRate =
+				GAME_CONTROL_CONFIG.cameraFollowYaw * Math.max(moveMag, 0.45) * runBoost;
 			camYaw.current +=
-				shortestAngleDelta(camYaw.current, facingYaw.current) *
-				springAlpha(GAME_CONTROL_CONFIG.cameraFollowYaw * moveMag, delta);
-		} else {
+				shortestAngleDelta(camYaw.current, facingYaw.current) * springAlpha(followRate, delta);
+		} else if (moveMag <= 0.08) {
 			facingYaw.current +=
 				shortestAngleDelta(facingYaw.current, camYaw.current) *
 				springAlpha(GAME_CONTROL_CONFIG.idleFacingSync, delta);

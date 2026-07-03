@@ -5,24 +5,26 @@ export const GAME_CONTROL_CONFIG = {
 	maxRadius: 56,
 	deadzone: 0.12,
 	/** Lerp kamera ke sasaran — lebih tinggi = lebih melekat pada watak */
-	cameraSpring: 22,
-	cameraRotationSpring: 18,
+	cameraSpring: 28,
+	cameraRotationSpring: 24,
 	/** Semasa bergerak, camYaw ikut facingYaw supaya kamera kekal di belakang */
-	cameraFollowYaw: 16,
+	cameraFollowYaw: 32,
+	/** Bonus ikut belakang semasa larian */
+	cameraFollowRunBoost: 0.55,
 	/** Semasa berdiri, watak menghadap arah kamera */
 	idleFacingSync: 10,
 	/** Jarak kamera lalai (meter) — dekat seperti Sky/Genshin */
-	cameraDistanceMobile: 2.55,
-	cameraDistanceDesktop: 2.25,
-	cameraDistanceMin: 1.65,
-	cameraDistanceMax: 4.2,
+	cameraDistanceMobile: 2.05,
+	cameraDistanceDesktop: 1.85,
+	cameraDistanceMin: 1.45,
+	cameraDistanceMax: 3.8,
 	/** Sudut menegak lalai — sedikit dari atas, over-shoulder */
-	defaultPitch: 0.42,
-	pivotHeight: 1.02,
+	defaultPitch: 0.36,
+	pivotHeight: 1.05,
 	/** Titik pandang sedikit ke hadapan watak */
-	lookAhead: 0.85,
+	lookAhead: 0.55,
 	/** Offset bahu kamera (meter) — kamera sedikit ke kanan watak */
-	shoulderOffset: 0.22,
+	shoulderOffset: 0.14,
 	/** Jarak minimum kamera dari halangan (meter) */
 	cameraCollisionPadding: 0.35,
 	rotateSpeedMobile: 0.0042,
@@ -36,8 +38,8 @@ export const GAME_CONTROL_CONFIG = {
 	runSpeedMult: 1.0,
 	runThreshold: 0.48,
 	facingTurnRate: 9,
-	baseFovMobile: 52,
-	baseFovDesktop: 46,
+	baseFovMobile: 50,
+	baseFovDesktop: 42,
 	runFovBoost: 5,
 	flyFovBoost: 4,
 	/** Jarak halangan bulat sekitar titik spot / landmark */
