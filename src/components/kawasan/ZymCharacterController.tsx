@@ -252,24 +252,27 @@ export function ZymCharacterController({
 			}
 
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'look' });
-			if (pointers.current.size === 1) {
+
+			if (joystick.current) {
+				// Joystick aktif + jari baru = kamera drag serentak (ala Sky)
 				lookDragging.current = true;
 				lastLookPointer.current = { x: e.clientX, y: e.clientY };
-			}
-			if (pointers.current.size === 2) {
+			} else if (pointers.current.size === 1) {
+				lookDragging.current = true;
+				lastLookPointer.current = { x: e.clientX, y: e.clientY };
+			} else if (pointers.current.size === 2) {
+				// Dua jari tanpa joystick = cubit zum
 				lookDragging.current = false;
 				pinchStart.current = { dist: pointerDist(), distance: camDistance.current };
 			}
 		};
 
 		const onPointerMove = (e: PointerEvent) => {
+			// Joystick pointer — kemas kini offset sahaja
 			if (joystick.current && e.pointerId === joystick.current.pointerId) {
 				updateJoystickOffset(e.clientX, e.clientY);
 				const entry = pointers.current.get(e.pointerId);
-				if (entry) {
-					entry.x = e.clientX;
-					entry.y = e.clientY;
-				}
+				if (entry) { entry.x = e.clientX; entry.y = e.clientY; }
 				return;
 			}
 
@@ -278,7 +281,11 @@ export function ZymCharacterController({
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
 
 			if (isOrphan) {
-				if (pointers.current.size === 1) {
+				if (joystick.current) {
+					// Jari baru semasa joystick aktif = mula kamera drag
+					lookDragging.current = true;
+					lastLookPointer.current = { x: e.clientX, y: e.clientY };
+				} else if (pointers.current.size === 1) {
 					lookDragging.current = role === 'look';
 					lastLookPointer.current = { x: e.clientX, y: e.clientY };
 				} else if (pointers.current.size === 2 && !pinchStart.current) {
@@ -288,7 +295,8 @@ export function ZymCharacterController({
 				return;
 			}
 
-			if (pointers.current.size === 2 && pinchStart.current) {
+			// Cubit zum — hanya bila tiada joystick aktif
+			if (pointers.current.size === 2 && pinchStart.current && !joystick.current) {
 				const dist = pointerDist();
 				const scale = dist / Math.max(pinchStart.current.dist, 1);
 				camDistance.current = THREE.MathUtils.clamp(
@@ -319,13 +327,12 @@ export function ZymCharacterController({
 				joystick.current = null;
 				onJoystickChange?.(null);
 				pointers.current.delete(e.pointerId);
-				if (pointers.current.size < 2) pinchStart.current = null;
-				if (pointers.current.size === 1) {
-					const remaining = [...pointers.current.entries()][0];
-					if (remaining[1].role === 'look') {
-						lookDragging.current = true;
-						lastLookPointer.current = { x: remaining[1].x, y: remaining[1].y };
-					}
+				pinchStart.current = null;
+				// Jari kamera mungkin masih aktif — sambung drag
+				const remaining = [...pointers.current.entries()].find(([, p]) => p.role === 'look');
+				if (remaining) {
+					lookDragging.current = true;
+					lastLookPointer.current = { x: remaining[1].x, y: remaining[1].y };
 				} else {
 					lookDragging.current = false;
 				}
@@ -333,16 +340,15 @@ export function ZymCharacterController({
 			}
 
 			pointers.current.delete(e.pointerId);
-			if (pointers.current.size < 2) pinchStart.current = null;
-			if (pointers.current.size === 1) {
-				const remaining = [...pointers.current.entries()][0];
-				if (remaining[1].role === 'look') {
-					lookDragging.current = true;
-					lastLookPointer.current = { x: remaining[1].x, y: remaining[1].y };
-				}
-				return;
+			pinchStart.current = null;
+			// Cari jari kamera yang masih aktif
+			const remaining = [...pointers.current.entries()].find(([, p]) => p.role === 'look');
+			if (remaining && !joystick.current) {
+				lookDragging.current = true;
+				lastLookPointer.current = { x: remaining[1].x, y: remaining[1].y };
+			} else if (!remaining) {
+				lookDragging.current = false;
 			}
-			lookDragging.current = false;
 		};
 
 		const onWheel = (e: WheelEvent) => {
