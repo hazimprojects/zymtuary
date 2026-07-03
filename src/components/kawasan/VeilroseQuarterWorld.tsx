@@ -14,6 +14,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [nearSpotId, setNearSpotId] = useState<string | null>(null);
 	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
+	const [flying, setFlying] = useState(false);
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -84,6 +85,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 								isMobile={isMobile}
 								interactionPaused={showRotatePrompt}
 								nearSpotId={nearSpotId}
+								flying={flying}
 								onNearSpotChange={setNearSpotId}
 								onJoystickChange={setJoystick}
 							/>
@@ -153,8 +155,20 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.6, duration: 1.8 }}
 			>
-				Seret penjuru bawah untuk berjalan · seret di tempat lain untuk pusing kamera
+				{flying
+					? 'Melayang — seret penjuru bawah untuk terbang · ketik lagi untuk mendarat'
+					: 'Seret penjuru bawah untuk berjalan · seret di tempat lain untuk pusing kamera'}
 			</motion.p>
+
+			<button
+				type="button"
+				onClick={() => setFlying((f) => !f)}
+				className="pointer-events-auto fixed bottom-40 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/30 bg-black/45 px-5 py-2.5 backdrop-blur-sm transition-colors active:bg-black/60"
+			>
+				<span className="font-body text-[0.58rem] uppercase tracking-[0.28em] text-[#f5f0e8]/85">
+					{flying ? '↓ Mendarat' : '✦ Terbang'}
+				</span>
+			</button>
 
 			{joystick ? (
 				<div className="pointer-events-none fixed inset-0 z-30">

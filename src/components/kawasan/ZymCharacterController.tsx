@@ -4,11 +4,16 @@ import * as THREE from 'three';
 import { JOYSTICK_CONFIG } from '../world/worldGlobeConfig';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
 import type { JoystickVisual } from '../world/DescentController';
-import { ZymAvatar } from './ZymAvatar';
+import { ZymAvatar, type ZymMotionState } from './ZymAvatar';
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const MOVE_SPEED = 2.6;
 const REVEAL_RADIUS = 2.1;
+const FLY_HEIGHT = 1.75;
+const FLY_MOVE_MULT = 1.55;
+const FLY_RADIUS_MULT = 1.6;
+const FLY_BLEND_RATE = 2.2;
+const FACING_TURN_RATE = 9;
 
 type JoystickState = {
 	pointerId: number;
@@ -18,11 +23,21 @@ type JoystickState = {
 	dy: number;
 };
 
+function shortestAngleDelta(from: number, to: number): number {
+	let delta = (to - from) % (Math.PI * 2);
+	if (delta > Math.PI) delta -= Math.PI * 2;
+	if (delta < -Math.PI) delta += Math.PI * 2;
+	return delta;
+}
+
 /**
  * Watak Zym-kesedaran yang boleh dilihat — pelawat mengawal avatar ini
  * bergerak di atas plaza (bukan kamera terapung terus). Kamera ikut di
  * belakang/atas watak (third-person); seret penjuru bawah untuk gerak,
- * seret di tempat lain untuk putar kamera mengelilingi watak.
+ * seret di tempat lain untuk putar kamera mengelilingi watak. Watak boleh
+ * berjalan (kaki berayun) atau terbang (melayang lebih tinggi, kaki
+ * menghala belakang, lengan terbentang macam sayap) — `flying` dikawal
+ * daripada komponen induk (butang togol).
  */
 export function ZymCharacterController({
 	anchors,
@@ -31,6 +46,7 @@ export function ZymCharacterController({
 	glowColor,
 	isMobile,
 	interactionPaused,
+	flying,
 	onNearSpotChange,
 	onJoystickChange,
 }: {
@@ -40,22 +56,32 @@ export function ZymCharacterController({
 	glowColor: string;
 	isMobile: boolean;
 	interactionPaused: boolean;
+	flying: boolean;
 	onNearSpotChange?: (id: string | null) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 }) {
 	const { camera, gl } = useThree();
 	const avatarGroupRef = useRef<THREE.Group>(null);
 	const characterPos = useRef(new THREE.Vector3(...startPosition));
+	const characterHeight = useRef(0);
+	const facingYaw = useRef(0);
 	const camYaw = useRef(Math.PI * 0.15);
 	const camPitch = useRef(0.62);
 	const camDistance = useRef(isMobile ? 5.2 : 4.4);
 	const lastNearSpot = useRef<string | null>(null);
+	const flyTarget = useRef(0);
+	const flyBlend = useRef(0);
+	const motionState = useRef<ZymMotionState>({ speed: 0, flying: 0 });
 
 	const dragging = useRef(false);
 	const lastPointer = useRef({ x: 0, y: 0 });
 	const pinchStart = useRef<{ dist: number; distance: number } | null>(null);
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
 	const joystick = useRef<JoystickState | null>(null);
+
+	useEffect(() => {
+		flyTarget.current = flying ? 1 : 0;
+	}, [flying]);
 
 	useEffect(() => {
 		if (interactionPaused) return;
@@ -198,6 +224,12 @@ export function ZymCharacterController({
 	}, [interactionPaused, isMobile, gl, onJoystickChange]);
 
 	useFrame((_, delta) => {
+		flyBlend.current += (flyTarget.current - flyBlend.current) * Math.min(1, delta * FLY_BLEND_RATE);
+		const speedMult = THREE.MathUtils.lerp(1, FLY_MOVE_MULT, flyBlend.current);
+		const radiusMult = THREE.MathUtils.lerp(1, FLY_RADIUS_MULT, flyBlend.current);
+		const effectiveRadius = plazaRadius * radiusMult;
+
+		let moveMag = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
 			const rawMag = Math.hypot(dx, dy);
@@ -207,15 +239,18 @@ export function ZymCharacterController({
 				const ndy = dy / rawMag;
 				const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, camYaw.current);
 				const right = forward.clone().applyAxisAngle(Y_AXIS, -Math.PI / 2);
-				const moveWorld = new THREE.Vector3()
-					.addScaledVector(forward, -ndy)
-					.addScaledVector(right, ndx);
-				if (moveWorld.lengthSq() > 1e-8) {
-					moveWorld.normalize().multiplyScalar(MOVE_SPEED * mag * delta);
-					characterPos.current.add(moveWorld);
+				const moveDir = new THREE.Vector3().addScaledVector(forward, -ndy).addScaledVector(right, ndx);
+				if (moveDir.lengthSq() > 1e-8) {
+					moveMag = mag;
+					moveDir.normalize();
+					const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+					facingYaw.current += shortestAngleDelta(facingYaw.current, targetYaw) * Math.min(1, delta * FACING_TURN_RATE);
+
+					const step = moveDir.multiplyScalar(MOVE_SPEED * speedMult * mag * delta);
+					characterPos.current.add(step);
 					const horizontal = Math.hypot(characterPos.current.x, characterPos.current.z);
-					if (horizontal > plazaRadius) {
-						const scale = plazaRadius / horizontal;
+					if (horizontal > effectiveRadius) {
+						const scale = effectiveRadius / horizontal;
 						characterPos.current.x *= scale;
 						characterPos.current.z *= scale;
 					}
@@ -223,9 +258,20 @@ export function ZymCharacterController({
 			}
 		}
 
-		if (avatarGroupRef.current) avatarGroupRef.current.position.copy(characterPos.current);
+		characterHeight.current += (FLY_HEIGHT * flyBlend.current - characterHeight.current) * Math.min(1, delta * FLY_BLEND_RATE);
 
-		const eyeTarget = characterPos.current.clone().add(new THREE.Vector3(0, 0.85, 0));
+		motionState.current.speed = moveMag;
+		motionState.current.flying = flyBlend.current;
+
+		if (avatarGroupRef.current) {
+			avatarGroupRef.current.position.set(characterPos.current.x, characterHeight.current, characterPos.current.z);
+			avatarGroupRef.current.rotation.y = facingYaw.current;
+		}
+
+		const eyeTarget = characterPos.current
+			.clone()
+			.setY(characterHeight.current + 0.85)
+			.add(new THREE.Vector3());
 		const horizontalDist = camDistance.current * Math.cos(camPitch.current);
 		const height = camDistance.current * Math.sin(camPitch.current);
 		const offset = new THREE.Vector3(
@@ -240,7 +286,7 @@ export function ZymCharacterController({
 			let nearest: string | null = null;
 			let nearestDist = REVEAL_RADIUS;
 			for (const anchor of anchors) {
-				const d = characterPos.current.distanceTo(anchor.position);
+				const d = Math.hypot(characterPos.current.x - anchor.position.x, characterPos.current.z - anchor.position.z);
 				if (d < nearestDist) {
 					nearestDist = d;
 					nearest = anchor.id;
@@ -255,7 +301,7 @@ export function ZymCharacterController({
 
 	return (
 		<group ref={avatarGroupRef}>
-			<ZymAvatar glowColor={glowColor} />
+			<ZymAvatar glowColor={glowColor} motionRef={motionState} />
 		</group>
 	);
 }

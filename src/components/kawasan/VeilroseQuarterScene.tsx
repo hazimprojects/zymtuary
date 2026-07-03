@@ -18,6 +18,7 @@ export function VeilroseQuarterScene({
 	isMobile,
 	interactionPaused,
 	nearSpotId,
+	flying,
 	onNearSpotChange,
 	onJoystickChange,
 }: {
@@ -25,6 +26,7 @@ export function VeilroseQuarterScene({
 	isMobile: boolean;
 	interactionPaused: boolean;
 	nearSpotId: string | null;
+	flying: boolean;
 	onNearSpotChange: (id: string | null) => void;
 	onJoystickChange: (joystick: JoystickVisual | null) => void;
 }) {
@@ -59,6 +61,7 @@ export function VeilroseQuarterScene({
 				glowColor={ZYM_GLOW_COLOR}
 				isMobile={isMobile}
 				interactionPaused={interactionPaused}
+				flying={flying}
 				onNearSpotChange={onNearSpotChange}
 				onJoystickChange={onJoystickChange}
 			/>
