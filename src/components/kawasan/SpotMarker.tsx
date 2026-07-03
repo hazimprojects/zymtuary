@@ -13,8 +13,12 @@ import { VeilroseSpotLandmark } from './veilroseLandmarks';
 const LABEL_SCALE_REF_DISTANCE = 7;
 const LABEL_SCALE_MIN = 0.7;
 const LABEL_SCALE_MAX = 1.25;
-const LABEL_FADE_NEAR = 3.5;
-const LABEL_FADE_FAR = 11;
+const LABEL_FADE_NEAR = 4.5;
+const LABEL_FADE_FAR = 8.5;
+/** Had atas legap label yang TIDAK aktif — dipadamkan supaya beberapa nama
+ * spot yang kelihatan serentak dalam satu pandangan tidak bersaing dengan
+ * teks lain (tajuk, kapsyen bawah), cuma isyarat halus arah mana spot itu. */
+const INACTIVE_LABEL_OPACITY_MAX = 0.32;
 
 /** `active` = watak Zym sudah cukup dekat (bukan diketik) — reka bentuk ini
  * sengaja tanpa interaksi klik, selaras dengan falsafah "navigasi melalui
@@ -47,7 +51,10 @@ export function SpotMarker({
 			const dist = camera.position.distanceTo(labelWorldPos.current);
 			const scale = THREE.MathUtils.clamp(LABEL_SCALE_REF_DISTANCE / Math.max(dist, 0.01), LABEL_SCALE_MIN, LABEL_SCALE_MAX);
 			const fadeT = THREE.MathUtils.clamp((dist - LABEL_FADE_NEAR) / (LABEL_FADE_FAR - LABEL_FADE_NEAR), 0, 1);
-			const opacity = active ? 1 : THREE.MathUtils.lerp(0.65, 0.08, fadeT);
+			// Spot aktif sudah ada nama & deskripsi penuh pada kapsyen bawah
+			// (VeilroseQuarterWorld.tsx) — label terapung dipadamkan supaya
+			// tidak berulang tampil serentak pada dua tempat berbeza.
+			const opacity = active ? 0 : THREE.MathUtils.lerp(INACTIVE_LABEL_OPACITY_MAX, 0.05, fadeT);
 			labelRef.current.style.transform = `scale(${scale})`;
 			labelRef.current.style.opacity = String(opacity);
 		}
@@ -63,7 +70,7 @@ export function SpotMarker({
 					ref={labelRef}
 					className="whitespace-nowrap font-body text-[0.6rem] uppercase tracking-[0.2em] transition-colors duration-500"
 					style={{
-						color: active ? '#f5f0e8' : 'rgba(245,240,232,0.85)',
+						color: '#f5f0e8',
 						textShadow: `0 0 16px ${anchor.groundColor}99`,
 					}}
 				>
