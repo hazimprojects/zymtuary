@@ -11,7 +11,6 @@ import {
 	layoutResonancePoints,
 	ZOOM_THRESHOLDS,
 	type EntityEntry,
-	type SpheralRegionId,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
@@ -22,7 +21,6 @@ import { ResponsiveCamera } from './ResponsiveCamera';
 type GlobeSceneProps = {
 	entities: EntityEntry[];
 	onHover: (entity: EntityEntry | null) => void;
-	onSurfaceTap: (spheral: SpheralRegionId) => void;
 	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
@@ -37,7 +35,6 @@ function easeInOutCubic(t: number): number {
 export function GlobeScene({
 	entities,
 	onHover,
-	onSurfaceTap,
 	hoveredEntity,
 	isMobile,
 	interactionPaused,
@@ -54,6 +51,8 @@ export function GlobeScene({
 	const exitProgress = useRef(0);
 	const exitFrom = useRef(new THREE.Vector3());
 	const exitTo = useRef(new THREE.Vector3());
+	const exitFromQuat = useRef(new THREE.Quaternion());
+	const exitToQuat = useRef(new THREE.Quaternion());
 	const { camera } = useThree();
 	const segments = isMobile ? 48 : 64;
 
@@ -71,6 +70,13 @@ export function GlobeScene({
 		if (exitingDescent) return;
 		exitFrom.current.copy(camera.position);
 		exitTo.current.copy(descentAnchor).normalize().multiplyScalar(DESCENT_CONFIG.orbitExitDistance);
+		// Kekalkan sudut pandang semasa sebagai titik mula putaran, bukan terus
+		// "snap" ke lookAt(0,0,0) — dieselang perlahan ke sudut sasaran sepanjang
+		// transisi supaya keluar dari descent terasa lancar (padanan dengan
+		// pembetulan "snap" masuk descent sebelum ini).
+		exitFromQuat.current.copy(camera.quaternion);
+		const targetMatrix = new THREE.Matrix4().lookAt(exitTo.current, new THREE.Vector3(0, 0, 0), camera.up);
+		exitToQuat.current.setFromRotationMatrix(targetMatrix);
 		exitProgress.current = 0;
 		setExitingDescent(true);
 		setDescentActive(false);
@@ -81,7 +87,7 @@ export function GlobeScene({
 			exitProgress.current = Math.min(1, exitProgress.current + delta * 1.1);
 			const t = easeInOutCubic(exitProgress.current);
 			camera.position.lerpVectors(exitFrom.current, exitTo.current, t);
-			camera.lookAt(0, 0, 0);
+			camera.quaternion.slerpQuaternions(exitFromQuat.current, exitToQuat.current, t);
 			camera.fov = THREE.MathUtils.lerp(DESCENT_CONFIG.fov, isMobile ? 50 : 45, t);
 			camera.near = 0.08;
 			camera.updateProjectionMatrix();
@@ -148,7 +154,6 @@ export function GlobeScene({
 					segments={segments}
 					placements={placements}
 					onHover={onHover}
-					onSurfaceTap={onSurfaceTap}
 					hoveredEntity={hoveredEntity}
 					interactionPaused={interactionPaused || descentActive}
 					forceProximity={descentActive ? 1 : undefined}

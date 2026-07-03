@@ -73,12 +73,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
 
-	/** Ketik permukaan globe → masuk ke halaman Spheral sebenar bagi wilayah itu
-	 * (bukan lagi membuka "page watak" bagi titik terdekat). */
-	const handleSurfaceTap = useCallback((spheral: SpheralRegionId) => {
-		window.location.href = `/spheral/${spheral}`;
-	}, []);
-
 	/**
 	 * Kunci landscape secara automatik supaya pelawat tak perlu putar peranti
 	 * sendiri. Screen Orientation Lock API perlu (a) dicetuskan oleh gerak isyarat
@@ -124,7 +118,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							<GlobeScene
 								entities={entities}
 								onHover={setHoveredEntity}
-								onSurfaceTap={handleSurfaceTap}
 								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
 								interactionPaused={showRotatePrompt}
@@ -186,7 +179,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 					? 'Seret penjuru bawah untuk bergerak · seret di tempat lain untuk toleh 360° · cubit keluar untuk naik'
 					: zoomMode === 'atmosphere'
 						? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
-						: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik untuk masuk wilayah'}
+						: 'Perhatikan cahaya yang menyusup · putar · zoom untuk mendekat'}
 			</motion.p>
 
 			{joystick ? (
