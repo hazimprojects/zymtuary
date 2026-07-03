@@ -79,6 +79,28 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		window.location.href = `/spheral/${spheral}`;
 	}, []);
 
+	/**
+	 * Kunci landscape secara automatik supaya pelawat tak perlu putar peranti
+	 * sendiri. Screen Orientation Lock API perlu (a) dicetuskan oleh gerak isyarat
+	 * pengguna sebenar dan (b) selalunya perlu mod skrin penuh dahulu di pelayar
+	 * mobile biasa — jadi ini dipanggil terus dalam pengendali ketik pada overlay
+	 * "putar peranti", bukan automatik semasa mount. Kalau tidak disokong (cth.
+	 * Safari iOS langsung tiada API ini), gagal senyap dan mesej putar manual
+	 * kekal sebagai jalan fallback.
+	 */
+	const handleRequestLandscape = useCallback(async () => {
+		try {
+			const el = document.documentElement;
+			if (!document.fullscreenElement && el.requestFullscreen) {
+				await el.requestFullscreen().catch(() => {});
+			}
+			const orientation = screen.orientation as (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
+			await orientation?.lock?.('landscape');
+		} catch {
+			// Tidak disokong pada peranti/pelayar ini — biar pelawat putar secara manual.
+		}
+	}, []);
+
 	const familyColor = hoveredEntity
 		? (FAMILY_COLORS[hoveredEntity.keluarga_aetherys] ?? HEMISPHERE_COLORS.equilara)
 		: HEMISPHERE_COLORS.equilara;
@@ -192,7 +214,9 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 			<AnimatePresence>
 				{showRotatePrompt ? (
-					<motion.div
+					<motion.button
+						type="button"
+						onClick={handleRequestLandscape}
 						className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-black px-10 text-center"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -208,12 +232,13 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							📱
 						</motion.span>
 						<p className="font-body text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/60">
-							Putar peranti anda
+							Ketik untuk masuk landscape
 						</p>
 						<p className="font-display max-w-xs text-sm font-light leading-relaxed text-[#f5f0e8]/35">
-							Equilara paling immersive dalam landscape — putar peranti anda untuk meneruskan.
+							Equilara paling immersive dalam landscape. Kalau peranti anda tidak menyokong
+							putaran automatik, putar secara manual untuk meneruskan.
 						</p>
-					</motion.div>
+					</motion.button>
 				) : null}
 			</AnimatePresence>
 		</div>
