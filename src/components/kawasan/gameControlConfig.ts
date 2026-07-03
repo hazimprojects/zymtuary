@@ -6,6 +6,10 @@ export const GAME_CONTROL_CONFIG = {
 	deadzone: 0.12,
 	/** Lerp kamera ke sasaran — lebih tinggi = lebih ketat */
 	cameraSpring: 10,
+	/** Offset bahu kamera (meter) — kamera sedikit ke kanan watak */
+	shoulderOffset: 0.38,
+	/** Jarak minimum kamera dari halangan (meter) */
+	cameraCollisionPadding: 0.35,
 	rotateSpeedMobile: 0.0042,
 	rotateSpeedDesktop: 0.0032,
 	pitchSpeedMobile: 0.0032,
@@ -13,6 +17,9 @@ export const GAME_CONTROL_CONFIG = {
 	minPitch: 0.28,
 	maxPitch: 1.3,
 	moveSpeed: 2.6,
+	walkSpeedMult: 0.58,
+	runSpeedMult: 1.0,
+	runThreshold: 0.48,
 	facingTurnRate: 9,
 } as const;
 

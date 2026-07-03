@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
@@ -7,6 +7,7 @@ import {
 	springAlpha,
 } from './gameControlConfig';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
+import { sampleIslandGroundHeight } from '../wilayah/wilayahTerrain';
 import { ZymAvatar, type ZymMotionState } from './ZymAvatar';
 
 export type ZymJoystickVisual = {
@@ -22,6 +23,23 @@ const FLY_HEIGHT = 1.75;
 const FLY_MOVE_MULT = 1.55;
 const FLY_RADIUS_MULT = 1.6;
 const FLY_BLEND_RATE = 2.2;
+const CAMERA_RAY = new THREE.Raycaster();
+
+function resolveCameraPosition(
+	eyeTarget: THREE.Vector3,
+	idealPos: THREE.Vector3,
+	collisionRoot: THREE.Object3D | null,
+): THREE.Vector3 {
+	const dir = new THREE.Vector3().subVectors(idealPos, eyeTarget);
+	const dist = dir.length();
+	if (dist < 1e-4 || !collisionRoot) return idealPos.clone();
+	dir.normalize();
+	CAMERA_RAY.set(eyeTarget, dir);
+	CAMERA_RAY.far = dist;
+	const hits = CAMERA_RAY.intersectObject(collisionRoot, true);
+	if (hits.length === 0) return idealPos.clone();
+	return hits[0].point.add(dir.multiplyScalar(-GAME_CONTROL_CONFIG.cameraCollisionPadding));
+}
 
 type JoystickState = {
 	pointerId: number;
@@ -51,6 +69,7 @@ export function ZymCharacterController({
 	isMobile,
 	interactionPaused,
 	flying,
+	collisionRoot,
 	onNearSpotChange,
 	onJoystickChange,
 }: {
@@ -61,13 +80,14 @@ export function ZymCharacterController({
 	isMobile: boolean;
 	interactionPaused: boolean;
 	flying: boolean;
+	collisionRoot?: RefObject<THREE.Object3D | null>;
 	onNearSpotChange?: (id: string | null) => void;
 	onJoystickChange?: (joystick: ZymJoystickVisual | null) => void;
 }) {
 	const { camera, gl } = useThree();
 	const avatarGroupRef = useRef<THREE.Group>(null);
 	const characterPos = useRef(new THREE.Vector3(...startPosition));
-	const characterHeight = useRef(0);
+	const characterHeight = useRef(sampleIslandGroundHeight(startPosition[0], startPosition[2]));
 	const facingYaw = useRef(0);
 	const camYaw = useRef(Math.PI * 0.15);
 	const camPitch = useRef(0.62);
@@ -78,7 +98,7 @@ export function ZymCharacterController({
 	const flyTarget = useRef(0);
 	const flyBlend = useRef(0);
 	const pitchInputSmooth = useRef(0);
-	const motionState = useRef<ZymMotionState>({ speed: 0, flying: 0, pitchInput: 0 });
+	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, flying: 0, pitchInput: 0 });
 
 	const lookDragging = useRef(false);
 	const lastLookPointer = useRef({ x: 0, y: 0 });
@@ -279,6 +299,7 @@ export function ZymCharacterController({
 
 		let moveMag = 0;
 		let pitchInputRaw = 0;
+		motionState.current.running = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
 			const rawMag = Math.hypot(dx, dy) / GAME_CONTROL_CONFIG.maxRadius;
@@ -288,18 +309,25 @@ export function ZymCharacterController({
 				const ndx = dx / rawLen;
 				const ndy = dy / rawLen;
 				pitchInputRaw = -ndy * mag;
+				const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
+				const gaitMult = isRunning
+					? GAME_CONTROL_CONFIG.runSpeedMult
+					: GAME_CONTROL_CONFIG.walkSpeedMult;
 				const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, camYaw.current);
 				const right = forward.clone().applyAxisAngle(Y_AXIS, -Math.PI / 2);
 				const moveDir = new THREE.Vector3().addScaledVector(forward, -ndy).addScaledVector(right, ndx);
 				if (moveDir.lengthSq() > 1e-8) {
 					moveMag = mag;
+					motionState.current.running = isRunning ? 1 : 0;
 					moveDir.normalize();
 					const targetYaw = Math.atan2(moveDir.x, moveDir.z);
 					facingYaw.current +=
 						shortestAngleDelta(facingYaw.current, targetYaw) *
 						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
 
-					const step = moveDir.multiplyScalar(GAME_CONTROL_CONFIG.moveSpeed * speedMult * mag * delta);
+					const step = moveDir.multiplyScalar(
+						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * mag * delta,
+					);
 					characterPos.current.add(step);
 					const horizontal = Math.hypot(characterPos.current.x, characterPos.current.z);
 					if (horizontal > effectiveRadius) {
@@ -312,7 +340,9 @@ export function ZymCharacterController({
 		}
 		pitchInputSmooth.current += (pitchInputRaw - pitchInputSmooth.current) * Math.min(1, delta * 5);
 
-		characterHeight.current += (FLY_HEIGHT * flyBlend.current - characterHeight.current) * Math.min(1, delta * FLY_BLEND_RATE);
+		const groundY = sampleIslandGroundHeight(characterPos.current.x, characterPos.current.z);
+		const targetHeight = groundY + FLY_HEIGHT * flyBlend.current;
+		characterHeight.current += (targetHeight - characterHeight.current) * Math.min(1, delta * FLY_BLEND_RATE * 1.8);
 
 		motionState.current.speed = moveMag;
 		motionState.current.flying = flyBlend.current;
@@ -331,12 +361,20 @@ export function ZymCharacterController({
 			eyeTarget.y + height,
 			eyeTarget.z + horizontalDist * Math.cos(camYaw.current),
 		);
+		const shoulderRight = new THREE.Vector3(1, 0, 0).applyAxisAngle(Y_AXIS, camYaw.current);
+		targetPos.addScaledVector(shoulderRight, GAME_CONTROL_CONFIG.shoulderOffset);
+
+		const resolvedPos = resolveCameraPosition(
+			eyeTarget,
+			targetPos,
+			collisionRoot?.current ?? null,
+		);
 
 		if (!camSpringReady.current) {
-			camSpringPos.current.copy(targetPos);
+			camSpringPos.current.copy(resolvedPos);
 			camSpringReady.current = true;
 		} else {
-			camSpringPos.current.lerp(targetPos, springAlpha(GAME_CONTROL_CONFIG.cameraSpring, delta));
+			camSpringPos.current.lerp(resolvedPos, springAlpha(GAME_CONTROL_CONFIG.cameraSpring, delta));
 		}
 		camera.position.copy(camSpringPos.current);
 		camera.lookAt(eyeTarget);

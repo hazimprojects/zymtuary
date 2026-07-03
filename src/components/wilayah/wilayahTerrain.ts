@@ -111,4 +111,20 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 	return geometry;
 }
 
+/** Sampel ketinggian permukaan plaza pada (x, z) — sama formula dengan
+ * buildIslandGeometry supaya watak "melekat" pada tanah. */
+export function sampleIslandGroundHeight(x: number, z: number): number {
+	const distFromCenter = Math.hypot(x, z);
+	let height = PLAZA_HEIGHT;
+	if (distFromCenter > EDGE_START) {
+		const edgeT = THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (EDGE_END - EDGE_START), 0, 1);
+		height = THREE.MathUtils.lerp(PLAZA_HEIGHT, -0.55, Math.pow(edgeT, 1.6));
+	}
+	if (distFromCenter < HEART_STEP_RADIUS) {
+		const tier = Math.floor((1 - distFromCenter / HEART_STEP_RADIUS) * 3);
+		height += tier * 0.085;
+	}
+	return height;
+}
+
 export { ISLAND_RADIUS };

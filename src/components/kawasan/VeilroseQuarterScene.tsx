@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import * as THREE from 'three';
 import type { SpotUtama } from '../world/worldGlobeConfig';
 import { buildIslandGeometry, ISLAND_RADIUS } from '../wilayah/wilayahTerrain';
 import { layoutVeilroseAnchors, AMBIENT_ROSE_STALLS } from './veilroseQuarterLayout';
@@ -32,6 +33,7 @@ export function VeilroseQuarterScene({
 }) {
 	const anchors = useMemo(() => layoutVeilroseAnchors(spots), [spots]);
 	const geometry = useMemo(() => buildIslandGeometry(anchors, BASE_GROUND_COLOR), [anchors]);
+	const collisionRootRef = useRef<THREE.Group>(null);
 
 	return (
 		<>
@@ -40,19 +42,21 @@ export function VeilroseQuarterScene({
 			<directionalLight position={[-4, 3.5, 2]} intensity={1.3} color="#ffd9a0" />
 			<ambientLight intensity={0.25} color={BASE_GROUND_COLOR} />
 
-			<mesh geometry={geometry} receiveShadow={false}>
-				<meshStandardMaterial vertexColors flatShading roughness={0.85} metalness={0.02} />
-			</mesh>
+			<group ref={collisionRootRef}>
+				<mesh geometry={geometry} receiveShadow={false}>
+					<meshStandardMaterial vertexColors flatShading roughness={0.85} metalness={0.02} />
+				</mesh>
 
-			{AMBIENT_ROSE_STALLS.map((stall, i) => (
-				<group key={i} position={[stall.x, 0.18, stall.z]} rotation={[0, stall.rot, 0]}>
-					<RoseStallProp scale={stall.scale} swayPhase={i * 1.3} />
-				</group>
-			))}
+				{AMBIENT_ROSE_STALLS.map((stall, i) => (
+					<group key={i} position={[stall.x, 0.18, stall.z]} rotation={[0, stall.rot, 0]}>
+						<RoseStallProp scale={stall.scale} swayPhase={i * 1.3} />
+					</group>
+				))}
 
-			{anchors.map((anchor, index) => (
-				<SpotMarker key={anchor.id} anchor={anchor} active={anchor.id === nearSpotId} bobOffset={index * 1.4} />
-			))}
+				{anchors.map((anchor, index) => (
+					<SpotMarker key={anchor.id} anchor={anchor} active={anchor.id === nearSpotId} bobOffset={index * 1.4} />
+				))}
+			</group>
 
 			<ZymCharacterController
 				anchors={anchors}
@@ -62,6 +66,7 @@ export function VeilroseQuarterScene({
 				isMobile={isMobile}
 				interactionPaused={interactionPaused}
 				flying={flying}
+				collisionRoot={collisionRootRef}
 				onNearSpotChange={onNearSpotChange}
 				onJoystickChange={onJoystickChange}
 			/>
