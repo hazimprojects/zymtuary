@@ -30,8 +30,6 @@ const _pivot = new THREE.Vector3();
 const _targetQuat = new THREE.Quaternion();
 const _lookMatrix = new THREE.Matrix4();
 const _forward = new THREE.Vector3();
-const _right = new THREE.Vector3();
-const _moveDir = new THREE.Vector3();
 
 function computeCameraIdealPosition(
 	pivot: THREE.Vector3,
@@ -121,19 +119,14 @@ function shortestAngleDelta(from: number, to: number): number {
 }
 
 /** Yaw rotation.y Three.js daripada vektor arah XZ (forward = (sin θ, -cos θ)). */
-function yawFromDirection(dir: THREE.Vector3): number {
-	return Math.atan2(dir.x, -dir.z);
-}
-
-/** Vektor forward watak untuk yaw rotation.y Three.js. */
 function forwardFromYaw(yaw: number, out: THREE.Vector3): THREE.Vector3 {
 	return out.set(Math.sin(yaw), 0, -Math.cos(yaw));
 }
 
 /**
- * Kawalan third-person ala Sky — separuh kiri: floating joystick (gerak
- * relatif kamera); separuh kanan: seret untuk orbit kamera. Kamera spring
- * ke belakang watak; magnitude joystick melalui keluk pecutan.
+ * Kawalan third-person ala Sky — joystick kiri: atas/bawah = depan/belakang
+ * ikut hadapan watak, kiri/kanan = pusing watak + kamera. Separuh kanan: orbit
+ * kamera sahaja (tidak ubah arah gerakan watak).
  */
 export function ZymCharacterController({
 	anchors,
@@ -385,38 +378,40 @@ export function ZymCharacterController({
 		const effectiveRadius = plazaRadius * radiusMult;
 
 		let moveMag = 0;
+		let forwardInput = 0;
+		let turnInput = 0;
 		let pitchInputRaw = 0;
 		motionState.current.running = 0;
 		motionState.current.strafe = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
-			const rawMag = Math.hypot(dx, dy) / GAME_CONTROL_CONFIG.maxRadius;
+			const rawLen = Math.hypot(dx, dy);
+			const rawMag = rawLen / GAME_CONTROL_CONFIG.maxRadius;
 			const mag = curvedStickMagnitude(rawMag);
-			if (mag > 0) {
-				const rawLen = Math.hypot(dx, dy);
+			if (mag > 0 && rawLen > 1e-4) {
 				const ndx = dx / rawLen;
 				const ndy = dy / rawLen;
-				pitchInputRaw = -ndy * mag;
-				const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
-				const gaitMult = isRunning
-					? GAME_CONTROL_CONFIG.runSpeedMult
-					: GAME_CONTROL_CONFIG.walkSpeedMult;
-				const forward = forwardFromYaw(camYaw.current, _forward);
-				const right = _right.copy(forward).applyAxisAngle(Y_AXIS, -Math.PI / 2);
-				const moveDir = _moveDir.set(0, 0, 0).addScaledVector(forward, -ndy).addScaledVector(right, ndx);
-				if (moveDir.lengthSq() > 1e-8) {
-					moveMag = mag;
-					motionState.current.running = isRunning ? 1 : 0;
-					moveDir.normalize();
-					const targetYaw = yawFromDirection(moveDir);
-					const strafeAngle = shortestAngleDelta(facingYaw.current, targetYaw);
-					motionState.current.strafe = THREE.MathUtils.clamp(strafeAngle / (Math.PI / 2), -1, 1);
-					facingYaw.current +=
-						shortestAngleDelta(facingYaw.current, targetYaw) *
-						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
+				forwardInput = -ndy * mag;
+				turnInput = ndx * mag;
+				pitchInputRaw = forwardInput;
+				moveMag = Math.hypot(forwardInput, turnInput);
 
-					const step = moveDir.multiplyScalar(
-						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * mag * delta,
+				if (Math.abs(turnInput) > 0.02) {
+					const turnDelta = turnInput * GAME_CONTROL_CONFIG.stickTurnSpeed * delta;
+					facingYaw.current += turnDelta;
+					camYaw.current += turnDelta;
+					motionState.current.strafe = THREE.MathUtils.clamp(turnInput, -1, 1);
+				}
+
+				if (Math.abs(forwardInput) > 0.02) {
+					const isRunning = Math.abs(forwardInput) >= GAME_CONTROL_CONFIG.runThreshold;
+					const gaitMult = isRunning
+						? GAME_CONTROL_CONFIG.runSpeedMult
+						: GAME_CONTROL_CONFIG.walkSpeedMult;
+					motionState.current.running = isRunning ? 1 : 0;
+					const forward = forwardFromYaw(facingYaw.current, _forward);
+					const step = forward.multiplyScalar(
+						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * forwardInput * delta,
 					);
 					characterPos.current.add(step);
 					resolveCharacterObstacles(characterPos.current, anchors, effectiveRadius);
@@ -433,18 +428,13 @@ export function ZymCharacterController({
 		motionState.current.flying = flyBlend.current;
 		motionState.current.pitchInput = pitchInputSmooth.current;
 
-		// Kamera kekal di belakang watak semasa bergerak (kecuali pemain sedang
-		// orbit manual); semasa berdiri watak menghadap arah pandang kamera.
-		if (moveMag > 0.08 && !lookDragging.current) {
+		// Selepas orbit manual (jari kanan), kamera snap ke belakang semasa jalan ke hadapan.
+		if (Math.abs(forwardInput) > 0.08 && !lookDragging.current) {
 			const runBoost = 1 + motionState.current.running * GAME_CONTROL_CONFIG.cameraFollowRunBoost;
 			const followRate =
-				GAME_CONTROL_CONFIG.cameraFollowYaw * Math.max(moveMag, 0.45) * runBoost;
+				GAME_CONTROL_CONFIG.cameraFollowYaw * Math.max(Math.abs(forwardInput), 0.45) * runBoost;
 			camYaw.current +=
 				shortestAngleDelta(camYaw.current, facingYaw.current) * springAlpha(followRate, delta);
-		} else if (moveMag <= 0.08) {
-			facingYaw.current +=
-				shortestAngleDelta(facingYaw.current, camYaw.current) *
-				springAlpha(GAME_CONTROL_CONFIG.idleFacingSync, delta);
 		}
 
 		if (avatarGroupRef.current) {

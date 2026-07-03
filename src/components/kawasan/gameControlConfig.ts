@@ -7,12 +7,10 @@ export const GAME_CONTROL_CONFIG = {
 	/** Lerp kamera ke sasaran — lebih tinggi = lebih melekat pada watak */
 	cameraSpring: 28,
 	cameraRotationSpring: 24,
-	/** Semasa bergerak, camYaw ikut facingYaw supaya kamera kekal di belakang */
+	/** Semasa bergerak ke hadapan, camYaw snap ke belakang watak (selepas orbit manual) */
 	cameraFollowYaw: 32,
 	/** Bonus ikut belakang semasa larian */
 	cameraFollowRunBoost: 0.55,
-	/** Semasa berdiri, watak menghadap arah kamera */
-	idleFacingSync: 10,
 	/** Jarak kamera lalai (meter) — dekat seperti Sky/Genshin */
 	cameraDistanceMobile: 2.05,
 	cameraDistanceDesktop: 1.85,
@@ -37,7 +35,8 @@ export const GAME_CONTROL_CONFIG = {
 	walkSpeedMult: 0.58,
 	runSpeedMult: 1.0,
 	runThreshold: 0.48,
-	facingTurnRate: 9,
+	/** Kelajuan pusing joystick kiri/kanan (rad/s pada defleksi penuh) */
+	stickTurnSpeed: 2.75,
 	baseFovMobile: 50,
 	baseFovDesktop: 42,
 	runFovBoost: 5,
