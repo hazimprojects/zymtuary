@@ -73,25 +73,64 @@ export type ResonancePlacement = {
 	hemisfera: HemisferaAfiniti;
 };
 
-/** Taburkan titik resonans — arah dari pusat untuk cahaya dalaman */
+export type WilayahPortal = {
+	wilayahId: string;
+	nama: string;
+	route: string;
+	theta: number;
+	y: number;
+};
+
+/**
+ * Wilayah yang sudah ada scene 3D sendiri (lihat src/pages/wilayah/) boleh
+ * "diportalkan" — lokasi tetap pada permukaan globe supaya descent yang
+ * cukup dekat dengan titik ini boleh terus tawarkan masuk ke halaman wilayah
+ * berkenaan. Wilayah lain (cth. Ascendari) kekal sebagai serakan entiti biasa
+ * tanpa portal sehingga scene masing-masing dibina.
+ */
+export const WILAYAH_PORTALS: Record<string, WilayahPortal> = {
+	mendari: { wilayahId: 'mendari', nama: 'Mendari', route: '/wilayah/mendari', theta: 0.65, y: 0.62 },
+};
+
+export function portalDirection(portal: WilayahPortal): [number, number, number] {
+	const ring = Math.sqrt(Math.max(0, 1 - portal.y * portal.y));
+	return [ring * Math.sin(portal.theta), portal.y, ring * Math.cos(portal.theta)];
+}
+
+/** Kosinus sudut penerimaan portal — dalam lingkaran ini pada permukaan
+ * globe, descent akan tawarkan masuk terus ke scene wilayah berkenaan. */
+export const PORTAL_ENTER_COS = Math.cos(0.34);
+
+/** Taburkan titik resonans — arah dari pusat untuk cahaya dalaman. Entiti
+ * yang tergolong dalam wilayah berportal dikelompokkan rapat dengan
+ * portalnya (supaya cahaya pada globe benar-benar menandakan lokasi Mendari,
+ * bukan serakan rawak merata hemisfera); yang lain kekal taburan lama. */
 export function layoutResonancePoints(entities: EntityEntry[]): ResonancePlacement[] {
 	const golden = Math.PI * (3 - Math.sqrt(5));
 
 	return entities.map((entity, i) => {
 		const hemisfera = getHemisferaAfiniti(entity);
-		const theta = golden * i * 2.4 + hash(entity.id) * 0.5;
+		const portal = entity.wilayah ? WILAYAH_PORTALS[entity.wilayah] : undefined;
 
+		let theta: number;
 		let y: number;
-		switch (hemisfera) {
-			case 'luminara':
-				y = 0.35 + hash(entity.id + 'y') * 0.45;
-				break;
-			case 'noctira':
-				y = -0.35 - hash(entity.id + 'y') * 0.45;
-				break;
-			case 'horizon':
-				y = (hash(entity.id + 'y') - 0.5) * 0.35;
-				break;
+
+		if (portal) {
+			theta = portal.theta + (hash(entity.id + 'theta') - 0.5) * 0.5;
+			y = Math.min(0.92, Math.max(0.3, portal.y + (hash(entity.id + 'y') - 0.5) * 0.16));
+		} else {
+			theta = golden * i * 2.4 + hash(entity.id) * 0.5;
+			switch (hemisfera) {
+				case 'luminara':
+					y = 0.35 + hash(entity.id + 'y') * 0.45;
+					break;
+				case 'noctira':
+					y = -0.35 - hash(entity.id + 'y') * 0.45;
+					break;
+				case 'horizon':
+					y = (hash(entity.id + 'y') - 0.5) * 0.35;
+					break;
+			}
 		}
 
 		const ring = Math.sqrt(Math.max(0, 1 - y * y));

@@ -26,6 +26,7 @@ type GlobeSceneProps = {
 	interactionPaused: boolean;
 	onZoomModeChange?: (mode: ZoomMode) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
+	onPortalNear?: (wilayahId: string | null) => void;
 };
 
 function easeInOutCubic(t: number): number {
@@ -40,6 +41,7 @@ export function GlobeScene({
 	interactionPaused,
 	onZoomModeChange,
 	onJoystickChange,
+	onPortalNear,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
@@ -53,6 +55,12 @@ export function GlobeScene({
 	const exitTo = useRef(new THREE.Vector3());
 	const exitFromQuat = useRef(new THREE.Quaternion());
 	const exitToQuat = useRef(new THREE.Quaternion());
+	// Portal wilayah (lihat worldGlobeConfig.ts) ditakrif dalam ruang tempatan
+	// `groupRef` (di mana kedudukan entiti sebenar dilukis), tetapi anchor
+	// descent dikira dalam ruang dunia — groupRef berputar perlahan semasa
+	// mod orbit, jadi DescentController perlu tahu sudut putaran semasa untuk
+	// padankan kedua-dua ruang koordinat itu bila menyemak kedekatan portal.
+	const groupRotationRef = useRef(0);
 	const { camera } = useThree();
 	const segments = isMobile ? 48 : 64;
 
@@ -108,6 +116,8 @@ export function GlobeScene({
 
 		const proximity = getProximity(camera.position.length(), descentActive);
 		setAtmosphereIntensity(0.03 + proximity * 0.14);
+
+		if (groupRef.current) groupRotationRef.current = groupRef.current.rotation.y;
 
 		if (!groupRef.current || dragging || interactionPaused || descentActive || exitingDescent) return;
 		if (zoomMode !== 'orbit') return;
@@ -168,6 +178,8 @@ export function GlobeScene({
 				onRequestExit={beginExitDescent}
 				onAnchorChange={setDescentAnchor}
 				onJoystickChange={onJoystickChange}
+				onPortalNear={onPortalNear}
+				groupRotationRef={groupRotationRef}
 			/>
 
 			<OrbitControls
