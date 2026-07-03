@@ -1,0 +1,12 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import VeilroseQuarterWorld from '../../components/kawasan/VeilroseQuarterWorld';
+import zipModel from '../../data/zip-model.json';
+
+const entity = zipModel.entities.find((e) => e.id === 'zymelisse');
+if (!entity) throw new Error('Entiti "zymelisse" (Veilrose Quarter) tidak dijumpai dalam zip-model.json');
+---
+
+<Layout title={`${entity.kawasan} · Zymtuary`} immersive>
+	<VeilroseQuarterWorld client:load entity={entity} />
+</Layout>
