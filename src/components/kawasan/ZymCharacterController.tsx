@@ -29,6 +29,9 @@ const _idealPos = new THREE.Vector3();
 const _pivot = new THREE.Vector3();
 const _targetQuat = new THREE.Quaternion();
 const _lookMatrix = new THREE.Matrix4();
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveDir = new THREE.Vector3();
 
 function computeCameraIdealPosition(
 	pivot: THREE.Vector3,
@@ -57,7 +60,7 @@ function computeLookTarget(
 	out.set(
 		pivot.x + Math.sin(facingYaw) * GAME_CONTROL_CONFIG.lookAhead,
 		pivot.y + 0.12,
-		pivot.z + Math.cos(facingYaw) * GAME_CONTROL_CONFIG.lookAhead,
+		pivot.z - Math.cos(facingYaw) * GAME_CONTROL_CONFIG.lookAhead,
 	);
 	return out;
 }
@@ -115,6 +118,16 @@ function shortestAngleDelta(from: number, to: number): number {
 	if (delta > Math.PI) delta -= Math.PI * 2;
 	if (delta < -Math.PI) delta += Math.PI * 2;
 	return delta;
+}
+
+/** Yaw rotation.y Three.js daripada vektor arah XZ (forward = (sin θ, -cos θ)). */
+function yawFromDirection(dir: THREE.Vector3): number {
+	return Math.atan2(dir.x, -dir.z);
+}
+
+/** Vektor forward watak untuk yaw rotation.y Three.js. */
+function forwardFromYaw(yaw: number, out: THREE.Vector3): THREE.Vector3 {
+	return out.set(Math.sin(yaw), 0, -Math.cos(yaw));
 }
 
 /**
@@ -388,14 +401,14 @@ export function ZymCharacterController({
 				const gaitMult = isRunning
 					? GAME_CONTROL_CONFIG.runSpeedMult
 					: GAME_CONTROL_CONFIG.walkSpeedMult;
-				const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, camYaw.current);
-				const right = forward.clone().applyAxisAngle(Y_AXIS, -Math.PI / 2);
-				const moveDir = new THREE.Vector3().addScaledVector(forward, -ndy).addScaledVector(right, ndx);
+				const forward = forwardFromYaw(camYaw.current, _forward);
+				const right = _right.copy(forward).applyAxisAngle(Y_AXIS, -Math.PI / 2);
+				const moveDir = _moveDir.set(0, 0, 0).addScaledVector(forward, -ndy).addScaledVector(right, ndx);
 				if (moveDir.lengthSq() > 1e-8) {
 					moveMag = mag;
 					motionState.current.running = isRunning ? 1 : 0;
 					moveDir.normalize();
-					const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+					const targetYaw = yawFromDirection(moveDir);
 					const strafeAngle = shortestAngleDelta(facingYaw.current, targetYaw);
 					motionState.current.strafe = THREE.MathUtils.clamp(strafeAngle / (Math.PI / 2), -1, 1);
 					facingYaw.current +=
