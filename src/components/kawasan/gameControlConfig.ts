@@ -31,10 +31,6 @@ export const GAME_CONTROL_CONFIG = {
 	walkSpeedMult: 0.58,
 	runSpeedMult: 1.0,
 	runThreshold: 0.48,
-	/** Kelajuan pusing joystick kiri/kanan (rad/s pada defleksi penuh) */
-	stickTurnSpeed: 2.75,
-	/** Watak pusing ke arah gerakan (relatif kamera) semasa jalan */
-	facingTurnRate: 12,
 	baseFovMobile: 50,
 	baseFovDesktop: 42,
 	runFovBoost: 5,

@@ -30,6 +30,8 @@ const _pivot = new THREE.Vector3();
 const _targetQuat = new THREE.Quaternion();
 const _lookMatrix = new THREE.Matrix4();
 const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveDir = new THREE.Vector3();
 
 function computeCameraIdealPosition(
 	pivot: THREE.Vector3,
@@ -111,22 +113,18 @@ type JoystickState = {
 	dy: number;
 };
 
-function shortestAngleDelta(from: number, to: number): number {
-	let delta = (to - from) % (Math.PI * 2);
-	if (delta > Math.PI) delta -= Math.PI * 2;
-	if (delta < -Math.PI) delta += Math.PI * 2;
-	return delta;
+function yawFromDirection(dir: THREE.Vector3): number {
+	return Math.atan2(dir.x, -dir.z);
 }
 
-/** Arah jalan menjauhi kamera (ke dalam scene) — lawan offset kamera dari pivot. */
+/** Arah jalan menjauhi kamera (ke dalam scene). */
 function walkForwardFromCamera(camYaw: number, out: THREE.Vector3): THREE.Vector3 {
 	return out.set(-Math.sin(camYaw), 0, -Math.cos(camYaw));
 }
 
 /**
- * Kawalan third-person ala Sky/Genshin — joystick atas/bawah gerak relatif
- * kamera (watak pusing ikut arah kamera); kiri/kanan pusing watak + kamera.
- * Orbit jari kanan ubah arah rujukan tanpa menggerakkan watak.
+ * Kawalan third-person ala Sky — joystick mana-mana arah = jalan ke hadapan
+ * ikut arah tu (relatif kamera). Tiada undur. Orbit jari kanan bebas.
  */
 export function ZymCharacterController({
 	anchors,
@@ -380,45 +378,41 @@ export function ZymCharacterController({
 		const effectiveRadius = plazaRadius * radiusMult;
 
 		let moveMag = 0;
-		let forwardInput = 0;
-		let turnInput = 0;
 		let pitchInputRaw = 0;
 		motionState.current.running = 0;
 		motionState.current.strafe = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
-			const rawLen = Math.hypot(dx, dy);
-			const rawMag = rawLen / GAME_CONTROL_CONFIG.maxRadius;
+			const rawX = dx / GAME_CONTROL_CONFIG.maxRadius;
+			const rawY = -dy / GAME_CONTROL_CONFIG.maxRadius;
+			const rawMag = Math.hypot(rawX, rawY);
 			const mag = curvedStickMagnitude(rawMag);
-			if (mag > 0 && rawLen > 1e-4) {
-				const ndx = dx / rawLen;
-				const ndy = dy / rawLen;
-				forwardInput = -ndy * mag;
-				turnInput = ndx * mag;
-				pitchInputRaw = forwardInput;
-				moveMag = Math.hypot(forwardInput, turnInput);
+			if (mag > 0 && rawMag > 1e-4) {
+				const stickX = (rawX / rawMag) * mag;
+				const stickY = (rawY / rawMag) * mag;
+				pitchInputRaw = stickY;
+				moveMag = mag;
 
-				if (Math.abs(turnInput) > 0.02) {
-					const turnDelta = -turnInput * GAME_CONTROL_CONFIG.stickTurnSpeed * delta;
-					facingYaw.current += turnDelta;
-					camYaw.current += turnDelta;
-					motionState.current.strafe = THREE.MathUtils.clamp(-turnInput, -1, 1);
-				}
+				const camForward = walkForwardFromCamera(camYaw.current, _forward);
+				const camRight = _right.crossVectors(camForward, Y_AXIS).normalize();
+				const moveDir = _moveDir
+					.set(0, 0, 0)
+					.addScaledVector(camForward, stickY)
+					.addScaledVector(camRight, stickX);
 
-				if (Math.abs(forwardInput) > 0.02) {
-					const isRunning = Math.abs(forwardInput) >= GAME_CONTROL_CONFIG.runThreshold;
+				if (moveDir.lengthSq() > 1e-4) {
+					moveDir.normalize();
+					facingYaw.current = yawFromDirection(moveDir);
+					motionState.current.strafe = THREE.MathUtils.clamp(stickX, -1, 1);
+
+					const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
 					const gaitMult = isRunning
 						? GAME_CONTROL_CONFIG.runSpeedMult
 						: GAME_CONTROL_CONFIG.walkSpeedMult;
 					motionState.current.running = isRunning ? 1 : 0;
-					const walkYaw = -camYaw.current;
-					const forward = walkForwardFromCamera(camYaw.current, _forward);
-					const targetFacing = forwardInput > 0 ? walkYaw : Math.PI - camYaw.current;
-					facingYaw.current +=
-						shortestAngleDelta(facingYaw.current, targetFacing) *
-						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
-					const step = forward.multiplyScalar(
-						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * forwardInput * delta,
+
+					const step = moveDir.multiplyScalar(
+						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * mag * delta,
 					);
 					characterPos.current.add(step);
 					resolveCharacterObstacles(characterPos.current, anchors, effectiveRadius);

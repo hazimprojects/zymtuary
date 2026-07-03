@@ -161,8 +161,8 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				transition={{ delay: 0.6, duration: 1.8 }}
 			>
 				{flying
-					? 'Melayang — kiri: joystick gerak · kanan: toleh kamera'
-					: 'Kiri: sentuh & seret untuk berjalan · kanan: seret untuk toleh kamera 360°'}
+					? 'Melayang — kiri: joystick arah · kanan: toleh kamera'
+					: 'Kiri: joystick arah jalan · kanan: seret toleh kamera 360°'}
 			</motion.p>
 
 			<button
