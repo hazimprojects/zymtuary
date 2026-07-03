@@ -170,7 +170,13 @@ export default function SpheralExperience({
 										visible: { opacity: 0.65, y: 0, transition: { duration: 2 } },
 									}}
 								>
-									{group.wilayah.nama}
+									{group.wilayah.id === 'mendari' ? (
+										<a href="/wilayah/mendari" className="underline-offset-4 hover:underline">
+											{group.wilayah.nama} · masuki wilayah →
+										</a>
+									) : (
+										group.wilayah.nama
+									)}
 								</motion.p>
 								<ul className="flex flex-col items-center gap-4">
 									{group.entities.map((entity) => (
