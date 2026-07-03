@@ -117,7 +117,7 @@ function yawFromDirection(dir: THREE.Vector3): number {
 	return Math.atan2(dir.x, -dir.z);
 }
 
-/** Arah jalan menjauhi kamera (ke dalam scene). */
+/** Arah jalan menjauhi kamera — lawan offset kamera (sin θ, cos θ) dari pivot. */
 function walkForwardFromCamera(camYaw: number, out: THREE.Vector3): THREE.Vector3 {
 	return out.set(-Math.sin(camYaw), 0, -Math.cos(camYaw));
 }
@@ -304,9 +304,9 @@ export function ZymCharacterController({
 			const dx = e.clientX - lastLookPointer.current.x;
 			const dy = e.clientY - lastLookPointer.current.y;
 			lastLookPointer.current = { x: e.clientX, y: e.clientY };
-			camYaw.current += dx * rotateSpeed;
+			camYaw.current -= dx * rotateSpeed;
 			camPitch.current = THREE.MathUtils.clamp(
-				camPitch.current - dy * pitchSpeed,
+				camPitch.current + dy * pitchSpeed,
 				GAME_CONTROL_CONFIG.minPitch,
 				GAME_CONTROL_CONFIG.maxPitch,
 			);
@@ -397,13 +397,13 @@ export function ZymCharacterController({
 				const camRight = _right.crossVectors(camForward, Y_AXIS).normalize();
 				const moveDir = _moveDir
 					.set(0, 0, 0)
-					.addScaledVector(camForward, stickY)
-					.addScaledVector(camRight, stickX);
+					.addScaledVector(camForward, -stickY)
+					.addScaledVector(camRight, -stickX);
 
 				if (moveDir.lengthSq() > 1e-4) {
 					moveDir.normalize();
 					facingYaw.current = yawFromDirection(moveDir);
-					motionState.current.strafe = THREE.MathUtils.clamp(stickX, -1, 1);
+					motionState.current.strafe = THREE.MathUtils.clamp(-stickX, -1, 1);
 
 					const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
 					const gaitMult = isRunning
