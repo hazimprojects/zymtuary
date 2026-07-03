@@ -5,15 +5,16 @@ import * as THREE from 'three';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
 import { VeilroseSpotLandmark } from './veilroseLandmarks';
 
+/** `active` = watak Zym sudah cukup dekat (bukan diketik) — reka bentuk ini
+ * sengaja tanpa interaksi klik, selaras dengan falsafah "navigasi melalui
+ * penerokaan dan rasa, bukan menu" dalam dokumen reka bentuk. */
 export function SpotMarker({
 	anchor,
 	active,
-	onSelect,
 	bobOffset,
 }: {
 	anchor: KawasanAnchor;
 	active: boolean;
-	onSelect: () => void;
 	bobOffset: number;
 }) {
 	const groupRef = useRef<THREE.Group>(null);
@@ -28,35 +29,17 @@ export function SpotMarker({
 		<group position={anchor.position} scale={anchor.scale}>
 			<group ref={groupRef} scale={active ? 1.06 : 1}>
 				<VeilroseSpotLandmark id={anchor.id} />
-				<mesh
-					onClick={(e) => {
-						e.stopPropagation();
-						onSelect();
-					}}
-					onPointerOver={() => {
-						document.body.style.cursor = 'pointer';
-					}}
-					onPointerOut={() => {
-						document.body.style.cursor = 'default';
-					}}
-					position={[0, 0.7, 0]}
-				>
-					<sphereGeometry args={[1.4, 8, 8]} />
-					<meshBasicMaterial transparent opacity={0} depthWrite={false} />
-				</mesh>
 			</group>
 			<Html center distanceFactor={11} position={[0, 2, 0]} occlude={false}>
-				<button
-					type="button"
-					onClick={onSelect}
-					className="pointer-events-auto whitespace-nowrap font-body text-[0.6rem] uppercase tracking-[0.2em] transition-colors duration-500"
+				<span
+					className="whitespace-nowrap font-body text-[0.6rem] uppercase tracking-[0.2em] transition-colors duration-500"
 					style={{
 						color: active ? '#f5f0e8' : 'rgba(245,240,232,0.55)',
 						textShadow: `0 0 16px ${anchor.groundColor}99`,
 					}}
 				>
 					{anchor.nama}
-				</button>
+				</span>
 			</Html>
 		</group>
 	);
