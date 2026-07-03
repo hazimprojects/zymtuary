@@ -114,7 +114,9 @@ type JoystickState = {
 };
 
 function yawFromDirection(dir: THREE.Vector3): number {
-	return Math.atan2(dir.x, -dir.z);
+	// Three.js: rotation.y = θ → forward = (-sinθ, 0, -cosθ)
+	// Nak forward = dir → sinθ = -dir.x, cosθ = -dir.z → θ = atan2(-dir.x, -dir.z)
+	return Math.atan2(-dir.x, -dir.z);
 }
 
 /** Arah jalan menjauhi kamera — lawan offset kamera (sin θ, cos θ) dari pivot. */
@@ -155,7 +157,7 @@ export function ZymCharacterController({
 	const avatarGroupRef = useRef<THREE.Group>(null);
 	const characterPos = useRef(new THREE.Vector3(...startPosition));
 	const characterHeight = useRef(sampleIslandGroundHeight(startPosition[0], startPosition[2], terrainOptions));
-	const startYaw = Math.atan2(-startPosition[0], -startPosition[2]);
+	const startYaw = Math.atan2(startPosition[0], startPosition[2]);
 	const facingYaw = useRef(startYaw);
 	const camYaw = useRef(startYaw);
 	const camPitch = useRef(GAME_CONTROL_CONFIG.defaultPitch);
@@ -304,9 +306,9 @@ export function ZymCharacterController({
 			const dx = e.clientX - lastLookPointer.current.x;
 			const dy = e.clientY - lastLookPointer.current.y;
 			lastLookPointer.current = { x: e.clientX, y: e.clientY };
-			camYaw.current -= dx * rotateSpeed;
+			camYaw.current += dx * rotateSpeed;
 			camPitch.current = THREE.MathUtils.clamp(
-				camPitch.current + dy * pitchSpeed,
+				camPitch.current - dy * pitchSpeed,
 				GAME_CONTROL_CONFIG.minPitch,
 				GAME_CONTROL_CONFIG.maxPitch,
 			);
@@ -397,13 +399,13 @@ export function ZymCharacterController({
 				const camRight = _right.crossVectors(camForward, Y_AXIS).normalize();
 				const moveDir = _moveDir
 					.set(0, 0, 0)
-					.addScaledVector(camForward, -stickY)
-					.addScaledVector(camRight, -stickX);
+					.addScaledVector(camForward, stickY)
+					.addScaledVector(camRight, stickX);
 
 				if (moveDir.lengthSq() > 1e-4) {
 					moveDir.normalize();
 					facingYaw.current = yawFromDirection(moveDir);
-					motionState.current.strafe = THREE.MathUtils.clamp(-stickX, -1, 1);
+					motionState.current.strafe = THREE.MathUtils.clamp(stickX, -1, 1);
 
 					const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
 					const gaitMult = isRunning
