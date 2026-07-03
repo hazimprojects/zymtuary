@@ -134,8 +134,19 @@ export const DESCENT_CONFIG = {
 	maxPitch: 1.4,
 	fov: 68,
 	orbitExitDistance: 4.6,
-	walkStepAngle: 0.22,
-	walkDuration: 0.6,
+} as const;
+
+/**
+ * Joystick maya di penjuru bawah (kiri/kanan) untuk bergerak — seret di
+ * mana-mana tempat lain untuk toleh 360°. Dua zon ini beroperasi secara
+ * berasingan (boleh guna serentak dengan dua jari, macam kawalan FPS mobile).
+ */
+export const JOYSTICK_CONFIG = {
+	maxRadius: 56,
+	deadzone: 0.12,
+	moveAngularSpeed: 0.42,
+	cornerZoneWidthFrac: 0.35,
+	cornerZoneHeightFrac: 0.45,
 } as const;
 
 export function getZoomMode(distance: number, descentActive: boolean): ZoomMode {
