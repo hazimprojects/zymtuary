@@ -23,16 +23,11 @@ import { terrainParams, type IslandTerrainOptions } from '../wilayah/wilayahTerr
  * tidak sepadan dengan tanah di bawahnya. */
 function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerrainOptions }) {
 	const glowRef = useRef<THREE.Mesh>(null);
-	const beaconRef = useRef<THREE.Mesh>(null);
 	useFrame(({ clock }) => {
-		const t = clock.getElapsedTime();
 		if (glowRef.current) {
+			const t = clock.getElapsedTime();
 			const mat = glowRef.current.material as THREE.MeshStandardMaterial;
 			mat.emissiveIntensity = 0.5 + Math.sin(t * 1.4) * 0.15;
-		}
-		if (beaconRef.current) {
-			const mat = beaconRef.current.material as THREE.MeshStandardMaterial;
-			mat.emissiveIntensity = 0.6 + Math.sin(t * 1.4 + 0.6) * 0.2;
 		}
 	});
 
@@ -80,36 +75,7 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 					roughness={0.4}
 				/>
 			</mesh>
-
-			{/* Mercu suar tinggi di puncak — dais itu sendiri sengaja rendah
-			 * (sepadan tanah boleh-jalan sebenar), jadi tanpa penanda menjulang
-			 * ini "The Applause Steps" tenggelam jadi bentuk kabur dari jauh.
-			 * Mercu suar & lampu kuatnya kekal kelihatan sebagai isyarat lokasi
-			 * walaupun dais itu sendiri kecil di kaki langit. */}
-			<mesh ref={beaconRef} position={[0, y + 1.15, 0]}>
-				<coneGeometry args={[0.09, 2.1, 6]} />
-				<meshStandardMaterial
-					color={VEILROSE_PALETTE.gold}
-					emissive={VEILROSE_PALETTE.gold}
-					emissiveIntensity={0.6}
-					flatShading
-					roughness={0.35}
-					fog={false}
-				/>
-			</mesh>
-			<mesh position={[0, y + 2.25, 0]}>
-				<icosahedronGeometry args={[0.13, 0]} />
-				<meshStandardMaterial
-					color={VEILROSE_PALETTE.cream}
-					emissive={VEILROSE_PALETTE.cream}
-					emissiveIntensity={0.7}
-					flatShading
-					roughness={0.3}
-					fog={false}
-				/>
-			</mesh>
 			<pointLight position={[0, y + 1.3, 0]} intensity={0.6} color={VEILROSE_PALETTE.gold} distance={5.5} />
-			<pointLight position={[0, y + 2.3, 0]} intensity={0.85} color={VEILROSE_PALETTE.gold} distance={9} />
 			<pointLight position={[R * 0.55, y * 0.4, R * 0.2]} intensity={0.28} color={VEILROSE_PALETTE.pink} distance={4} />
 			<pointLight position={[-R * 0.5, y * 0.4, -R * 0.3]} intensity={0.28} color={VEILROSE_PALETTE.purple} distance={4} />
 
