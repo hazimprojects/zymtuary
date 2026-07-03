@@ -5,6 +5,14 @@ import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import type { EntityData, WilayahData } from '../entities/SpheralExperience';
 import { WilayahScene } from './WilayahScene';
 
+/** Kawasan yang sudah ada scene detail sendiri (lihat src/pages/kawasan/) —
+ * ketik kawasan ini terus navigasi ke sana, bukan sekadar tunjuk kad bisikan
+ * di tempat. Kawasan lain kekal kad bisikan sehingga scene masing-masing
+ * dibina. */
+const KAWASAN_ROUTES: Record<string, string> = {
+	zymelisse: '/kawasan/veilrose-quarter',
+};
+
 export default function WilayahWorld({
 	wilayah,
 	entities,
@@ -16,6 +24,7 @@ export default function WilayahWorld({
 	const [ready, setReady] = useState(false);
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [activeId, setActiveId] = useState<string | null>(null);
+	const [diving, setDiving] = useState(false);
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -37,6 +46,23 @@ export default function WilayahWorld({
 	}, []);
 
 	const activeEntity = entities.find((e) => e.id === activeId) ?? null;
+
+	/** Ketik kawasan yang sudah ada scene detail → sekejap "menyelam" (fade)
+	 * sebelum navigasi sebenar; kawasan lain kekal tunjuk kad bisikan sahaja. */
+	const handleKawasanSelect = useCallback(
+		(id: string | null) => {
+			const route = id ? KAWASAN_ROUTES[id] : undefined;
+			if (route && !diving) {
+				setDiving(true);
+				window.setTimeout(() => {
+					window.location.href = route;
+				}, 620);
+				return;
+			}
+			setActiveId(id);
+		},
+		[diving],
+	);
 
 	// Anggaran kedudukan kamera awal sebelum WilayahScene sempat betulkan ikut
 	// nisbah bidang sebenar — kurangkan "kelip" bingkai pertama pada potret.
@@ -68,7 +94,7 @@ export default function WilayahWorld({
 								entities={entities}
 								isMobile={isMobile}
 								activeId={activeId}
-								onSelect={setActiveId}
+								onSelect={handleKawasanSelect}
 							/>
 						</Suspense>
 					</Canvas>
@@ -127,6 +153,17 @@ export default function WilayahWorld({
 							</span>
 						) : null}
 					</motion.div>
+				) : null}
+			</AnimatePresence>
+
+			<AnimatePresence>
+				{diving ? (
+					<motion.div
+						className="pointer-events-none fixed inset-0 z-[75] bg-[#e8618f]"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.62, ease: 'easeIn' }}
+					/>
 				) : null}
 			</AnimatePresence>
 		</div>
