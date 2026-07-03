@@ -3,24 +3,24 @@ import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
 import { VEILROSE_PALETTE } from './veilrosePalette';
 
 /** Plaza Veilrose lebih luas daripada pulau Mendari — ruang uji pergerakan Zym,
- * dan cukup besar untuk 6 spot tanpa berasak-asak. */
+ * dan cukup besar untuk 5 spot tanpa berasak-asak. */
 export const VEILROSE_ISLAND_RADIUS = 13;
 const LAYOUT_SCALE = VEILROSE_ISLAND_RADIUS / 6.4;
 
 /**
  * Susun atur Veilrose Quarter ikut kawasan_deskripsi/spot_utama sebenar —
  * The Applause Steps di tengah pasar (dideskripsikan "di tengah pasar"),
- * spot-spot "hadapan pentas" (Memory Room, Mask Vendor's Row, Queue for
- * Applause) lebih terbuka, manakala spot "belakang tabir" (Rehearsal
- * Mirrors, Room of Fallen Petals) diletak lebih jauh/tersorok mengikut lore
- * masing-masing. Warna tanah setiap spot diambil daripada VEILROSE_PALETTE
- * supaya saling berkaitan, bukan dipilih berasingan mengikut objek.
+ * spot-spot "hadapan pentas" (Memory Room, Mask Vendor's Row) lebih
+ * terbuka, manakala spot "belakang tabir" (Rehearsal Mirrors, Room of
+ * Fallen Petals) diletak lebih jauh/tersorok mengikut lore masing-masing.
+ * Warna tanah setiap spot diambil daripada VEILROSE_PALETTE supaya saling
+ * berkaitan, bukan dipilih berasingan mengikut objek.
  *
  * `obstacleRadius`/`obstaclePoints` menggantikan formula perlanggaran global
  * (lihat resolveCharacterObstacles dalam ZymCharacterController.tsx) untuk
- * spot yang patut boleh dipijak/dilalui (dais tangga, barisan beratur) atau
- * yang bentuknya bukan bulatan seragam (barisan gerai panjang). Nilai dx/dz
- * dalam obstaclePoints sudah dalam unit dunia (skala anchor sudah dikira).
+ * spot yang patut boleh dipijak/dilalui (dais tangga) atau yang bentuknya
+ * bukan bulatan seragam (barisan gerai panjang). Nilai dx/dz dalam
+ * obstaclePoints sudah dalam unit dunia (skala anchor sudah dikira).
  */
 const SPOT_LAYOUT: Record<
 	string,
@@ -90,17 +90,6 @@ const SPOT_LAYOUT: Record<
 			{ dx: -0.76, dz: 0, radius: 0.25 },
 			{ dx: 0.76, dz: 0, radius: 0.25 },
 		],
-	},
-	'The Queue for Applause': {
-		// angle 0.3 (bukan ~π/2) sengaja — π/2 pada jejari ini jatuh hampir
-		// tepat di titik mula watak (0, 5.5) dalam VeilroseQuarterScene.tsx,
-		// menyebabkan kamera bermula terperangkap di dalam sosok barisan.
-		angle: 0.3,
-		radius: 2.6 * LAYOUT_SCALE,
-		scale: 1.3,
-		groundColor: VEILROSE_PALETTE.gold,
-		// Barisan orang menunggu — boleh dilalui, bukan halangan pepejal.
-		obstacleRadius: 0.25,
 	},
 };
 
