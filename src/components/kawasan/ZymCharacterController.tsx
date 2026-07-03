@@ -171,7 +171,7 @@ export function ZymCharacterController({
 	const flyTarget = useRef(0);
 	const flyBlend = useRef(0);
 	const pitchInputSmooth = useRef(0);
-	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, strafe: 0, flying: 0, pitchInput: 0 });
+	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, flying: 0, pitchInput: 0 });
 	const baseFov = useRef(isMobile ? GAME_CONTROL_CONFIG.baseFovMobile : GAME_CONTROL_CONFIG.baseFovDesktop);
 
 	const lookDragging = useRef(false);
@@ -388,7 +388,6 @@ export function ZymCharacterController({
 		let moveMag = 0;
 		let pitchInputRaw = 0;
 		motionState.current.running = 0;
-		motionState.current.strafe = 0;
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
 			const rawX = dx / GAME_CONTROL_CONFIG.maxRadius;
@@ -411,7 +410,6 @@ export function ZymCharacterController({
 				if (moveDir.lengthSq() > 1e-4) {
 					moveDir.normalize();
 					facingYaw.current = yawFromDirection(moveDir);
-					motionState.current.strafe = THREE.MathUtils.clamp(stickX, -1, 1);
 
 					const isRunning = mag >= GAME_CONTROL_CONFIG.runThreshold;
 					const gaitMult = isRunning
