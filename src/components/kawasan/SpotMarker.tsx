@@ -41,7 +41,9 @@ export function SpotMarker({
 	useFrame(({ clock, camera }) => {
 		if (groupRef.current) {
 			const t = clock.getElapsedTime();
-			groupRef.current.position.y = Math.sin(t * 0.55 + bobOffset) * 0.025 + (active ? 0.08 : 0);
+			// Bobbing lembut kekal berterusan sama ada aktif atau tidak — spot
+			// tidak patut melonjak/berubah bila Zym menghampirinya.
+			groupRef.current.position.y = Math.sin(t * 0.55 + bobOffset) * 0.025;
 		}
 		if (labelRef.current) {
 			labelWorldPos.current.set(anchor.position.x, anchor.position.y + anchor.scale * 2, anchor.position.z);
@@ -59,7 +61,7 @@ export function SpotMarker({
 
 	return (
 		<group position={anchor.position} scale={anchor.scale}>
-			<group ref={groupRef} scale={active ? 1.06 : 1}>
+			<group ref={groupRef}>
 				<VeilroseSpotLandmark id={anchor.id} terrainOptions={terrainOptions} />
 			</group>
 			<Html center position={[0, 2, 0]} occlude={false}>
