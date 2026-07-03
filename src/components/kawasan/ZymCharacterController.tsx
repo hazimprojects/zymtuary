@@ -119,14 +119,21 @@ function yawFromDirection(dir: THREE.Vector3): number {
 	return Math.atan2(-dir.x, -dir.z);
 }
 
+function shortestAngleDelta(from: number, to: number): number {
+	let delta = (to - from) % (Math.PI * 2);
+	if (delta > Math.PI) delta -= Math.PI * 2;
+	if (delta < -Math.PI) delta += Math.PI * 2;
+	return delta;
+}
+
 /** Arah jalan menjauhi kamera — lawan offset kamera (sin θ, cos θ) dari pivot. */
 function walkForwardFromCamera(camYaw: number, out: THREE.Vector3): THREE.Vector3 {
 	return out.set(-Math.sin(camYaw), 0, -Math.cos(camYaw));
 }
 
 /**
- * Kawalan third-person ala Sky — joystick mana-mana arah = jalan ke hadapan
- * ikut arah tu (relatif kamera). Tiada undur. Orbit jari kanan bebas.
+ * Kawalan third-person ala Sky — joystick = arah jalan (dikunci pada sudut
+ * kamera semasa mula/ubah arah stick). Orbit kamera bebas tanpa ubah arah gerak.
  */
 export function ZymCharacterController({
 	anchors,
@@ -179,6 +186,9 @@ export function ZymCharacterController({
 	const pinchStart = useRef<{ dist: number; distance: number } | null>(null);
 	const pointers = useRef(new Map<number, { x: number; y: number; role: 'move' | 'look' }>());
 	const joystick = useRef<JoystickState | null>(null);
+	/** Sudut kamera semasa joystick mula / ubah arah — gerakan dikunci di sini. */
+	const moveBasisYaw = useRef(startYaw);
+	const lastStickAngle = useRef<number | null>(null);
 
 	useEffect(() => {
 		flyTarget.current = flying ? 1 : 0;
@@ -400,7 +410,15 @@ export function ZymCharacterController({
 				pitchInputRaw = stickY;
 				moveMag = mag;
 
-				const camForward = walkForwardFromCamera(camYaw.current, _forward);
+				const stickAngle = Math.atan2(rawX, rawY);
+				if (lastStickAngle.current === null) {
+					moveBasisYaw.current = camYaw.current;
+				} else if (Math.abs(shortestAngleDelta(lastStickAngle.current, stickAngle)) > 0.35) {
+					moveBasisYaw.current = camYaw.current;
+				}
+				lastStickAngle.current = stickAngle;
+
+				const camForward = walkForwardFromCamera(moveBasisYaw.current, _forward);
 				const camRight = _right.crossVectors(camForward, Y_AXIS).normalize();
 				const moveDir = _moveDir
 					.set(0, 0, 0)
@@ -424,6 +442,8 @@ export function ZymCharacterController({
 					resolveCharacterObstacles(characterPos.current, anchors, effectiveRadius);
 				}
 			}
+		} else {
+			lastStickAngle.current = null;
 		}
 		pitchInputSmooth.current += (pitchInputRaw - pitchInputSmooth.current) * Math.min(1, delta * 5);
 
