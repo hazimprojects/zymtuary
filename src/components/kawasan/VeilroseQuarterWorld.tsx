@@ -73,7 +73,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				{ready ? (
 					<Canvas
 						key={canvasKey}
-						camera={{ position: [0, 3.5, 9], fov: isMobile ? 55 : 48, near: 0.1, far: 80 }}
+						camera={{ position: [0, 2.2, 5.2], fov: isMobile ? 52 : 46, near: 0.1, far: 80 }}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' }}
 						style={{ touchAction: 'none' }}

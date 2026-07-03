@@ -24,6 +24,43 @@ const FLY_MOVE_MULT = 1.55;
 const FLY_RADIUS_MULT = 1.6;
 const FLY_BLEND_RATE = 2.2;
 const CAMERA_RAY = new THREE.Raycaster();
+const _lookTarget = new THREE.Vector3();
+const _idealPos = new THREE.Vector3();
+const _pivot = new THREE.Vector3();
+const _targetQuat = new THREE.Quaternion();
+const _lookMatrix = new THREE.Matrix4();
+
+function computeCameraIdealPosition(
+	pivot: THREE.Vector3,
+	viewYaw: number,
+	pitch: number,
+	distance: number,
+	out: THREE.Vector3,
+): THREE.Vector3 {
+	const horizontalDist = distance * Math.cos(pitch);
+	const height = distance * Math.sin(pitch);
+	out.set(
+		pivot.x + horizontalDist * Math.sin(viewYaw),
+		pivot.y + height,
+		pivot.z + horizontalDist * Math.cos(viewYaw),
+	);
+	const shoulderRight = new THREE.Vector3(1, 0, 0).applyAxisAngle(Y_AXIS, viewYaw);
+	out.addScaledVector(shoulderRight, GAME_CONTROL_CONFIG.shoulderOffset);
+	return out;
+}
+
+function computeLookTarget(
+	pivot: THREE.Vector3,
+	facingYaw: number,
+	out: THREE.Vector3,
+): THREE.Vector3 {
+	out.set(
+		pivot.x + Math.sin(facingYaw) * GAME_CONTROL_CONFIG.lookAhead,
+		pivot.y + 0.12,
+		pivot.z + Math.cos(facingYaw) * GAME_CONTROL_CONFIG.lookAhead,
+	);
+	return out;
+}
 
 function resolveCameraPosition(
 	eyeTarget: THREE.Vector3,
@@ -112,11 +149,15 @@ export function ZymCharacterController({
 	const avatarGroupRef = useRef<THREE.Group>(null);
 	const characterPos = useRef(new THREE.Vector3(...startPosition));
 	const characterHeight = useRef(sampleIslandGroundHeight(startPosition[0], startPosition[2]));
-	const facingYaw = useRef(0);
-	const camYaw = useRef(Math.PI * 0.15);
-	const camPitch = useRef(0.62);
-	const camDistance = useRef(isMobile ? 5.2 : 4.4);
+	const startYaw = Math.atan2(-startPosition[0], -startPosition[2]);
+	const facingYaw = useRef(startYaw);
+	const camYaw = useRef(startYaw);
+	const camPitch = useRef(GAME_CONTROL_CONFIG.defaultPitch);
+	const camDistance = useRef(
+		isMobile ? GAME_CONTROL_CONFIG.cameraDistanceMobile : GAME_CONTROL_CONFIG.cameraDistanceDesktop,
+	);
 	const camSpringPos = useRef(new THREE.Vector3());
+	const camSpringQuat = useRef(new THREE.Quaternion());
 	const camSpringReady = useRef(false);
 	const lastNearSpot = useRef<string | null>(null);
 	const flyTarget = useRef(0);
@@ -242,7 +283,11 @@ export function ZymCharacterController({
 			if (pointers.current.size === 2 && pinchStart.current) {
 				const dist = pointerDist();
 				const scale = dist / Math.max(pinchStart.current.dist, 1);
-				camDistance.current = THREE.MathUtils.clamp(pinchStart.current.distance / scale, 2.4, 8);
+				camDistance.current = THREE.MathUtils.clamp(
+					pinchStart.current.distance / scale,
+					GAME_CONTROL_CONFIG.cameraDistanceMin,
+					GAME_CONTROL_CONFIG.cameraDistanceMax,
+				);
 				return;
 			}
 
@@ -294,7 +339,11 @@ export function ZymCharacterController({
 
 		const onWheel = (e: WheelEvent) => {
 			e.preventDefault();
-			camDistance.current = THREE.MathUtils.clamp(camDistance.current + e.deltaY * 0.0016, 2.4, 8);
+			camDistance.current = THREE.MathUtils.clamp(
+				camDistance.current + e.deltaY * 0.0016,
+				GAME_CONTROL_CONFIG.cameraDistanceMin,
+				GAME_CONTROL_CONFIG.cameraDistanceMax,
+			);
 		};
 
 		el.addEventListener('pointerdown', onPointerDown);
@@ -371,36 +420,59 @@ export function ZymCharacterController({
 		motionState.current.flying = flyBlend.current;
 		motionState.current.pitchInput = pitchInputSmooth.current;
 
+		// Kamera kekal di belakang watak semasa bergerak; semasa berdiri watak
+		// menghadap arah pandang kamera — pola Sky/Genshin.
+		if (moveMag > 0.08) {
+			camYaw.current +=
+				shortestAngleDelta(camYaw.current, facingYaw.current) *
+				springAlpha(GAME_CONTROL_CONFIG.cameraFollowYaw * moveMag, delta);
+		} else {
+			facingYaw.current +=
+				shortestAngleDelta(facingYaw.current, camYaw.current) *
+				springAlpha(GAME_CONTROL_CONFIG.idleFacingSync, delta);
+		}
+
 		if (avatarGroupRef.current) {
 			avatarGroupRef.current.position.set(characterPos.current.x, characterHeight.current, characterPos.current.z);
 			avatarGroupRef.current.rotation.y = facingYaw.current;
 		}
 
-		const eyeTarget = characterPos.current.clone().setY(characterHeight.current + 0.85);
-		const horizontalDist = camDistance.current * Math.cos(camPitch.current);
-		const height = camDistance.current * Math.sin(camPitch.current);
-		const targetPos = new THREE.Vector3(
-			eyeTarget.x + horizontalDist * Math.sin(camYaw.current),
-			eyeTarget.y + height,
-			eyeTarget.z + horizontalDist * Math.cos(camYaw.current),
+		const pivot = _pivot.set(
+			characterPos.current.x,
+			characterHeight.current + GAME_CONTROL_CONFIG.pivotHeight,
+			characterPos.current.z,
 		);
-		const shoulderRight = new THREE.Vector3(1, 0, 0).applyAxisAngle(Y_AXIS, camYaw.current);
-		targetPos.addScaledVector(shoulderRight, GAME_CONTROL_CONFIG.shoulderOffset);
+		computeCameraIdealPosition(
+			pivot,
+			camYaw.current,
+			camPitch.current,
+			camDistance.current,
+			_idealPos,
+		);
 
 		const resolvedPos = resolveCameraPosition(
-			eyeTarget,
-			targetPos,
+			pivot,
+			_idealPos,
 			collisionRoot?.current ?? null,
 		);
 
+		const lookTarget = computeLookTarget(pivot, facingYaw.current, _lookTarget);
+
 		if (!camSpringReady.current) {
 			camSpringPos.current.copy(resolvedPos);
+			_lookMatrix.lookAt(resolvedPos, lookTarget, Y_AXIS);
+			camSpringQuat.current.setFromRotationMatrix(_lookMatrix);
+			camera.position.copy(resolvedPos);
+			camera.quaternion.copy(camSpringQuat.current);
 			camSpringReady.current = true;
 		} else {
 			camSpringPos.current.lerp(resolvedPos, springAlpha(GAME_CONTROL_CONFIG.cameraSpring, delta));
+			_lookMatrix.lookAt(camSpringPos.current, lookTarget, Y_AXIS);
+			_targetQuat.setFromRotationMatrix(_lookMatrix);
+			camSpringQuat.current.slerp(_targetQuat, springAlpha(GAME_CONTROL_CONFIG.cameraRotationSpring, delta));
+			camera.position.copy(camSpringPos.current);
+			camera.quaternion.copy(camSpringQuat.current);
 		}
-		camera.position.copy(camSpringPos.current);
-		camera.lookAt(eyeTarget);
 
 		if (camera instanceof THREE.PerspectiveCamera) {
 			const targetFov =
