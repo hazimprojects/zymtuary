@@ -124,9 +124,9 @@ function forwardFromYaw(yaw: number, out: THREE.Vector3): THREE.Vector3 {
 }
 
 /**
- * Kawalan third-person ala Sky — joystick kiri: atas/bawah = depan/belakang
- * ikut hadapan watak, kiri/kanan = pusing watak + kamera. Separuh kanan: orbit
- * kamera sahaja (tidak ubah arah gerakan watak).
+ * Kawalan third-person ala Sky/Genshin — joystick atas/bawah gerak relatif
+ * kamera (watak pusing ikut arah kamera); kiri/kanan pusing watak + kamera.
+ * Orbit jari kanan ubah arah rujukan tanpa menggerakkan watak.
  */
 export function ZymCharacterController({
 	anchors,
@@ -397,10 +397,10 @@ export function ZymCharacterController({
 				moveMag = Math.hypot(forwardInput, turnInput);
 
 				if (Math.abs(turnInput) > 0.02) {
-					const turnDelta = turnInput * GAME_CONTROL_CONFIG.stickTurnSpeed * delta;
+					const turnDelta = -turnInput * GAME_CONTROL_CONFIG.stickTurnSpeed * delta;
 					facingYaw.current += turnDelta;
 					camYaw.current += turnDelta;
-					motionState.current.strafe = THREE.MathUtils.clamp(turnInput, -1, 1);
+					motionState.current.strafe = THREE.MathUtils.clamp(-turnInput, -1, 1);
 				}
 
 				if (Math.abs(forwardInput) > 0.02) {
@@ -409,7 +409,12 @@ export function ZymCharacterController({
 						? GAME_CONTROL_CONFIG.runSpeedMult
 						: GAME_CONTROL_CONFIG.walkSpeedMult;
 					motionState.current.running = isRunning ? 1 : 0;
-					const forward = forwardFromYaw(facingYaw.current, _forward);
+					const forward = forwardFromYaw(camYaw.current, _forward);
+					const targetFacing =
+						forwardInput > 0 ? camYaw.current : camYaw.current + Math.PI;
+					facingYaw.current +=
+						shortestAngleDelta(facingYaw.current, targetFacing) *
+						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
 					const step = forward.multiplyScalar(
 						GAME_CONTROL_CONFIG.moveSpeed * speedMult * gaitMult * forwardInput * delta,
 					);
@@ -427,15 +432,6 @@ export function ZymCharacterController({
 		motionState.current.speed = moveMag;
 		motionState.current.flying = flyBlend.current;
 		motionState.current.pitchInput = pitchInputSmooth.current;
-
-		// Selepas orbit manual (jari kanan), kamera snap ke belakang semasa jalan ke hadapan.
-		if (Math.abs(forwardInput) > 0.08 && !lookDragging.current) {
-			const runBoost = 1 + motionState.current.running * GAME_CONTROL_CONFIG.cameraFollowRunBoost;
-			const followRate =
-				GAME_CONTROL_CONFIG.cameraFollowYaw * Math.max(Math.abs(forwardInput), 0.45) * runBoost;
-			camYaw.current +=
-				shortestAngleDelta(camYaw.current, facingYaw.current) * springAlpha(followRate, delta);
-		}
 
 		if (avatarGroupRef.current) {
 			avatarGroupRef.current.position.set(characterPos.current.x, characterHeight.current, characterPos.current.z);
