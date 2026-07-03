@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { VEILROSE_PALETTE } from './veilrosePalette';
 
 function easeOutCubic(t: number): number {
 	return 1 - (1 - t) ** 3;
@@ -53,6 +54,60 @@ function Limb({
 	);
 }
 
+/** Jubah belakang + penanda dada — membezakan hadapan (-Z) dan belakang (+Z) watak. */
+function DirectionalCues({ glowColor }: { glowColor: string }) {
+	return (
+		<group name="direction-cues">
+			{/* Penanda hadapan — terang di dada */}
+			<mesh position={[0, 0.74, -0.19]} rotation={[0, 0, Math.PI / 4]}>
+				<octahedronGeometry args={[0.09, 0]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.cream}
+					emissive={VEILROSE_PALETTE.cream}
+					emissiveIntensity={1.1}
+					roughness={0.25}
+					flatShading
+				/>
+			</mesh>
+			<mesh position={[0, 0.62, -0.17]}>
+				<circleGeometry args={[0.11, 6]} />
+				<meshStandardMaterial
+					color={glowColor}
+					emissive={glowColor}
+					emissiveIntensity={0.85}
+					roughness={0.35}
+					side={THREE.DoubleSide}
+					flatShading
+				/>
+			</mesh>
+			{/* Jubah belakang — gelap & mengembang */}
+			<mesh position={[0, 0.58, 0.2]} rotation={[0.22, 0, 0]}>
+				<coneGeometry args={[0.34, 0.72, 5, 1, true]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.purple}
+					emissive={VEILROSE_PALETTE.purple}
+					emissiveIntensity={0.35}
+					roughness={0.55}
+					side={THREE.DoubleSide}
+					flatShading
+					transparent
+					opacity={0.92}
+				/>
+			</mesh>
+			<mesh position={[0, 0.88, 0.12]} rotation={[0.35, 0, 0]}>
+				<boxGeometry args={[0.52, 0.08, 0.1]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.pink}
+					emissive={VEILROSE_PALETTE.pink}
+					emissiveIntensity={0.4}
+					roughness={0.5}
+					flatShading
+				/>
+			</mesh>
+		</group>
+	);
+}
+
 /**
  * Avatar Zym-kesedaran — siluet humanoid neutral bercahaya tanpa wajah/ciri
  * peribadi (Garden Keeper panggil SETIAP pelawat "Zym", jadi avatar mesti
@@ -74,6 +129,7 @@ export function ZymAvatar({
 	const rightLegRef = useRef<THREE.Group>(null);
 	const leftArmRef = useRef<THREE.Group>(null);
 	const rightArmRef = useRef<THREE.Group>(null);
+	const cloakRef = useRef<THREE.Group>(null);
 
 	const formProgress = useRef(0);
 	const bobPhase = useRef(Math.random() * Math.PI * 2);
@@ -123,6 +179,11 @@ export function ZymAvatar({
 			const hover = Math.sin(bobPhase.current) * THREE.MathUtils.lerp(0.035, 0.09, flying);
 			rootRef.current.position.y = hover;
 		}
+		if (cloakRef.current) {
+			const sway = Math.sin(walkPhase.current) * 0.14 * Math.max(speed, 0.12);
+			cloakRef.current.rotation.x = THREE.MathUtils.lerp(sway, -0.45 - pitchInput * 0.2, flying);
+			cloakRef.current.rotation.z = strafe * 0.12 * (1 - flying);
+		}
 
 		const restingIntensity = 0.55;
 		const entryIntensity = 2.6;
@@ -170,6 +231,9 @@ export function ZymAvatar({
 			</group>
 			<group ref={rightLegRef} position={[-0.09, 0.52, 0]}>
 				<Limb pivot={[0, 0, 0]} length={0.5} radiusTop={0.07} radiusBottom={0.055} color={glowColor} />
+			</group>
+			<group ref={cloakRef}>
+				<DirectionalCues glowColor={glowColor} />
 			</group>
 			<pointLight position={[0, 0.8, 0]} intensity={0.5} color={glowColor} distance={4} />
 		</group>
