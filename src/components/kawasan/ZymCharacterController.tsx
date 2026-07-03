@@ -3,8 +3,19 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { JOYSTICK_CONFIG } from '../world/worldGlobeConfig';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
-import type { JoystickVisual } from '../world/DescentController';
 import { ZymAvatar, type ZymMotionState } from './ZymAvatar';
+
+export type ZymJoystickVisual = {
+	originX: number;
+	originY: number;
+	dx: number;
+	dy: number;
+	/** Sedang "hold" untuk pindah penjuru — pangkalan joystick ikut jari
+	 * tanpa menggerakkan watak, supaya pelawat nampak ia sedang dipindah. */
+	relocating: boolean;
+};
+
+export type JoystickSide = 'left' | 'right';
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const MOVE_SPEED = 2.6;
@@ -14,6 +25,9 @@ const FLY_MOVE_MULT = 1.55;
 const FLY_RADIUS_MULT = 1.6;
 const FLY_BLEND_RATE = 2.2;
 const FACING_TURN_RATE = 9;
+const HOLD_RELOCATE_MS = 550;
+const HOLD_CANCEL_DIST = 14;
+const JOYSTICK_SIDE_STORAGE_KEY = 'zym-joystick-side';
 
 type JoystickState = {
 	pointerId: number;
@@ -30,14 +44,23 @@ function shortestAngleDelta(from: number, to: number): number {
 	return delta;
 }
 
+function readStoredSide(): JoystickSide {
+	try {
+		return window.localStorage.getItem(JOYSTICK_SIDE_STORAGE_KEY) === 'right' ? 'right' : 'left';
+	} catch {
+		return 'left';
+	}
+}
+
 /**
  * Watak Zym-kesedaran yang boleh dilihat — pelawat mengawal avatar ini
  * bergerak di atas plaza (bukan kamera terapung terus). Kamera ikut di
- * belakang/atas watak (third-person); seret penjuru bawah untuk gerak,
- * seret di tempat lain untuk putar kamera mengelilingi watak. Watak boleh
- * berjalan (kaki berayun) atau terbang (melayang lebih tinggi, kaki
- * menghala belakang, lengan terbentang macam sayap) — `flying` dikawal
- * daripada komponen induk (butang togol).
+ * belakang/atas watak (third-person); seret penjuru bawah (satu penjuru
+ * sahaja — lihat JoystickSide) untuk gerak, seret di tempat lain (termasuk
+ * penjuru satu lagi yang kini bebas) untuk putar kamera 360°. Tahan
+ * beberapa saat pada joystick untuk pindahkannya ke penjuru sebelah.
+ * Watak boleh berjalan (kaki berayun) atau terbang (melayang, condong
+ * mengikut arah tolak — bukan sekadar terapung).
  */
 export function ZymCharacterController({
 	anchors,
@@ -49,6 +72,7 @@ export function ZymCharacterController({
 	flying,
 	onNearSpotChange,
 	onJoystickChange,
+	onJoystickSideChange,
 }: {
 	anchors: KawasanAnchor[];
 	plazaRadius: number;
@@ -58,7 +82,8 @@ export function ZymCharacterController({
 	interactionPaused: boolean;
 	flying: boolean;
 	onNearSpotChange?: (id: string | null) => void;
-	onJoystickChange?: (joystick: JoystickVisual | null) => void;
+	onJoystickChange?: (joystick: ZymJoystickVisual | null) => void;
+	onJoystickSideChange?: (side: JoystickSide) => void;
 }) {
 	const { camera, gl } = useThree();
 	const avatarGroupRef = useRef<THREE.Group>(null);
@@ -71,13 +96,23 @@ export function ZymCharacterController({
 	const lastNearSpot = useRef<string | null>(null);
 	const flyTarget = useRef(0);
 	const flyBlend = useRef(0);
-	const motionState = useRef<ZymMotionState>({ speed: 0, flying: 0 });
+	const pitchInputSmooth = useRef(0);
+	const motionState = useRef<ZymMotionState>({ speed: 0, flying: 0, pitchInput: 0 });
 
 	const dragging = useRef(false);
 	const lastPointer = useRef({ x: 0, y: 0 });
 	const pinchStart = useRef<{ dist: number; distance: number } | null>(null);
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
 	const joystick = useRef<JoystickState | null>(null);
+	const joystickSide = useRef<JoystickSide>('left');
+	const relocating = useRef(false);
+	const holdStart = useRef({ x: 0, y: 0 });
+	const holdTimer = useRef<number | null>(null);
+
+	useEffect(() => {
+		joystickSide.current = readStoredSide();
+		onJoystickSideChange?.(joystickSide.current);
+	}, [onJoystickSideChange]);
 
 	useEffect(() => {
 		flyTarget.current = flying ? 1 : 0;
@@ -95,15 +130,32 @@ export function ZymCharacterController({
 			return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
 		};
 
-		const isMovementCorner = (clientX: number, clientY: number) => {
+		/** Hanya SATU penjuru (ikut joystickSide) jadi zon gerak — penjuru satu
+		 * lagi bebas untuk toleh kamera, memaksimumkan ruang toleh 360°. */
+		const isJoystickZone = (clientX: number, clientY: number) => {
 			const rect = el.getBoundingClientRect();
 			const localX = clientX - rect.left;
 			const localY = clientY - rect.top;
 			const inBottom = localY > rect.height * (1 - JOYSTICK_CONFIG.cornerZoneHeightFrac);
 			const inSide =
-				localX < rect.width * JOYSTICK_CONFIG.cornerZoneWidthFrac ||
-				localX > rect.width * (1 - JOYSTICK_CONFIG.cornerZoneWidthFrac);
+				joystickSide.current === 'left'
+					? localX < rect.width * JOYSTICK_CONFIG.cornerZoneWidthFrac
+					: localX > rect.width * (1 - JOYSTICK_CONFIG.cornerZoneWidthFrac);
 			return inBottom && inSide;
+		};
+
+		const emitJoystick = () => {
+			if (!joystick.current) {
+				onJoystickChange?.(null);
+				return;
+			}
+			onJoystickChange?.({
+				originX: joystick.current.originX,
+				originY: joystick.current.originY,
+				dx: joystick.current.dx,
+				dy: joystick.current.dy,
+				relocating: relocating.current,
+			});
 		};
 
 		const updateJoystickOffset = (clientX: number, clientY: number) => {
@@ -115,12 +167,14 @@ export function ZymCharacterController({
 			const scale = mag > 0 ? clamped / mag : 0;
 			joystick.current.dx = rawDx * scale;
 			joystick.current.dy = rawDy * scale;
-			onJoystickChange?.({
-				originX: joystick.current.originX,
-				originY: joystick.current.originY,
-				dx: joystick.current.dx,
-				dy: joystick.current.dy,
-			});
+			emitJoystick();
+		};
+
+		const clearHoldTimer = () => {
+			if (holdTimer.current !== null) {
+				window.clearTimeout(holdTimer.current);
+				holdTimer.current = null;
+			}
 		};
 
 		const onPointerDown = (e: PointerEvent) => {
@@ -130,9 +184,18 @@ export function ZymCharacterController({
 				// pointerId mungkin sudah tidak sah — abaikan
 			}
 
-			if (!joystick.current && isMovementCorner(e.clientX, e.clientY)) {
+			if (!joystick.current && isJoystickZone(e.clientX, e.clientY)) {
 				joystick.current = { pointerId: e.pointerId, originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 };
-				onJoystickChange?.({ originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 });
+				relocating.current = false;
+				holdStart.current = { x: e.clientX, y: e.clientY };
+				emitJoystick();
+				clearHoldTimer();
+				holdTimer.current = window.setTimeout(() => {
+					if (joystick.current && joystick.current.pointerId === e.pointerId) {
+						relocating.current = true;
+						emitJoystick();
+					}
+				}, HOLD_RELOCATE_MS);
 				return;
 			}
 
@@ -149,6 +212,18 @@ export function ZymCharacterController({
 
 		const onPointerMove = (e: PointerEvent) => {
 			if (joystick.current && e.pointerId === joystick.current.pointerId) {
+				if (relocating.current) {
+					joystick.current.originX = e.clientX;
+					joystick.current.originY = e.clientY;
+					joystick.current.dx = 0;
+					joystick.current.dy = 0;
+					emitJoystick();
+					return;
+				}
+				if (holdTimer.current !== null) {
+					const movedDist = Math.hypot(e.clientX - holdStart.current.x, e.clientY - holdStart.current.y);
+					if (movedDist > HOLD_CANCEL_DIST) clearHoldTimer();
+				}
 				updateJoystickOffset(e.clientX, e.clientY);
 				return;
 			}
@@ -184,6 +259,20 @@ export function ZymCharacterController({
 
 		const onPointerUp = (e: PointerEvent) => {
 			if (joystick.current && e.pointerId === joystick.current.pointerId) {
+				clearHoldTimer();
+				if (relocating.current) {
+					const rect = el.getBoundingClientRect();
+					const localX = e.clientX - rect.left;
+					const newSide: JoystickSide = localX < rect.width / 2 ? 'left' : 'right';
+					joystickSide.current = newSide;
+					try {
+						window.localStorage.setItem(JOYSTICK_SIDE_STORAGE_KEY, newSide);
+					} catch {
+						// storan tidak tersedia — biar default sesi semasa sahaja
+					}
+					onJoystickSideChange?.(newSide);
+					relocating.current = false;
+				}
 				joystick.current = null;
 				onJoystickChange?.(null);
 				return;
@@ -216,12 +305,13 @@ export function ZymCharacterController({
 			el.removeEventListener('pointerup', onPointerUp);
 			el.removeEventListener('pointercancel', onPointerUp);
 			el.removeEventListener('wheel', onWheel);
+			clearHoldTimer();
 			if (joystick.current) {
 				joystick.current = null;
 				onJoystickChange?.(null);
 			}
 		};
-	}, [interactionPaused, isMobile, gl, onJoystickChange]);
+	}, [interactionPaused, isMobile, gl, onJoystickChange, onJoystickSideChange]);
 
 	useFrame((_, delta) => {
 		flyBlend.current += (flyTarget.current - flyBlend.current) * Math.min(1, delta * FLY_BLEND_RATE);
@@ -230,13 +320,15 @@ export function ZymCharacterController({
 		const effectiveRadius = plazaRadius * radiusMult;
 
 		let moveMag = 0;
-		if (joystick.current) {
+		let pitchInputRaw = 0;
+		if (joystick.current && !relocating.current) {
 			const { dx, dy } = joystick.current;
 			const rawMag = Math.hypot(dx, dy);
 			const mag = rawMag / JOYSTICK_CONFIG.maxRadius;
 			if (mag > JOYSTICK_CONFIG.deadzone && rawMag > 0) {
 				const ndx = dx / rawMag;
 				const ndy = dy / rawMag;
+				pitchInputRaw = -ndy * mag;
 				const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, camYaw.current);
 				const right = forward.clone().applyAxisAngle(Y_AXIS, -Math.PI / 2);
 				const moveDir = new THREE.Vector3().addScaledVector(forward, -ndy).addScaledVector(right, ndx);
@@ -257,21 +349,20 @@ export function ZymCharacterController({
 				}
 			}
 		}
+		pitchInputSmooth.current += (pitchInputRaw - pitchInputSmooth.current) * Math.min(1, delta * 5);
 
 		characterHeight.current += (FLY_HEIGHT * flyBlend.current - characterHeight.current) * Math.min(1, delta * FLY_BLEND_RATE);
 
 		motionState.current.speed = moveMag;
 		motionState.current.flying = flyBlend.current;
+		motionState.current.pitchInput = pitchInputSmooth.current;
 
 		if (avatarGroupRef.current) {
 			avatarGroupRef.current.position.set(characterPos.current.x, characterHeight.current, characterPos.current.z);
 			avatarGroupRef.current.rotation.y = facingYaw.current;
 		}
 
-		const eyeTarget = characterPos.current
-			.clone()
-			.setY(characterHeight.current + 0.85)
-			.add(new THREE.Vector3());
+		const eyeTarget = characterPos.current.clone().setY(characterHeight.current + 0.85);
 		const horizontalDist = camDistance.current * Math.cos(camPitch.current);
 		const height = camDistance.current * Math.sin(camPitch.current);
 		const offset = new THREE.Vector3(

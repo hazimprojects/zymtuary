@@ -4,8 +4,7 @@ import { buildIslandGeometry, ISLAND_RADIUS } from '../wilayah/wilayahTerrain';
 import { layoutVeilroseAnchors, AMBIENT_ROSE_STALLS } from './veilroseQuarterLayout';
 import { SpotMarker } from './SpotMarker';
 import { RoseStallProp } from './veilroseLandmarks';
-import { ZymCharacterController } from './ZymCharacterController';
-import type { JoystickVisual } from '../world/DescentController';
+import { ZymCharacterController, type JoystickSide, type ZymJoystickVisual } from './ZymCharacterController';
 
 const BASE_GROUND_COLOR = '#e8c96a';
 const ZYM_GLOW_COLOR = '#d4a843';
@@ -21,6 +20,7 @@ export function VeilroseQuarterScene({
 	flying,
 	onNearSpotChange,
 	onJoystickChange,
+	onJoystickSideChange,
 }: {
 	spots: SpotUtama[];
 	isMobile: boolean;
@@ -28,7 +28,8 @@ export function VeilroseQuarterScene({
 	nearSpotId: string | null;
 	flying: boolean;
 	onNearSpotChange: (id: string | null) => void;
-	onJoystickChange: (joystick: JoystickVisual | null) => void;
+	onJoystickChange: (joystick: ZymJoystickVisual | null) => void;
+	onJoystickSideChange: (side: JoystickSide) => void;
 }) {
 	const anchors = useMemo(() => layoutVeilroseAnchors(spots), [spots]);
 	const geometry = useMemo(() => buildIslandGeometry(anchors, BASE_GROUND_COLOR), [anchors]);
@@ -64,6 +65,7 @@ export function VeilroseQuarterScene({
 				flying={flying}
 				onNearSpotChange={onNearSpotChange}
 				onJoystickChange={onJoystickChange}
+				onJoystickSideChange={onJoystickSideChange}
 			/>
 		</>
 	);

@@ -12,6 +12,10 @@ export type ZymMotionState = {
 	speed: number;
 	/** 0..1 peralihan lembut antara pose berjalan (0) dan pose terbang (1). */
 	flying: number;
+	/** -1..1 — positif bila menolak ke depan, negatif bila menarik ke
+	 * belakang. Memacu condongan badan semasa terbang supaya terasa macam
+	 * fizik penerbangan sebenar, bukan sekadar terapung statik. */
+	pitchInput: number;
 };
 
 const WALK_CYCLE_SPEED = 7.5;
@@ -19,6 +23,8 @@ const MAX_LEG_SWING = 0.62;
 const MAX_ARM_SWING = 0.5;
 const FLY_LEG_TRAIL = 0.34;
 const FLY_ARM_SPREAD = 1.15;
+const FLY_BASE_LEAN = -0.32;
+const FLY_DYNAMIC_TILT = 0.5;
 
 function Limb({
 	pivot,
@@ -80,7 +86,7 @@ export function ZymAvatar({
 			bobPhase.current += delta * 1.1;
 		}
 
-		const { speed, flying } = motionRef.current;
+		const { speed, flying, pitchInput } = motionRef.current;
 		walkPhase.current += delta * WALK_CYCLE_SPEED * Math.max(speed, flying > 0.5 ? 0.6 : 0);
 		const legSwing = Math.sin(walkPhase.current) * MAX_LEG_SWING * (1 - flying) * Math.max(speed, 0.15);
 		const armSwing = Math.sin(walkPhase.current + Math.PI) * MAX_ARM_SWING * (1 - flying) * Math.max(speed, 0.15);
@@ -100,8 +106,16 @@ export function ZymAvatar({
 			rightArmRef.current.rotation.z = THREE.MathUtils.lerp(-0.08, -FLY_ARM_SPREAD, flying);
 		}
 		if (rootRef.current) {
-			// Sedikit condong ke depan semasa terbang — pose meluncur, bukan tegak.
-			rootRef.current.rotation.x = THREE.MathUtils.lerp(0, -0.32, flying);
+			// Condongan semasa terbang ikut arah tolak — menolak ke depan
+			// (pitchInput positif) menambah condong ke depan (menukik), menarik
+			// ke belakang (negatif) mengurangkan/menyongsangkannya (mendaki) —
+			// bukan sekadar condongan tetap seolah-olah terapung statik.
+			const dynamicLean = THREE.MathUtils.clamp(
+				FLY_BASE_LEAN - pitchInput * FLY_DYNAMIC_TILT,
+				-0.95,
+				0.35,
+			);
+			rootRef.current.rotation.x = THREE.MathUtils.lerp(0, dynamicLean, flying);
 			const hover = Math.sin(bobPhase.current) * THREE.MathUtils.lerp(0.035, 0.09, flying);
 			rootRef.current.position.y = hover;
 		}
