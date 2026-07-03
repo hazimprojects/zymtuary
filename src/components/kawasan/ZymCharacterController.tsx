@@ -118,9 +118,9 @@ function shortestAngleDelta(from: number, to: number): number {
 	return delta;
 }
 
-/** Yaw rotation.y Three.js daripada vektor arah XZ (forward = (sin θ, -cos θ)). */
-function forwardFromYaw(yaw: number, out: THREE.Vector3): THREE.Vector3 {
-	return out.set(Math.sin(yaw), 0, -Math.cos(yaw));
+/** Arah jalan menjauhi kamera (ke dalam scene) — lawan offset kamera dari pivot. */
+function walkForwardFromCamera(camYaw: number, out: THREE.Vector3): THREE.Vector3 {
+	return out.set(-Math.sin(camYaw), 0, -Math.cos(camYaw));
 }
 
 /**
@@ -409,9 +409,9 @@ export function ZymCharacterController({
 						? GAME_CONTROL_CONFIG.runSpeedMult
 						: GAME_CONTROL_CONFIG.walkSpeedMult;
 					motionState.current.running = isRunning ? 1 : 0;
-					const forward = forwardFromYaw(camYaw.current, _forward);
-					const targetFacing =
-						forwardInput > 0 ? camYaw.current : camYaw.current + Math.PI;
+					const walkYaw = -camYaw.current;
+					const forward = walkForwardFromCamera(camYaw.current, _forward);
+					const targetFacing = forwardInput > 0 ? walkYaw : Math.PI - camYaw.current;
 					facingYaw.current +=
 						shortestAngleDelta(facingYaw.current, targetFacing) *
 						Math.min(1, delta * GAME_CONTROL_CONFIG.facingTurnRate);
