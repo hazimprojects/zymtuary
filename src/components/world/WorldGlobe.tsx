@@ -6,6 +6,7 @@ import {
 	FAMILY_COLORS,
 	HEMISPHERE_COLORS,
 	JOYSTICK_CONFIG,
+	WILAYAH_PORTALS,
 	type EntityEntry,
 	type SpheralRegionId,
 	type ZoomMode,
@@ -35,7 +36,10 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
+	const [nearPortalId, setNearPortalId] = useState<string | null>(null);
+	const [diving, setDiving] = useState(false);
 	const canvasEl = useRef<HTMLCanvasElement | null>(null);
+	const nearPortal = nearPortalId ? WILAYAH_PORTALS[nearPortalId] : null;
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -95,6 +99,23 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		}
 	}, []);
 
+	// Descent yang keluar daripada mod descent (naik semula ke orbit) patut
+	// buang prom pt portal juga — DescentController sudah reset bila `active`
+	// jadi false, tapi ini jaring keselamatan kalau ada susunan unmount pelik.
+	useEffect(() => {
+		if (zoomMode !== 'descent') setNearPortalId(null);
+	}, [zoomMode]);
+
+	/** Sentuh butang portal → sekejap "menyelam" (fade ke warna wilayah itu)
+	 * sebelum navigasi sebenar — melembutkan potongan keras penukaran halaman. */
+	const handleEnterPortal = useCallback(() => {
+		if (!nearPortal || diving) return;
+		setDiving(true);
+		window.setTimeout(() => {
+			window.location.href = nearPortal.route;
+		}, 620);
+	}, [nearPortal, diving]);
+
 	const familyColor = hoveredEntity
 		? (FAMILY_COLORS[hoveredEntity.keluarga_aetherys] ?? HEMISPHERE_COLORS.equilara)
 		: HEMISPHERE_COLORS.equilara;
@@ -123,6 +144,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 								interactionPaused={showRotatePrompt}
 								onZoomModeChange={setZoomMode}
 								onJoystickChange={setJoystick}
+								onPortalNear={setNearPortalId}
 							/>
 						</Suspense>
 					</Canvas>
@@ -204,6 +226,35 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 					/>
 				</div>
 			) : null}
+
+			<AnimatePresence>
+				{nearPortal && !diving ? (
+					<motion.button
+						type="button"
+						onClick={handleEnterPortal}
+						className="pointer-events-auto fixed bottom-40 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/30 bg-black/45 px-6 py-3 backdrop-blur-sm"
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: 10 }}
+						transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+					>
+						<span className="font-body text-[0.6rem] uppercase tracking-[0.32em] text-[#f5f0e8]/85">
+							◈ Masuk {nearPortal.nama}
+						</span>
+					</motion.button>
+				) : null}
+			</AnimatePresence>
+
+			<AnimatePresence>
+				{diving ? (
+					<motion.div
+						className="pointer-events-none fixed inset-0 z-[75] bg-[#e8c96a]"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.62, ease: 'easeIn' }}
+					/>
+				) : null}
+			</AnimatePresence>
 
 			<AnimatePresence>
 				{showRotatePrompt ? (

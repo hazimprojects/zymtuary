@@ -1,7 +1,14 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useMemo, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { DESCENT_CONFIG, GLOBE_RADIUS, JOYSTICK_CONFIG } from './worldGlobeConfig';
+import {
+	DESCENT_CONFIG,
+	GLOBE_RADIUS,
+	JOYSTICK_CONFIG,
+	PORTAL_ENTER_COS,
+	WILAYAH_PORTALS,
+	portalDirection,
+} from './worldGlobeConfig';
 import {
 	applyDescentPose,
 	anglesFromDirection,
@@ -25,11 +32,17 @@ type DescentControllerProps = {
 	onRequestExit: () => void;
 	onAnchorChange?: (anchor: THREE.Vector3) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
+	onPortalNear?: (wilayahId: string | null) => void;
+	/** Sudut putaran semasa `groupRef` yang membawa geometri globe & entiti —
+	 * portal ditakrif dalam ruang tempatan itu, bukan ruang dunia. */
+	groupRotationRef?: RefObject<number>;
 };
 
 function easeOutCubic(t: number): number {
 	return 1 - (1 - t) ** 3;
 }
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 type JoystickState = {
 	pointerId: number;
@@ -47,6 +60,8 @@ export function DescentController({
 	onRequestExit,
 	onAnchorChange,
 	onJoystickChange,
+	onPortalNear,
+	groupRotationRef,
 }: DescentControllerProps) {
 	const { camera, gl } = useThree();
 	const yaw = useRef(0);
@@ -61,6 +76,16 @@ export function DescentController({
 	// di bawah supaya kedua-dua zon boleh aktif serentak (dua jari, dua peranan).
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
 	const joystick = useRef<JoystickState | null>(null);
+	const lastNearPortal = useRef<string | null>(null);
+
+	const portals = useMemo(
+		() =>
+			Object.values(WILAYAH_PORTALS).map((portal) => ({
+				id: portal.wilayahId,
+				direction: new THREE.Vector3(...portalDirection(portal)),
+			})),
+		[],
+	);
 
 	// Nilai permulaan/sasaran untuk animasi "menembusi awan" — dilerap sepanjang
 	// transition, bukan dilangkau terus, supaya sudut kamera "tetap" pada saat
@@ -113,7 +138,11 @@ export function DescentController({
 
 	useEffect(() => {
 		if (active) initFromCamera();
-	}, [active, initFromCamera]);
+		else if (lastNearPortal.current !== null) {
+			lastNearPortal.current = null;
+			onPortalNear?.(null);
+		}
+	}, [active, initFromCamera, onPortalNear]);
 
 	useEffect(() => {
 		if (!active || interactionPaused) return;
@@ -348,6 +377,19 @@ export function DescentController({
 			altitude.current,
 			GLOBE_RADIUS,
 		);
+
+		if (onPortalNear) {
+			// Portal ditakrif dalam ruang tempatan `groupRef` (sama seperti kedudukan
+			// entiti) — putar anchor (ruang dunia) songsang mengikut sudut putaran
+			// semasa supaya perbandingan jarak sudut betul walau globe sudah berputar.
+			const groupY = groupRotationRef?.current ?? 0;
+			const localAnchor = anchorRef.current.clone().applyAxisAngle(Y_AXIS, -groupY);
+			const nearest = portals.find((p) => localAnchor.dot(p.direction) > PORTAL_ENTER_COS)?.id ?? null;
+			if (nearest !== lastNearPortal.current) {
+				lastNearPortal.current = nearest;
+				onPortalNear(nearest);
+			}
+		}
 	});
 
 	return <InteriorAtmosphere active={active} isMobile={isMobile} />;
