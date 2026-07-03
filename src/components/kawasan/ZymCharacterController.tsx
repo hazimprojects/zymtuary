@@ -87,10 +87,30 @@ function resolveCharacterObstacles(
 	plazaRadius: number,
 ): void {
 	for (const anchor of anchors) {
+		// Susun atur bukan bulat (cth. barisan gerai panjang) guna beberapa
+		// titik perlanggaran tempatan dan bukan satu bulatan tunggal, supaya
+		// ruang lapang di antara/sekeliling elemen pepejal kekal boleh dilalui.
+		if (anchor.obstaclePoints && anchor.obstaclePoints.length > 0) {
+			for (const point of anchor.obstaclePoints) {
+				const px = anchor.position.x + point.dx;
+				const pz = anchor.position.z + point.dz;
+				const dx = pos.x - px;
+				const dz = pos.z - pz;
+				const dist = Math.hypot(dx, dz);
+				if (dist < point.radius && dist > 1e-4) {
+					const push = (point.radius - dist) / dist;
+					pos.x += dx * push;
+					pos.z += dz * push;
+				}
+			}
+			continue;
+		}
 		const dx = pos.x - anchor.position.x;
 		const dz = pos.z - anchor.position.z;
 		const dist = Math.hypot(dx, dz);
-		const minDist = GAME_CONTROL_CONFIG.obstacleRadius + anchor.scale * 0.35;
+		// Spot yang patut boleh dipijak/dilalui (cth. dais tangga) boleh
+		// gantikan formula global ini dengan obstacleRadius tersendiri.
+		const minDist = anchor.obstacleRadius ?? GAME_CONTROL_CONFIG.obstacleRadius + anchor.scale * 0.35;
 		if (dist < minDist && dist > 1e-4) {
 			const push = (minDist - dist) / dist;
 			pos.x += dx * push;

@@ -10,4 +10,9 @@ export const VEILROSE_PALETTE = {
 	purple: '#C9A0C4',
 	green: '#B8C99A',
 	cream: '#FFF6E8',
+	/** Nada pudar untuk sudut "belakang tabir" (cth. Room of Fallen Petals) —
+	 * kekal dalam keluarga hue yang sama, cuma dilesukan supaya terasa layu
+	 * berbanding pasar hadapan yang sengaja sentiasa segar. */
+	ash: '#B0A89C',
+	driedRose: '#B5766E',
 } as const;
