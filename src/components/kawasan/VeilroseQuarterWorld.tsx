@@ -104,20 +104,17 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 			</div>
 
 			<header
-				className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center px-5 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1.5rem))]"
+				className="pointer-events-none absolute left-0 top-0 z-10 flex flex-col items-start gap-1 px-5 pt-[max(1rem,env(safe-area-inset-top))]"
 				style={{ textShadow: '0 2px 14px rgba(20,10,25,0.55)' }}
 			>
 				<a
 					href="/wilayah/mendari"
 					className="pointer-events-auto font-body text-[0.55rem] uppercase tracking-[0.3em] text-[#f5f0e8]/55 transition-colors active:text-[#f5f0e8]/85"
 				>
-					← Kembali ke Mendari
+					← Kembali
 				</a>
-				<p className="font-display mt-8 text-base font-light tracking-[0.18em] text-[#f5f0e8]/80 md:text-lg">
+				<p className="font-display text-sm font-light tracking-[0.18em] text-[#f5f0e8]/60">
 					{entity.kawasan}
-				</p>
-				<p className="mt-1 font-body text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/45">
-					Mendari · {entity.gelaran}
 				</p>
 			</header>
 
@@ -125,24 +122,24 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				{nearSpot ? (
 					<motion.div
 						key={nearSpot.nama}
-						className="pointer-events-none absolute inset-x-0 bottom-28 z-20 flex flex-col items-center gap-3 px-8 text-center md:bottom-24"
+						className="pointer-events-none absolute inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20 flex flex-col items-center gap-2 px-8 text-center"
 						style={{ textShadow: '0 2px 16px rgba(20,10,25,0.6)' }}
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: 8 }}
 						transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
 					>
-						<span className="font-display max-w-sm text-lg font-light tracking-wide text-[#f5f0e8]/92 md:text-xl">
+						<span className="font-display max-w-sm text-base font-light tracking-wide text-[#f5f0e8]/92 md:text-lg">
 							{nearSpot.nama}
 						</span>
-						<span className="font-body max-w-md text-[0.75rem] italic leading-relaxed text-[#f5f0e8]/60">
+						<span className="font-body max-w-md text-[0.7rem] italic leading-relaxed text-[#f5f0e8]/55">
 							{nearSpot.deskripsi}
 						</span>
 					</motion.div>
 				) : (
 					<motion.p
 						key="bisikan"
-						className="pointer-events-none absolute inset-x-0 bottom-28 z-20 px-8 text-center font-display text-base font-light italic leading-relaxed text-[#f5f0e8]/55 md:bottom-24 md:text-lg"
+						className="pointer-events-none absolute inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20 px-8 text-center font-display text-sm font-light italic leading-relaxed text-[#f5f0e8]/50 md:text-base"
 						style={{ textShadow: '0 2px 16px rgba(20,10,25,0.6)' }}
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -152,18 +149,6 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 					</motion.p>
 				)}
 			</AnimatePresence>
-
-			<motion.p
-				className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/45"
-				style={{ textShadow: '0 2px 14px rgba(20,10,25,0.55)' }}
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{ delay: 0.6, duration: 1.8 }}
-			>
-				{flying
-					? 'Melayang — kiri: joystick arah · kanan: toleh kamera'
-					: 'Kiri: joystick arah jalan · kanan: seret toleh kamera 360°'}
-			</motion.p>
 
 			<button
 				type="button"
