@@ -162,7 +162,10 @@
 			"spot_utama": [
 				{ "nama": "The Memory Room of Smiling Frames", "deskripsi": "Bangunan rendah berdinding kaca legap, dan di dalamnya tergantung beribu bingkai gambar — setiap satu menangkap detik seseorang tersenyum, sekecil manapun senyuman itu." },
 				{ "nama": "The Applause Steps", "deskripsi": "Tangga marmar putih di tengah pasar, licin kerana telah dipijak beribu kali oleh mereka yang naik untuk 'dipuji.'" },
-				{ "nama": "The Mask Vendor's Row", "deskripsi": "Berbau kayu dan cat, gerai-gerai yang menjual topeng senyuman dalam pelbagai saiz — dari yang paling nipis dan lutsinar sehingga yang tebal dan sukar ditanggalkan." }
+				{ "nama": "The Mask Vendor's Row", "deskripsi": "Berbau kayu dan cat, gerai-gerai yang menjual topeng senyuman dalam pelbagai saiz — dari yang paling nipis dan lutsinar sehingga yang tebal dan sukar ditanggalkan." },
+				{ "nama": "The Rehearsal Mirrors", "deskripsi": "Sebaris cermin panjang tersorok di lorong belakang pasar, kacanya legap separuh — di sinilah dia berlatih menyusun senyuman paling meyakinkan, berulang kali, sebelum melangkah keluar untuk disaksikan orang ramai." },
+				{ "nama": "The Room of Fallen Petals", "deskripsi": "Bilik simpanan di belakang gerai-gerai bunga, penuh kelopak mawar yang sudah layu dan topeng senyuman yang retak — dibuang jauh dari mata pengunjung supaya pasar di hadapan kekal kelihatan sentiasa segar dan sempurna." },
+				{ "nama": "The Queue for Applause", "deskripsi": "Barisan yang tidak pernah putus menghala ke Tangga Tepukan, setiap orang menunggu giliran untuk naik dan dipuji — tetapi barisan itu sentiasa bertambah panjang lebih laju daripada sesiapa yang sempat sampai ke atas." }
 			]
 		},
 		{

@@ -8,17 +8,35 @@ export type KawasanAnchor = {
 	 * terus daripada apa yang dideskripsikan dalam lore, bukan hue rawak. */
 	groundColor: string;
 	scale: number;
+	/** Jejari perlanggaran tersendiri (gantikan formula global
+	 * GAME_CONTROL_CONFIG.obstacleRadius + scale*0.35) — untuk spot yang
+	 * patut boleh dilalui/dipijak (cth. dais tangga) atau yang jauh lebih
+	 * besar/kecil daripada anggapan lalai. */
+	obstacleRadius?: number;
+	/** Titik perlanggaran tempatan berganda (offset dari pusat anchor) untuk
+	 * susun atur bukan bulat — cth. barisan gerai yang panjang, supaya
+	 * kawasan lapang di antara/sekeliling elemen pepejal kekal boleh dilalui. */
+	obstaclePoints?: { dx: number; dz: number; radius: number }[];
 };
 
 const ISLAND_RADIUS = 6.4;
 const GRID_SEGMENTS = 34;
+const HEART_STEP_TIER_HEIGHT = 0.085;
 
 export type IslandTerrainOptions = {
 	/** Jejari plaza — lalai sama dengan pulau Mendari */
 	islandRadius?: number;
+	/** Ketinggian setiap tingkat "heart step" — lalai sepadan dengan Mendari.
+	 * Veilrose Quarter menaikkan nilai ini supaya Tangga Tepukan terasa macam
+	 * tangga sebenar yang boleh didaki, bukan riak yang nyaris tak nampak. */
+	heartStepTierHeight?: number;
 };
 
-function terrainParams(options?: IslandTerrainOptions) {
+/** Dieksport supaya geometri landmark (cth. ApplauseStepsLandmark) boleh
+ * kongsi tepat nombor yang sama dengan permukaan boleh-jalan sebenar —
+ * mengelakkan tangga kelihatan yang tidak sepadan dengan tangga sebenar yang
+ * dilalui watak. */
+export function terrainParams(options?: IslandTerrainOptions) {
 	const islandRadius = options?.islandRadius ?? ISLAND_RADIUS;
 	const scale = islandRadius / ISLAND_RADIUS;
 	return {
@@ -26,6 +44,7 @@ function terrainParams(options?: IslandTerrainOptions) {
 		edgeStart: islandRadius * 0.74,
 		edgeEnd: islandRadius * 1.12,
 		heartStepRadius: 1.75 * scale,
+		heartStepTierHeight: options?.heartStepTierHeight ?? HEART_STEP_TIER_HEIGHT,
 		anchorBlendRadius: 3 * scale,
 	};
 }
@@ -76,7 +95,8 @@ export function buildIslandGeometry(
 	baseColor: string,
 	options?: IslandTerrainOptions,
 ): THREE.BufferGeometry {
-	const { islandRadius, edgeStart, edgeEnd, heartStepRadius, anchorBlendRadius } = terrainParams(options);
+	const { islandRadius, edgeStart, edgeEnd, heartStepRadius, heartStepTierHeight, anchorBlendRadius } =
+		terrainParams(options);
 	const geometry = new THREE.PlaneGeometry(
 		islandRadius * 2.3,
 		islandRadius * 2.3,
@@ -101,7 +121,7 @@ export function buildIslandGeometry(
 		}
 		if (distFromCenter < heartStepRadius) {
 			const tier = Math.floor((1 - distFromCenter / heartStepRadius) * 3);
-			height += tier * 0.085;
+			height += tier * heartStepTierHeight;
 		}
 		position.setY(i, height);
 
@@ -131,7 +151,7 @@ export function buildIslandGeometry(
 /** Sampel ketinggian permukaan plaza pada (x, z) — sama formula dengan
  * buildIslandGeometry supaya watak "melekat" pada tanah. */
 export function sampleIslandGroundHeight(x: number, z: number, options?: IslandTerrainOptions): number {
-	const { edgeStart, edgeEnd, heartStepRadius } = terrainParams(options);
+	const { edgeStart, edgeEnd, heartStepRadius, heartStepTierHeight } = terrainParams(options);
 	const distFromCenter = Math.hypot(x, z);
 	let height = PLAZA_HEIGHT;
 	if (distFromCenter > edgeStart) {
@@ -140,7 +160,7 @@ export function sampleIslandGroundHeight(x: number, z: number, options?: IslandT
 	}
 	if (distFromCenter < heartStepRadius) {
 		const tier = Math.floor((1 - distFromCenter / heartStepRadius) * 3);
-		height += tier * 0.085;
+		height += tier * heartStepTierHeight;
 	}
 	return height;
 }
