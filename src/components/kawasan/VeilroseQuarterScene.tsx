@@ -4,9 +4,10 @@ import { buildIslandGeometry, ISLAND_RADIUS } from '../wilayah/wilayahTerrain';
 import { layoutVeilroseAnchors, AMBIENT_ROSE_STALLS } from './veilroseQuarterLayout';
 import { SpotMarker } from './SpotMarker';
 import { RoseStallProp } from './veilroseLandmarks';
+import { VEILROSE_PALETTE } from './veilrosePalette';
 import { ZymCharacterController, type JoystickSide, type ZymJoystickVisual } from './ZymCharacterController';
 
-const BASE_GROUND_COLOR = '#e8c96a';
+const BASE_GROUND_COLOR = VEILROSE_PALETTE.gold;
 const ZYM_GLOW_COLOR = '#d4a843';
 /** Plaza rata berakhir di ~0.74 x ISLAND_RADIUS (lihat wilayahTerrain.ts) —
  * kekalkan watak dalam kawasan ini supaya tidak berjalan ke cerun tepi. */
@@ -47,7 +48,7 @@ export function VeilroseQuarterScene({
 
 			{AMBIENT_ROSE_STALLS.map((stall, i) => (
 				<group key={i} position={[stall.x, 0.18, stall.z]} rotation={[0, stall.rot, 0]}>
-					<RoseStallProp scale={stall.scale} />
+					<RoseStallProp scale={stall.scale} swayPhase={i * 1.3} />
 				</group>
 			))}
 
