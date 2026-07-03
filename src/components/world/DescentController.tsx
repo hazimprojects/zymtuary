@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { DESCENT_CONFIG, GLOBE_RADIUS } from './worldGlobeConfig';
+import { DESCENT_CONFIG, GLOBE_RADIUS, JOYSTICK_CONFIG } from './worldGlobeConfig';
 import {
 	applyDescentPose,
 	anglesFromDirection,
@@ -10,6 +10,13 @@ import {
 } from './surfaceFrame';
 import { InteriorAtmosphere } from './InteriorAtmosphere';
 
+export type JoystickVisual = {
+	originX: number;
+	originY: number;
+	dx: number;
+	dy: number;
+};
+
 type DescentControllerProps = {
 	active: boolean;
 	anchor: THREE.Vector3;
@@ -17,25 +24,19 @@ type DescentControllerProps = {
 	isMobile: boolean;
 	onRequestExit: () => void;
 	onAnchorChange?: (anchor: THREE.Vector3) => void;
+	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 };
-
-const TAP_MOVE_THRESHOLD = 10;
-const DOUBLE_TAP_WINDOW = 320;
 
 function easeOutCubic(t: number): number {
 	return 1 - (1 - t) ** 3;
 }
 
-function easeInOutCubic(t: number): number {
-	return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-}
-
-type WalkState = {
-	from: THREE.Vector3;
-	axis: THREE.Vector3;
-	angle: number;
-	forward: THREE.Vector3;
-	elapsed: number;
+type JoystickState = {
+	pointerId: number;
+	originX: number;
+	originY: number;
+	dx: number;
+	dy: number;
 };
 
 export function DescentController({
@@ -45,6 +46,7 @@ export function DescentController({
 	isMobile,
 	onRequestExit,
 	onAnchorChange,
+	onJoystickChange,
 }: DescentControllerProps) {
 	const { camera, gl } = useThree();
 	const yaw = useRef(0);
@@ -55,9 +57,10 @@ export function DescentController({
 	const dragging = useRef(false);
 	const lastPointer = useRef({ x: 0, y: 0 });
 	const pinchStart = useRef<{ dist: number; alt: number } | null>(null);
+	// Penuding "pandang" / cubit sahaja — penuding joystick disimpan berasingan
+	// di bawah supaya kedua-dua zon boleh aktif serentak (dua jari, dua peranan).
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
-	const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
-	const walk = useRef<WalkState | null>(null);
+	const joystick = useRef<JoystickState | null>(null);
 
 	const initFromCamera = useCallback(() => {
 		anchorRef.current.copy(anchor).normalize();
@@ -76,28 +79,11 @@ export function DescentController({
 			DESCENT_CONFIG.maxAltitude,
 		);
 		transition.current = 0;
-		walk.current = null;
 	}, [anchor, camera]);
 
 	useEffect(() => {
 		if (active) initFromCamera();
 	}, [active, initFromCamera]);
-
-	/** Ketik dua kali → langkah ke depan sepanjang arah pandang semasa (great-circle di permukaan bumi). */
-	const beginWalk = useCallback(() => {
-		if (walk.current) return;
-		const frame = buildSurfaceFrame(anchorRef.current);
-		const forward = lookDirectionFromAngles(yaw.current, 0, frame);
-		const axis = new THREE.Vector3().crossVectors(anchorRef.current, forward).normalize();
-		if (axis.lengthSq() < 1e-6) return;
-		walk.current = {
-			from: anchorRef.current.clone(),
-			axis,
-			angle: DESCENT_CONFIG.walkStepAngle,
-			forward,
-			elapsed: 0,
-		};
-	}, []);
 
 	useEffect(() => {
 		if (!active || interactionPaused) return;
@@ -113,15 +99,50 @@ export function DescentController({
 			return Math.hypot(dx, dy);
 		};
 
+		/** Penjuru bawah kiri/kanan skrin — di sinilah joystick pergerakan muncul. */
+		const isMovementCorner = (clientX: number, clientY: number) => {
+			const rect = el.getBoundingClientRect();
+			const localX = clientX - rect.left;
+			const localY = clientY - rect.top;
+			const inBottom = localY > rect.height * (1 - JOYSTICK_CONFIG.cornerZoneHeightFrac);
+			const inSide =
+				localX < rect.width * JOYSTICK_CONFIG.cornerZoneWidthFrac ||
+				localX > rect.width * (1 - JOYSTICK_CONFIG.cornerZoneWidthFrac);
+			return inBottom && inSide;
+		};
+
+		const updateJoystickOffset = (clientX: number, clientY: number) => {
+			if (!joystick.current) return;
+			const rawDx = clientX - joystick.current.originX;
+			const rawDy = clientY - joystick.current.originY;
+			const mag = Math.hypot(rawDx, rawDy);
+			const clamped = Math.min(mag, JOYSTICK_CONFIG.maxRadius);
+			const scale = mag > 0 ? clamped / mag : 0;
+			joystick.current.dx = rawDx * scale;
+			joystick.current.dy = rawDy * scale;
+			onJoystickChange?.({
+				originX: joystick.current.originX,
+				originY: joystick.current.originY,
+				dx: joystick.current.dx,
+				dy: joystick.current.dy,
+			});
+		};
+
 		const onPointerDown = (e: PointerEvent) => {
-			// Tanpa capture, jari yang bergerak laju/jauh (seret "kiri-kanan") boleh
-			// terlepas daripada canvas di sesetengah pelayar mobile dan pointermove
-			// berhenti sampai — capture pastikan semua event untuk jari ini terus ke sini.
+			// Tanpa capture, jari yang bergerak laju/jauh boleh terlepas daripada
+			// canvas di sesetengah pelayar mobile dan pointermove berhenti sampai.
 			try {
 				el.setPointerCapture(e.pointerId);
 			} catch {
 				// pointerId mungkin sudah tidak sah — abaikan
 			}
+
+			if (!joystick.current && isMovementCorner(e.clientX, e.clientY)) {
+				joystick.current = { pointerId: e.pointerId, originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 };
+				onJoystickChange?.({ originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 });
+				return;
+			}
+
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			if (pointers.current.size === 1) {
 				dragging.current = true;
@@ -134,6 +155,11 @@ export function DescentController({
 		};
 
 		const onPointerMove = (e: PointerEvent) => {
+			if (joystick.current && e.pointerId === joystick.current.pointerId) {
+				updateJoystickOffset(e.clientX, e.clientY);
+				return;
+			}
+
 			// Jari yang sudah di skrin sebelum descent aktif (cth. cubit yang mencetuskan
 			// peralihan) tidak sempat cetuskan pointerdown pada controller ini — daftar
 			// terus di sini supaya "look" tidak mati sehingga jari diangkat & disentuh semula.
@@ -181,10 +207,12 @@ export function DescentController({
 		};
 
 		const onPointerUp = (e: PointerEvent) => {
-			const wasTap =
-				pointers.current.size === 1 &&
-				Math.hypot(e.clientX - lastPointer.current.x, e.clientY - lastPointer.current.y) <
-					TAP_MOVE_THRESHOLD;
+			if (joystick.current && e.pointerId === joystick.current.pointerId) {
+				joystick.current = null;
+				onJoystickChange?.(null);
+				onAnchorChange?.(anchorRef.current.clone());
+				return;
+			}
 
 			pointers.current.delete(e.pointerId);
 			if (pointers.current.size < 2) pinchStart.current = null;
@@ -197,25 +225,7 @@ export function DescentController({
 				return;
 			}
 
-			if (pointers.current.size !== 0) return;
 			dragging.current = false;
-			if (!wasTap) return;
-
-			// Satu-satunya kegunaan ketik dalam descent: ketik dua kali untuk melangkah.
-			// Ketik sekali tidak buat apa-apa (dahulu ia membuka "page watak" — dibuang).
-			const now = performance.now();
-			const prev = lastTap.current;
-			const isDoubleTap =
-				!!prev &&
-				now - prev.time < DOUBLE_TAP_WINDOW &&
-				Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < TAP_MOVE_THRESHOLD * 2;
-
-			if (isDoubleTap) {
-				lastTap.current = null;
-				beginWalk();
-			} else {
-				lastTap.current = { time: now, x: e.clientX, y: e.clientY };
-			}
 		};
 
 		const onWheel = (e: WheelEvent) => {
@@ -229,14 +239,11 @@ export function DescentController({
 			if (next >= DESCENT_CONFIG.maxAltitude * 0.95 && e.deltaY > 0) onRequestExit();
 		};
 
-		const onDoubleClick = () => beginWalk();
-
 		el.addEventListener('pointerdown', onPointerDown);
 		el.addEventListener('pointermove', onPointerMove);
 		el.addEventListener('pointerup', onPointerUp);
 		el.addEventListener('pointercancel', onPointerUp);
 		el.addEventListener('wheel', onWheel, { passive: false });
-		el.addEventListener('dblclick', onDoubleClick);
 
 		return () => {
 			el.removeEventListener('pointerdown', onPointerDown);
@@ -244,9 +251,12 @@ export function DescentController({
 			el.removeEventListener('pointerup', onPointerUp);
 			el.removeEventListener('pointercancel', onPointerUp);
 			el.removeEventListener('wheel', onWheel);
-			el.removeEventListener('dblclick', onDoubleClick);
+			if (joystick.current) {
+				joystick.current = null;
+				onJoystickChange?.(null);
+			}
 		};
-	}, [active, interactionPaused, isMobile, gl, onRequestExit, beginWalk]);
+	}, [active, interactionPaused, isMobile, gl, onRequestExit, onAnchorChange, onJoystickChange]);
 
 	useFrame((_, delta) => {
 		if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
@@ -259,19 +269,36 @@ export function DescentController({
 			camera.updateProjectionMatrix();
 		}
 
-		if (walk.current) {
-			const w = walk.current;
-			w.elapsed += delta;
-			const t = Math.min(1, w.elapsed / DESCENT_CONFIG.walkDuration);
-			const eased = easeInOutCubic(t);
-			const nextAnchor = w.from.clone().applyAxisAngle(w.axis, w.angle * eased).normalize();
-			anchorRef.current.copy(nextAnchor);
-			// Kekalkan arah pandang dunia tetap sepanjang langkah — bukan hanya di penghujung —
-			// supaya terasa seperti berjalan ke depan, bukan kamera yang tersentak.
-			yaw.current = anglesFromDirection(w.forward, buildSurfaceFrame(nextAnchor)).yaw;
-			if (t >= 1) {
-				walk.current = null;
-				onAnchorChange?.(nextAnchor.clone());
+		if (joystick.current) {
+			const { dx, dy } = joystick.current;
+			const rawMag = Math.hypot(dx, dy);
+			const mag = rawMag / JOYSTICK_CONFIG.maxRadius;
+			if (mag > JOYSTICK_CONFIG.deadzone && rawMag > 0) {
+				// Arah dunia dikira daripada yaw semasa — joystick menggerakkan anda
+				// relatif ke arah pandang (depan/belakang/sisi), tetapi tidak pernah
+				// menukar arah pandang itu sendiri ("kamera tak berubah").
+				const ndx = dx / rawMag;
+				const ndy = dy / rawMag;
+				const frame = buildSurfaceFrame(anchorRef.current);
+				const forwardWorld = lookDirectionFromAngles(yaw.current, 0, frame);
+				const rightWorld = lookDirectionFromAngles(yaw.current + Math.PI / 2, 0, frame);
+				const moveWorld = new THREE.Vector3()
+					.addScaledVector(forwardWorld, -ndy)
+					.addScaledVector(rightWorld, ndx);
+
+				if (moveWorld.lengthSq() > 1e-8) {
+					moveWorld.normalize();
+					const axis = new THREE.Vector3().crossVectors(anchorRef.current, moveWorld).normalize();
+					if (axis.lengthSq() > 1e-8) {
+						const angleStep = JOYSTICK_CONFIG.moveAngularSpeed * mag * delta;
+						const nextAnchor = anchorRef.current.clone().applyAxisAngle(axis, angleStep).normalize();
+						const newFrame = buildSurfaceFrame(nextAnchor);
+						// Kekalkan arah pandang dunia tetap semasa bergerak, bukan hanya
+						// yaw mentah — elak "melayang" apabila melintasi kutub tempatan.
+						yaw.current = anglesFromDirection(forwardWorld, newFrame).yaw;
+						anchorRef.current.copy(nextAnchor);
+					}
+				}
 			}
 		}
 

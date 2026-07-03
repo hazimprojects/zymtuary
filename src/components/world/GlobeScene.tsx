@@ -15,7 +15,7 @@ import {
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { AtmosphereVeil } from './AtmosphereVeil';
-import { DescentController } from './DescentController';
+import { DescentController, type JoystickVisual } from './DescentController';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResponsiveCamera } from './ResponsiveCamera';
 
@@ -27,6 +27,7 @@ type GlobeSceneProps = {
 	isMobile: boolean;
 	interactionPaused: boolean;
 	onZoomModeChange?: (mode: ZoomMode) => void;
+	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 };
 
 function easeInOutCubic(t: number): number {
@@ -41,6 +42,7 @@ export function GlobeScene({
 	isMobile,
 	interactionPaused,
 	onZoomModeChange,
+	onJoystickChange,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
@@ -158,6 +160,7 @@ export function GlobeScene({
 				isMobile={isMobile}
 				onRequestExit={beginExitDescent}
 				onAnchorChange={setDescentAnchor}
+				onJoystickChange={onJoystickChange}
 			/>
 
 			<OrbitControls

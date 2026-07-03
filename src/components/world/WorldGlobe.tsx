@@ -5,11 +5,13 @@ import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import {
 	FAMILY_COLORS,
 	HEMISPHERE_COLORS,
+	JOYSTICK_CONFIG,
 	type EntityEntry,
 	type SpheralRegionId,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import { GlobeScene } from './GlobeScene';
+import type { JoystickVisual } from './DescentController';
 
 const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
 	luminara: 'Luminara',
@@ -20,9 +22,11 @@ const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
 export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [hoveredEntity, setHoveredEntity] = useState<EntityEntry | null>(null);
 	const [isMobile, setIsMobile] = useState(false);
+	const [isPortrait, setIsPortrait] = useState(false);
 	const [ready, setReady] = useState(false);
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
 	const [canvasKey, setCanvasKey] = useState(0);
+	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
 	const canvasEl = useRef<HTMLCanvasElement | null>(null);
 
 	useEffect(() => {
@@ -31,6 +35,16 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		update();
 		mq.addEventListener('change', update);
 		setReady(true);
+		return () => mq.removeEventListener('change', update);
+	}, []);
+
+	// Pengalaman ini direka untuk landscape — lebih immersive untuk toleh
+	// ~360° dan joystick dua-penjuru. Di mobile, minta pelawat putar peranti.
+	useEffect(() => {
+		const mq = window.matchMedia('(orientation: portrait)');
+		const update = () => setIsPortrait(mq.matches);
+		update();
+		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	}, []);
 
@@ -61,6 +75,8 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		? (FAMILY_COLORS[hoveredEntity.keluarga_aetherys] ?? HEMISPHERE_COLORS.equilara)
 		: HEMISPHERE_COLORS.equilara;
 
+	const showRotatePrompt = isMobile && isPortrait;
+
 	return (
 		<div className="fixed inset-0 bg-[#020408]">
 			<div className="absolute inset-0">
@@ -81,8 +97,9 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 								onSurfaceTap={handleSurfaceTap}
 								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
-								interactionPaused={false}
+								interactionPaused={showRotatePrompt}
 								onZoomModeChange={setZoomMode}
+								onJoystickChange={setJoystick}
 							/>
 						</Suspense>
 					</Canvas>
@@ -136,11 +153,61 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 				transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 			>
 				{zoomMode === 'descent'
-					? 'Seret satu jari untuk pandang ~360° · ketik dua kali untuk melangkah ke depan · cubit keluar untuk naik'
+					? 'Seret penjuru bawah untuk bergerak · seret di tempat lain untuk toleh 360° · cubit keluar untuk naik'
 					: zoomMode === 'atmosphere'
 						? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
 						: 'Perhatikan cahaya yang menyusup · putar · zoom · ketik untuk masuk wilayah'}
 			</motion.p>
+
+			{joystick ? (
+				<div className="pointer-events-none fixed inset-0 z-30">
+					<div
+						className="absolute rounded-full border border-[#f5f0e8]/25"
+						style={{
+							width: JOYSTICK_CONFIG.maxRadius * 2,
+							height: JOYSTICK_CONFIG.maxRadius * 2,
+							left: joystick.originX - JOYSTICK_CONFIG.maxRadius,
+							top: joystick.originY - JOYSTICK_CONFIG.maxRadius,
+							background: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
+						}}
+					/>
+					<div
+						className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f5f0e8]/40"
+						style={{
+							left: joystick.originX + joystick.dx,
+							top: joystick.originY + joystick.dy,
+							boxShadow: '0 0 18px rgba(245,240,232,0.35)',
+						}}
+					/>
+				</div>
+			) : null}
+
+			<AnimatePresence>
+				{showRotatePrompt ? (
+					<motion.div
+						className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-black px-10 text-center"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.6 }}
+					>
+						<motion.span
+							className="text-3xl"
+							animate={{ rotate: [0, 90, 90, 0] }}
+							transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', times: [0, 0.4, 0.85, 1] }}
+							aria-hidden
+						>
+							📱
+						</motion.span>
+						<p className="font-body text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/60">
+							Putar peranti anda
+						</p>
+						<p className="font-display max-w-xs text-sm font-light leading-relaxed text-[#f5f0e8]/35">
+							Equilara paling immersive dalam landscape — putar peranti anda untuk meneruskan.
+						</p>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
 		</div>
 	);
 }
