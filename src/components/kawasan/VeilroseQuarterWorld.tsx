@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import type { EntityData } from '../entities/SpheralExperience';
 import { JOYSTICK_CONFIG } from '../world/worldGlobeConfig';
-import type { JoystickVisual } from '../world/DescentController';
 import { VeilroseQuarterScene } from './VeilroseQuarterScene';
+import type { JoystickSide, ZymJoystickVisual } from './ZymCharacterController';
 
 export default function VeilroseQuarterWorld({ entity }: { entity: EntityData }) {
 	const [isMobile, setIsMobile] = useState(false);
@@ -13,7 +13,8 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 	const [ready, setReady] = useState(false);
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [nearSpotId, setNearSpotId] = useState<string | null>(null);
-	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
+	const [joystick, setJoystick] = useState<ZymJoystickVisual | null>(null);
+	const [joystickSide, setJoystickSide] = useState<JoystickSide>('left');
 	const [flying, setFlying] = useState(false);
 
 	useEffect(() => {
@@ -88,6 +89,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 								flying={flying}
 								onNearSpotChange={setNearSpotId}
 								onJoystickChange={setJoystick}
+								onJoystickSideChange={setJoystickSide}
 							/>
 						</Suspense>
 					</Canvas>
@@ -155,39 +157,46 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.6, duration: 1.8 }}
 			>
-				{flying
-					? 'Melayang — seret penjuru bawah untuk terbang · ketik lagi untuk mendarat'
-					: 'Seret penjuru bawah untuk berjalan · seret di tempat lain untuk pusing kamera'}
+				{joystick?.relocating
+					? 'Lepaskan untuk letak joystick di sini'
+					: flying
+						? 'Melayang — seret penjuru untuk terbang · tahan joystick untuk pindah penjuru'
+						: 'Seret penjuru untuk berjalan · seret di tempat lain untuk pusing kamera 360°'}
 			</motion.p>
 
 			<button
 				type="button"
 				onClick={() => setFlying((f) => !f)}
-				className="pointer-events-auto fixed bottom-40 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/30 bg-black/45 px-5 py-2.5 backdrop-blur-sm transition-colors active:bg-black/60"
+				aria-label={flying ? 'Mendarat' : 'Terbang'}
+				className={`pointer-events-auto fixed bottom-8 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f5f0e8]/30 bg-black/45 text-xl backdrop-blur-sm transition-colors active:bg-black/60 ${
+					joystickSide === 'left' ? 'left-6' : 'right-6'
+				}`}
 			>
-				<span className="font-body text-[0.58rem] uppercase tracking-[0.28em] text-[#f5f0e8]/85">
-					{flying ? '↓ Mendarat' : '✦ Terbang'}
-				</span>
+				<span aria-hidden>{flying ? '✊' : '🖐️'}</span>
 			</button>
 
 			{joystick ? (
 				<div className="pointer-events-none fixed inset-0 z-30">
 					<div
-						className="absolute rounded-full border border-[#f5f0e8]/25"
+						className="absolute rounded-full transition-colors"
 						style={{
 							width: JOYSTICK_CONFIG.maxRadius * 2,
 							height: JOYSTICK_CONFIG.maxRadius * 2,
 							left: joystick.originX - JOYSTICK_CONFIG.maxRadius,
 							top: joystick.originY - JOYSTICK_CONFIG.maxRadius,
-							background: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
+							border: joystick.relocating ? '1px solid rgba(245,240,232,0.6)' : '1px solid rgba(245,240,232,0.25)',
+							background: joystick.relocating
+								? 'radial-gradient(circle, rgba(245,240,232,0.14), transparent 70%)'
+								: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
 						}}
 					/>
 					<div
-						className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f5f0e8]/40"
+						className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full"
 						style={{
 							left: joystick.originX + joystick.dx,
 							top: joystick.originY + joystick.dy,
-							boxShadow: '0 0 18px rgba(245,240,232,0.35)',
+							background: joystick.relocating ? 'rgba(245,240,232,0.75)' : 'rgba(245,240,232,0.4)',
+							boxShadow: joystick.relocating ? '0 0 24px rgba(245,240,232,0.55)' : '0 0 18px rgba(245,240,232,0.35)',
 						}}
 					/>
 				</div>
