@@ -3,9 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import type { EntityData } from '../entities/SpheralExperience';
-import { JOYSTICK_CONFIG } from '../world/worldGlobeConfig';
+import { GAME_CONTROL_CONFIG } from './gameControlConfig';
 import { VeilroseQuarterScene } from './VeilroseQuarterScene';
-import type { JoystickSide, ZymJoystickVisual } from './ZymCharacterController';
+import type { ZymJoystickVisual } from './ZymCharacterController';
 
 export default function VeilroseQuarterWorld({ entity }: { entity: EntityData }) {
 	const [isMobile, setIsMobile] = useState(false);
@@ -14,7 +14,6 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [nearSpotId, setNearSpotId] = useState<string | null>(null);
 	const [joystick, setJoystick] = useState<ZymJoystickVisual | null>(null);
-	const [joystickSide, setJoystickSide] = useState<JoystickSide>('left');
 	const [flying, setFlying] = useState(false);
 
 	useEffect(() => {
@@ -89,7 +88,6 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 								flying={flying}
 								onNearSpotChange={setNearSpotId}
 								onJoystickChange={setJoystick}
-								onJoystickSideChange={setJoystickSide}
 							/>
 						</Suspense>
 					</Canvas>
@@ -157,20 +155,16 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.6, duration: 1.8 }}
 			>
-				{joystick?.relocating
-					? 'Lepaskan untuk letak joystick di sini'
-					: flying
-						? 'Melayang — seret penjuru untuk terbang · tahan joystick untuk pindah penjuru'
-						: 'Seret penjuru untuk berjalan · seret di tempat lain untuk pusing kamera 360°'}
+				{flying
+					? 'Melayang — kiri: joystick gerak · kanan: toleh kamera'
+					: 'Kiri: sentuh & seret untuk berjalan · kanan: seret untuk toleh kamera 360°'}
 			</motion.p>
 
 			<button
 				type="button"
 				onClick={() => setFlying((f) => !f)}
 				aria-label={flying ? 'Mendarat' : 'Terbang'}
-				className={`pointer-events-auto fixed bottom-8 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f5f0e8]/30 bg-black/45 text-xl backdrop-blur-sm transition-colors active:bg-black/60 ${
-					joystickSide === 'left' ? 'left-6' : 'right-6'
-				}`}
+				className="pointer-events-auto fixed bottom-8 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f5f0e8]/30 bg-black/45 text-xl backdrop-blur-sm transition-colors active:bg-black/60"
 			>
 				<span aria-hidden>{flying ? '✊' : '🖐️'}</span>
 			</button>
@@ -180,14 +174,12 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 					<div
 						className="absolute rounded-full transition-colors"
 						style={{
-							width: JOYSTICK_CONFIG.maxRadius * 2,
-							height: JOYSTICK_CONFIG.maxRadius * 2,
-							left: joystick.originX - JOYSTICK_CONFIG.maxRadius,
-							top: joystick.originY - JOYSTICK_CONFIG.maxRadius,
-							border: joystick.relocating ? '1px solid rgba(245,240,232,0.6)' : '1px solid rgba(245,240,232,0.25)',
-							background: joystick.relocating
-								? 'radial-gradient(circle, rgba(245,240,232,0.14), transparent 70%)'
-								: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
+							width: GAME_CONTROL_CONFIG.maxRadius * 2,
+							height: GAME_CONTROL_CONFIG.maxRadius * 2,
+							left: joystick.originX - GAME_CONTROL_CONFIG.maxRadius,
+							top: joystick.originY - GAME_CONTROL_CONFIG.maxRadius,
+							border: '1px solid rgba(245,240,232,0.25)',
+							background: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
 						}}
 					/>
 					<div
@@ -195,8 +187,8 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 						style={{
 							left: joystick.originX + joystick.dx,
 							top: joystick.originY + joystick.dy,
-							background: joystick.relocating ? 'rgba(245,240,232,0.75)' : 'rgba(245,240,232,0.4)',
-							boxShadow: joystick.relocating ? '0 0 24px rgba(245,240,232,0.55)' : '0 0 18px rgba(245,240,232,0.35)',
+							background: 'rgba(245,240,232,0.4)',
+							boxShadow: '0 0 18px rgba(245,240,232,0.35)',
 						}}
 					/>
 				</div>
