@@ -4,11 +4,9 @@ import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
 	GLOBE_RADIUS,
-	classifyDirectionToSpheral,
 	getProximity,
 	type EntityEntry,
 	type ResonancePlacement,
-	type SpheralRegionId,
 } from './worldGlobeConfig';
 import { createEntityGlowUniforms, updateEntityGlowUniforms } from './entityGlowUniforms';
 import { createGlobeMaterial } from './globeShader';
@@ -18,7 +16,6 @@ type GlobeSurfaceProps = {
 	segments: number;
 	placements: ResonancePlacement[];
 	onHover: (entity: EntityEntry | null) => void;
-	onSurfaceTap: (spheral: SpheralRegionId) => void;
 	hoveredEntity: EntityEntry | null;
 	interactionPaused: boolean;
 	forceProximity?: number;
@@ -28,7 +25,7 @@ export type GlobeSurfaceHandle = THREE.Mesh;
 
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 	function GlobeSurface(
-		{ segments, placements, onHover, onSurfaceTap, hoveredEntity, interactionPaused, forceProximity },
+		{ segments, placements, onHover, hoveredEntity, interactionPaused, forceProximity },
 		ref,
 	) {
 		const meshRef = useRef<THREE.Mesh>(null);
@@ -67,21 +64,10 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 			const n = hitNormal(e);
 			const entity = pickNearestEntity(n.x, n.y, n.z, placements, 0.88);
 			onHover(entity);
-			// Seluruh permukaan kini boleh diketik untuk masuk wilayah — bukan
-			// hanya titik resonans entiti — jadi kursor sentiasa pointer.
-			document.body.style.cursor = 'pointer';
 		};
 
 		const handlePointerOut = () => {
 			onHover(null);
-			document.body.style.cursor = 'default';
-		};
-
-		const handleClick = (e: ThreeEvent<MouseEvent>) => {
-			if (interactionPaused) return;
-			e.stopPropagation();
-			const n = hitNormal(e);
-			onSurfaceTap(classifyDirectionToSpheral(n.y));
 		};
 
 		return (
@@ -96,7 +82,6 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 					renderOrder={1}
 					onPointerMove={handlePointerMove}
 					onPointerOut={handlePointerOut}
-					onClick={handleClick}
 				>
 					<sphereGeometry args={[GLOBE_RADIUS * 1.001, segments, segments]} />
 					<primitive object={material} attach="material" />
