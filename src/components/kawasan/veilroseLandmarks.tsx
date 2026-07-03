@@ -23,11 +23,16 @@ import { terrainParams, type IslandTerrainOptions } from '../wilayah/wilayahTerr
  * tidak sepadan dengan tanah di bawahnya. */
 function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerrainOptions }) {
 	const glowRef = useRef<THREE.Mesh>(null);
+	const beaconRef = useRef<THREE.Mesh>(null);
 	useFrame(({ clock }) => {
+		const t = clock.getElapsedTime();
 		if (glowRef.current) {
-			const t = clock.getElapsedTime();
 			const mat = glowRef.current.material as THREE.MeshStandardMaterial;
 			mat.emissiveIntensity = 0.5 + Math.sin(t * 1.4) * 0.15;
+		}
+		if (beaconRef.current) {
+			const mat = beaconRef.current.material as THREE.MeshStandardMaterial;
+			mat.emissiveIntensity = 0.6 + Math.sin(t * 1.4 + 0.6) * 0.2;
 		}
 	});
 
@@ -51,7 +56,18 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 				return (
 					<mesh key={i} position={[0, pos, 0]}>
 						<cylinderGeometry args={[tier.r, tier.r + 0.18, tier.h, 20]} />
-						<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
+						{/* fog={false} + putih terang (bukan cream) sengaja — kabus
+						 * jarak scene ini condong ke warna emas tanah (BASE_GROUND_COLOR),
+						 * jadi tanpa ini marmar bercampur dengan pasir dan nampak macam
+						 * timbunan pasir dari jauh, bukan tangga marmar putih yang jelas. */}
+						<meshStandardMaterial
+							color="#FFFFFF"
+							emissive="#FFFFFF"
+							emissiveIntensity={0.1}
+							flatShading
+							roughness={0.55}
+							fog={false}
+						/>
 					</mesh>
 				);
 			})}
@@ -64,7 +80,36 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 					roughness={0.4}
 				/>
 			</mesh>
+
+			{/* Mercu suar tinggi di puncak — dais itu sendiri sengaja rendah
+			 * (sepadan tanah boleh-jalan sebenar), jadi tanpa penanda menjulang
+			 * ini "The Applause Steps" tenggelam jadi bentuk kabur dari jauh.
+			 * Mercu suar & lampu kuatnya kekal kelihatan sebagai isyarat lokasi
+			 * walaupun dais itu sendiri kecil di kaki langit. */}
+			<mesh ref={beaconRef} position={[0, y + 1.15, 0]}>
+				<coneGeometry args={[0.09, 2.1, 6]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.gold}
+					emissive={VEILROSE_PALETTE.gold}
+					emissiveIntensity={0.6}
+					flatShading
+					roughness={0.35}
+					fog={false}
+				/>
+			</mesh>
+			<mesh position={[0, y + 2.25, 0]}>
+				<icosahedronGeometry args={[0.13, 0]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.cream}
+					emissive={VEILROSE_PALETTE.cream}
+					emissiveIntensity={0.7}
+					flatShading
+					roughness={0.3}
+					fog={false}
+				/>
+			</mesh>
 			<pointLight position={[0, y + 1.3, 0]} intensity={0.6} color={VEILROSE_PALETTE.gold} distance={5.5} />
+			<pointLight position={[0, y + 2.3, 0]} intensity={0.85} color={VEILROSE_PALETTE.gold} distance={9} />
 			<pointLight position={[R * 0.55, y * 0.4, R * 0.2]} intensity={0.28} color={VEILROSE_PALETTE.pink} distance={4} />
 			<pointLight position={[-R * 0.5, y * 0.4, -R * 0.3]} intensity={0.28} color={VEILROSE_PALETTE.purple} distance={4} />
 
@@ -97,7 +142,7 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 					<group key={i} position={[px, y, pz]}>
 						<mesh position={[0, 0.12, 0]}>
 							<cylinderGeometry args={[0.16, 0.19, 0.24, 8]} />
-							<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.65} />
+							<meshStandardMaterial color="#FFFFFF" flatShading roughness={0.55} fog={false} />
 						</mesh>
 						<mesh position={[0, 0.29, 0]}>
 							<icosahedronGeometry args={[0.11, 0]} />
@@ -440,50 +485,12 @@ function RoomOfFallenPetalsLandmark() {
 	);
 }
 
-/** The Queue for Applause — "barisan yang tidak pernah putus menghala ke
- * Tangga Tepukan... bertambah panjang lebih laju daripada sesiapa yang
- * sempat sampai ke atas" — barisan sosok beku (tanpa animasi, sengaja
- * kontras dengan gerai mawar yang berayun) yang merapat ke arah tengah
- * plaza dan merenggang semakin jauh daripadanya. Sosok dibina dengan
- * kadar/nisbah yang sama seperti ZymAvatar supaya terbaca sebagai "orang". */
-function QueueForApplauseLandmark({ facingAngle = 0 }: { facingAngle?: number }) {
-	const figureColors = [VEILROSE_PALETTE.pink, VEILROSE_PALETTE.gold, VEILROSE_PALETTE.purple];
-	// Positif z (selepas putaran facingAngle) menghala keluar dari tengah
-	// plaza — jarak antara sosok merenggang semakin jauh daripada tengah,
-	// merapat semakin dekat dengannya, selaras deskripsi lore.
-	const figureZ = [-1.6, -1.0, -0.5, -0.1, 0.4, 1.0, 1.7];
-
-	return (
-		<group rotation={[0, facingAngle, 0]}>
-			{figureZ.map((z, i) => {
-				const jitterX = Math.sin(i * 2.3) * 0.14;
-				const tilt = Math.cos(i * 1.7) * 0.06;
-				const color = figureColors[i % figureColors.length];
-				return (
-					<group key={i} position={[jitterX, 0, z]} rotation={[0, i * 0.5, tilt]}>
-						<mesh position={[0, 0.72, 0]}>
-							<capsuleGeometry args={[0.17, 0.42, 3, 6]} />
-							<meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.18} roughness={0.6} flatShading />
-						</mesh>
-						<mesh position={[0, 1.14, 0]}>
-							<sphereGeometry args={[0.15, 8, 7]} />
-							<meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.22} roughness={0.55} flatShading />
-						</mesh>
-					</group>
-				);
-			})}
-		</group>
-	);
-}
-
 export function VeilroseSpotLandmark({
 	id,
 	terrainOptions,
-	facingAngle,
 }: {
 	id: string;
 	terrainOptions?: IslandTerrainOptions;
-	facingAngle?: number;
 }) {
 	switch (id) {
 		case 'The Applause Steps':
@@ -496,8 +503,6 @@ export function VeilroseSpotLandmark({
 			return <RehearsalMirrorsLandmark />;
 		case 'The Room of Fallen Petals':
 			return <RoomOfFallenPetalsLandmark />;
-		case 'The Queue for Applause':
-			return <QueueForApplauseLandmark facingAngle={facingAngle} />;
 		default:
 			return null;
 	}
