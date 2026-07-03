@@ -1,20 +1,23 @@
 import * as THREE from 'three';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
+import { VEILROSE_PALETTE } from './veilrosePalette';
 
 /**
  * Susun atur Veilrose Quarter ikut kawasan_deskripsi/spot_utama sebenar —
  * The Applause Steps di tengah pasar (dideskripsikan "di tengah pasar"),
- * The Memory Room dan Mask Vendor's Row di sekelilingnya.
+ * The Memory Room dan Mask Vendor's Row di sekelilingnya. Warna tanah setiap
+ * spot diambil daripada VEILROSE_PALETTE supaya saling berkaitan, bukan
+ * dipilih berasingan mengikut objek.
  */
 const SPOT_LAYOUT: Record<string, { angle: number; radius: number; scale: number; groundColor: string }> = {
-	'The Applause Steps': { angle: 0, radius: 0, scale: 1.5, groundColor: '#f3ead6' },
-	'The Memory Room of Smiling Frames': { angle: 0.95, radius: 4.2, scale: 1.2, groundColor: '#cfe0e8' },
-	"The Mask Vendor's Row": { angle: -2.15, radius: 4.4, scale: 1.05, groundColor: '#e6a9c9' },
+	'The Applause Steps': { angle: 0, radius: 0, scale: 1.5, groundColor: VEILROSE_PALETTE.cream },
+	'The Memory Room of Smiling Frames': { angle: 0.95, radius: 4.2, scale: 1.2, groundColor: VEILROSE_PALETTE.purple },
+	"The Mask Vendor's Row": { angle: -2.15, radius: 4.4, scale: 1.05, groundColor: VEILROSE_PALETTE.pink },
 };
 
 export function layoutVeilroseAnchors(spots: { nama: string }[]): KawasanAnchor[] {
 	return spots.map((spot) => {
-		const cfg = SPOT_LAYOUT[spot.nama] ?? { angle: 0, radius: 4, scale: 1, groundColor: '#e78bab' };
+		const cfg = SPOT_LAYOUT[spot.nama] ?? { angle: 0, radius: 4, scale: 1, groundColor: VEILROSE_PALETTE.gold };
 		return {
 			id: spot.nama,
 			nama: spot.nama,

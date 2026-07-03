@@ -1,10 +1,13 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { VEILROSE_PALETTE } from './veilrosePalette';
 
 /**
  * Setiap bentuk di sini direka terus daripada spot_utama Veilrose Quarter
- * (zip-model.json, entiti zymelisse) — bukan primitif generik.
+ * (zip-model.json, entiti zymelisse) — bukan primitif generik. Warna diambil
+ * daripada VEILROSE_PALETTE (gaya Sky — pelbagai & hidup tetapi harmoni)
+ * supaya setiap objek saling berkaitan, bukan dipilih berasingan.
  */
 
 /** The Applause Steps — "tangga marmar putih di tengah pasar... dipijak
@@ -34,22 +37,28 @@ function ApplauseStepsLandmark() {
 				return (
 					<mesh key={i} position={[0, pos, 0]}>
 						<cylinderGeometry args={[tier.r, tier.r + 0.22, tier.h, 8]} />
-						<meshStandardMaterial color="#f3ead6" flatShading roughness={0.7} />
+						<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
 					</mesh>
 				);
 			})}
 			<mesh ref={glowRef} position={[0, y + 0.05, 0]}>
 				<cylinderGeometry args={[0.5, 0.5, 0.06, 8]} />
-				<meshStandardMaterial color="#f2c46a" emissive="#f2c46a" emissiveIntensity={0.55} roughness={0.4} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.gold}
+					emissive={VEILROSE_PALETTE.gold}
+					emissiveIntensity={0.55}
+					roughness={0.4}
+				/>
 			</mesh>
-			<pointLight position={[0, y + 1.2, 0]} intensity={0.6} color="#f2c46a" distance={5} />
+			<pointLight position={[0, y + 1.2, 0]} intensity={0.6} color={VEILROSE_PALETTE.gold} distance={5} />
 		</group>
 	);
 }
 
 /** The Memory Room of Smiling Frames — "bangunan rendah berdinding kaca
  * legap... beribu bingkai gambar" — bangunan kaca legap dengan grid bingkai
- * bercahaya lembut di fasadnya. */
+ * bercahaya lembut di fasadnya. Kaca ditintakan ungu senja lembut supaya
+ * serasi dengan palet, bukan kaca biru sejuk yang terpisah daripada mood. */
 function MemoryRoomLandmark() {
 	const frameRows = 4;
 	const frameCols = 5;
@@ -63,24 +72,34 @@ function MemoryRoomLandmark() {
 		<group>
 			<mesh position={[0, 0.75, 0]}>
 				<boxGeometry args={[2.4, 1.5, 1.8]} />
-				<meshPhysicalMaterial
-					color="#dce8ec"
+				{/* emissive ditambah supaya ungu kekal kelihatan ungu — cahaya
+				 * hangat/oren scene ini (rendah komponen biru) menenggelamkan warna
+				 * ungu jadi coklat/terakota kalau bergantung sepenuhnya pada
+				 * pencahayaan luar untuk warnanya. */}
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.purple}
+					emissive={VEILROSE_PALETTE.purple}
+					emissiveIntensity={0.4}
 					flatShading
-					roughness={0.35}
-					metalness={0.05}
-					transmission={0.35}
+					roughness={0.3}
+					metalness={0.1}
 					transparent
-					opacity={0.75}
+					opacity={0.82}
 				/>
 			</mesh>
 			<mesh position={[0, 1.58, 0]}>
 				<boxGeometry args={[2.55, 0.16, 1.95]} />
-				<meshStandardMaterial color="#c7d4d8" flatShading roughness={0.7} />
+				<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
 			</mesh>
 			{frames.map((f, i) => (
 				<mesh key={i} position={[f.x, f.y, 0.91]}>
 					<boxGeometry args={[0.16, 0.22, 0.03]} />
-					<meshStandardMaterial color="#f5d78e" emissive="#f5d78e" emissiveIntensity={0.4} roughness={0.5} />
+					<meshStandardMaterial
+						color={VEILROSE_PALETTE.gold}
+						emissive={VEILROSE_PALETTE.gold}
+						emissiveIntensity={0.4}
+						roughness={0.5}
+					/>
 				</mesh>
 			))}
 		</group>
@@ -89,7 +108,9 @@ function MemoryRoomLandmark() {
 
 /** The Mask Vendor's Row — "gerai-gerai yang menjual topeng senyuman...
  * dari yang paling nipis dan lutsinar sehingga yang tebal" — barisan gerai
- * kayu dengan topeng-topeng tergantung dalam pelbagai saiz/ketebalan. */
+ * kayu dengan topeng-topeng tergantung dalam pelbagai saiz/ketebalan, warna
+ * bersilih ganti pink/ungu daripada palet supaya nampak pelbagai, bukan
+ * seragam satu warna sahaja. */
 function MaskVendorRowLandmark() {
 	const stalls = [
 		{ x: -1.5, scale: 0.85 },
@@ -111,7 +132,11 @@ function MaskVendorRowLandmark() {
 					{[-0.22, 0, 0.22].map((mx, mi) => (
 						<mesh key={mi} position={[mx, 0.72, 0.32]} rotation={[0.15, 0, 0]}>
 							<sphereGeometry args={[0.15, 6, 5]} />
-							<meshStandardMaterial color={mi === 1 ? '#f2c9dc' : '#e8a8c4'} flatShading roughness={0.6} />
+							<meshStandardMaterial
+								color={mi === 1 ? VEILROSE_PALETTE.purple : VEILROSE_PALETTE.pink}
+								flatShading
+								roughness={0.6}
+							/>
 						</mesh>
 					))}
 				</group>
@@ -133,27 +158,49 @@ export function VeilroseSpotLandmark({ id }: { id: string }) {
 	}
 }
 
+const BLOOM_COLORS = [VEILROSE_PALETTE.pink, VEILROSE_PALETTE.gold, VEILROSE_PALETTE.purple];
+const SWAY_PERIOD = 5;
+
 /** Gerai bunga mawar hiasan — mengisi plaza supaya "pasar terbuka dipenuhi
- * gerai bunga mawar" terasa padat, bukan sekadar 3 spot terpencil. */
-export function RoseStallProp({ scale }: { scale: number }) {
+ * gerai bunga mawar" terasa padat, bukan sekadar 3 spot terpencil. Berayun
+ * perlahan (macam angin lembut yang konsisten) supaya plaza terasa
+ * "bernafas", bukan statik sepenuhnya. */
+export function RoseStallProp({ scale, swayPhase = 0 }: { scale: number; swayPhase?: number }) {
+	const clusterRef = useRef<THREE.Group>(null);
+	useFrame(({ clock }) => {
+		if (!clusterRef.current) return;
+		const t = clock.getElapsedTime();
+		const angle = (Math.PI * 2) / SWAY_PERIOD;
+		clusterRef.current.rotation.z = Math.sin(t * angle + swayPhase) * 0.09;
+		clusterRef.current.rotation.x = Math.sin(t * angle * 0.7 + swayPhase + 1.3) * 0.05;
+	});
 	return (
 		<group scale={scale}>
 			<mesh position={[0, 0.18, 0]}>
 				<cylinderGeometry args={[0.32, 0.36, 0.36, 6]} />
 				<meshStandardMaterial color="#8a5a42" flatShading roughness={0.8} />
 			</mesh>
-			{[0, 1, 2].map((i) => (
-				<mesh key={i} position={[Math.cos((i / 3) * Math.PI * 2) * 0.16, 0.42, Math.sin((i / 3) * Math.PI * 2) * 0.16]}>
-					<icosahedronGeometry args={[0.19, 0]} />
-					<meshStandardMaterial
-						color={i === 0 ? '#e8618f' : i === 1 ? '#f2a5c4' : '#d94f7c'}
-						flatShading
-						emissive={i === 0 ? '#e8618f' : i === 1 ? '#f2a5c4' : '#d94f7c'}
-						emissiveIntensity={0.25}
-						roughness={0.55}
-					/>
-				</mesh>
-			))}
+			{/* Daun — pengisi hijau lembut yang sebelum ini tiada langsung */}
+			{[0, 1, 2].map((i) => {
+				const a = (i / 3) * Math.PI * 2 + Math.PI / 3;
+				return (
+					<mesh key={`leaf-${i}`} position={[Math.cos(a) * 0.14, 0.34, Math.sin(a) * 0.14]} rotation={[0.3, a, 0]}>
+						<coneGeometry args={[0.07, 0.22, 4]} />
+						<meshStandardMaterial color={VEILROSE_PALETTE.green} flatShading roughness={0.6} />
+					</mesh>
+				);
+			})}
+			<group ref={clusterRef} position={[0, 0.42, 0]}>
+				{[0, 1, 2].map((i) => {
+					const color = BLOOM_COLORS[i % BLOOM_COLORS.length];
+					return (
+						<mesh key={i} position={[Math.cos((i / 3) * Math.PI * 2) * 0.16, 0, Math.sin((i / 3) * Math.PI * 2) * 0.16]}>
+							<icosahedronGeometry args={[0.19, 0]} />
+							<meshStandardMaterial color={color} flatShading emissive={color} emissiveIntensity={0.22} roughness={0.55} />
+						</mesh>
+					);
+				})}
+			</group>
 		</group>
 	);
 }
