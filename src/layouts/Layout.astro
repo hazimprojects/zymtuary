@@ -46,5 +46,16 @@ const bodyClass = immersive
 	</head>
 	<body class={bodyClass}>
 		<slot />
+		<script>
+			// Chrome perlu service worker berdaftar (bukan sekadar manifest) sebelum
+			// ia anggap laman ini "installable" penuh — tanpanya, "Add to Home
+			// Screen" jatuh balik ke pintasan biasa (ikon huruf generik), bukan
+			// pemasangan app sebenar dengan orientation lock.
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', () => {
+					navigator.serviceWorker.register('/sw.js').catch(() => {});
+				});
+			}
+		</script>
 	</body>
 </html>
