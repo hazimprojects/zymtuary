@@ -306,9 +306,9 @@ export function ZymCharacterController({
 			const dx = e.clientX - lastLookPointer.current.x;
 			const dy = e.clientY - lastLookPointer.current.y;
 			lastLookPointer.current = { x: e.clientX, y: e.clientY };
-			camYaw.current += dx * rotateSpeed;
+			camYaw.current -= dx * rotateSpeed;
 			camPitch.current = THREE.MathUtils.clamp(
-				camPitch.current - dy * pitchSpeed,
+				camPitch.current + dy * pitchSpeed,
 				GAME_CONTROL_CONFIG.minPitch,
 				GAME_CONTROL_CONFIG.maxPitch,
 			);
