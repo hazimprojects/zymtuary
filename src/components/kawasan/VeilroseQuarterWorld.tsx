@@ -3,13 +3,17 @@ import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import ImmersiveRefresh from '../ui/ImmersiveRefresh';
 import type { EntityData } from '../entities/SpheralExperience';
+import { JOYSTICK_CONFIG } from '../world/worldGlobeConfig';
+import type { JoystickVisual } from '../world/DescentController';
 import { VeilroseQuarterScene } from './VeilroseQuarterScene';
 
 export default function VeilroseQuarterWorld({ entity }: { entity: EntityData }) {
 	const [isMobile, setIsMobile] = useState(false);
+	const [isPortrait, setIsPortrait] = useState(false);
 	const [ready, setReady] = useState(false);
 	const [canvasKey, setCanvasKey] = useState(0);
-	const [activeId, setActiveId] = useState<string | null>(null);
+	const [nearSpotId, setNearSpotId] = useState<string | null>(null);
+	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
 
 	useEffect(() => {
 		const mq = window.matchMedia('(max-width: 768px), (pointer: coarse)');
@@ -17,6 +21,16 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 		update();
 		mq.addEventListener('change', update);
 		setReady(true);
+		return () => mq.removeEventListener('change', update);
+	}, []);
+
+	// Watak Zym dikawal dengan joystick dua-penjuru — sama macam descent globe,
+	// pengalaman ini perlukan landscape supaya lebih immersive & selesa.
+	useEffect(() => {
+		const mq = window.matchMedia('(orientation: portrait)');
+		const update = () => setIsPortrait(mq.matches);
+		update();
+		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	}, []);
 
@@ -30,8 +44,22 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
 
+	const handleRequestLandscape = useCallback(async () => {
+		try {
+			const el = document.documentElement;
+			if (!document.fullscreenElement && el.requestFullscreen) {
+				await el.requestFullscreen().catch(() => {});
+			}
+			const orientation = screen.orientation as (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
+			await orientation?.lock?.('landscape');
+		} catch {
+			// Tidak disokong pada peranti/pelayar ini — biar pelawat putar secara manual.
+		}
+	}, []);
+
 	const spots = entity.spot_utama ?? [];
-	const activeSpot = spots.find((s) => s.nama === activeId) ?? null;
+	const nearSpot = spots.find((s) => s.nama === nearSpotId) ?? null;
+	const showRotatePrompt = isMobile && isPortrait;
 
 	return (
 		<div
@@ -44,14 +72,21 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				{ready ? (
 					<Canvas
 						key={canvasKey}
-						camera={{ position: [0, isMobile ? 12.2 : 12.6, isMobile ? 12.2 : 12.6], fov: isMobile ? 52 : 44, near: 0.1, far: 80 }}
+						camera={{ position: [0, 3.5, 9], fov: isMobile ? 55 : 48, near: 0.1, far: 80 }}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' }}
 						style={{ touchAction: 'none' }}
 						onCreated={handleCanvasCreated}
 					>
 						<Suspense fallback={null}>
-							<VeilroseQuarterScene spots={spots} isMobile={isMobile} activeId={activeId} onSelect={setActiveId} />
+							<VeilroseQuarterScene
+								spots={spots}
+								isMobile={isMobile}
+								interactionPaused={showRotatePrompt}
+								nearSpotId={nearSpotId}
+								onNearSpotChange={setNearSpotId}
+								onJoystickChange={setJoystick}
+							/>
 						</Suspense>
 					</Canvas>
 				) : null}
@@ -80,9 +115,9 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 			</header>
 
 			<AnimatePresence mode="wait">
-				{activeSpot ? (
+				{nearSpot ? (
 					<motion.div
-						key={activeSpot.nama}
+						key={nearSpot.nama}
 						className="pointer-events-none absolute inset-x-0 bottom-28 z-20 flex flex-col items-center gap-3 px-8 text-center md:bottom-24"
 						style={{ textShadow: '0 2px 16px rgba(20,10,25,0.6)' }}
 						initial={{ opacity: 0, y: 14 }}
@@ -91,10 +126,10 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 						transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
 					>
 						<span className="font-display max-w-sm text-lg font-light tracking-wide text-[#f5f0e8]/92 md:text-xl">
-							{activeSpot.nama}
+							{nearSpot.nama}
 						</span>
 						<span className="font-body max-w-md text-[0.75rem] italic leading-relaxed text-[#f5f0e8]/60">
-							{activeSpot.deskripsi}
+							{nearSpot.deskripsi}
 						</span>
 					</motion.div>
 				) : (
@@ -118,8 +153,61 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.6, duration: 1.8 }}
 			>
-				{activeId ? 'Ketik semula untuk kembali melihat keseluruhan' : 'Putar · zoom · ketik spot untuk menjelajah'}
+				Seret penjuru bawah untuk berjalan · seret di tempat lain untuk pusing kamera
 			</motion.p>
+
+			{joystick ? (
+				<div className="pointer-events-none fixed inset-0 z-30">
+					<div
+						className="absolute rounded-full border border-[#f5f0e8]/25"
+						style={{
+							width: JOYSTICK_CONFIG.maxRadius * 2,
+							height: JOYSTICK_CONFIG.maxRadius * 2,
+							left: joystick.originX - JOYSTICK_CONFIG.maxRadius,
+							top: joystick.originY - JOYSTICK_CONFIG.maxRadius,
+							background: 'radial-gradient(circle, rgba(245,240,232,0.06), transparent 70%)',
+						}}
+					/>
+					<div
+						className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f5f0e8]/40"
+						style={{
+							left: joystick.originX + joystick.dx,
+							top: joystick.originY + joystick.dy,
+							boxShadow: '0 0 18px rgba(245,240,232,0.35)',
+						}}
+					/>
+				</div>
+			) : null}
+
+			<AnimatePresence>
+				{showRotatePrompt ? (
+					<motion.button
+						type="button"
+						onClick={handleRequestLandscape}
+						className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-black px-10 text-center"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.6 }}
+					>
+						<motion.span
+							className="text-3xl"
+							animate={{ rotate: [0, 90, 90, 0] }}
+							transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', times: [0, 0.4, 0.85, 1] }}
+							aria-hidden
+						>
+							📱
+						</motion.span>
+						<p className="font-body text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/60">
+							Ketik untuk masuk landscape
+						</p>
+						<p className="font-display max-w-xs text-sm font-light leading-relaxed text-[#f5f0e8]/35">
+							Veilrose Quarter paling immersive dalam landscape. Kalau peranti anda tidak menyokong
+							putaran automatik, putar secara manual untuk meneruskan.
+						</p>
+					</motion.button>
+				) : null}
+			</AnimatePresence>
 		</div>
 	);
 }
