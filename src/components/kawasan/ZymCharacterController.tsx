@@ -167,8 +167,8 @@ export function ZymCharacterController({
 	const startYaw = Math.atan2(startPosition[0], startPosition[2]);
 	const facingYaw = useRef(startYaw);
 	const camYaw = useRef(startYaw);
-	const camPitch = useRef(GAME_CONTROL_CONFIG.defaultPitch);
-	const camDistance = useRef(
+	const camPitch = useRef<number>(GAME_CONTROL_CONFIG.defaultPitch);
+	const camDistance = useRef<number>(
 		isMobile ? GAME_CONTROL_CONFIG.cameraDistanceMobile : GAME_CONTROL_CONFIG.cameraDistanceDesktop,
 	);
 	const camSpringPos = useRef(new THREE.Vector3());

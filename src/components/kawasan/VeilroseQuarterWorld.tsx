@@ -25,7 +25,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 		return () => mq.removeEventListener('change', update);
 	}, []);
 
-	// Watak Zym dikawal dengan joystick dua-penjuru — sama macam descent globe,
+	// Watak Zym dikawal dengan joystick skrin-belah (kiri gerak, kanan toleh) —
 	// pengalaman ini perlukan landscape supaya lebih immersive & selesa.
 	useEffect(() => {
 		const mq = window.matchMedia('(orientation: portrait)');
