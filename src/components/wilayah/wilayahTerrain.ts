@@ -4,48 +4,65 @@ export type KawasanAnchor = {
 	id: string;
 	nama: string;
 	position: THREE.Vector3;
-	color: string;
+	/** Warna yang bercampur ke tanah plaza berhampiran kawasan ini — diambil
+	 * terus daripada apa yang dideskripsikan dalam lore, bukan hue rawak. */
+	groundColor: string;
+	scale: number;
 };
 
-const ISLAND_RADIUS = 5.2;
-const GRID_SEGMENTS = 26;
+const ISLAND_RADIUS = 6.4;
+const GRID_SEGMENTS = 34;
 
-/** Gelombang sinus berlapis — cukup untuk beri rasa "tanah tak rata" tanpa
- * perlu pustaka noise luar; deterministik ikut kedudukan x/z. */
-function ripple(x: number, z: number): number {
-	return (
-		Math.sin(x * 0.9 + z * 0.4) * 0.35 +
-		Math.sin(x * 0.32 - z * 0.7 + 1.7) * 0.25 +
-		Math.sin((x + z) * 0.55 + 3.1) * 0.18
-	);
-}
+/**
+ * Susun atur Mendari ikut hubungan sebenar dalam dokumen — Veilrose Quarter
+ * ialah "jantung Mendari" jadi ia diletak di tengah (jejari 0), bukan setara
+ * dengan 4 kawasan lain dalam pentagon simetri. Harlequin's Corner sengaja
+ * lebih kecil & lebih dekat kerana ia dideskripsikan "lebih kecil dan lebih
+ * intim". Warna tanah setiap kawasan diambil daripada teks kawasan_deskripsi:
+ * Veilrose = gerai mawar jambu-fuchsia, Faceless Bazaar = cermin/tiada wajah
+ * tetap (kelabu perak sejuk), Idlewick = neon pastel, Harlequin's Corner =
+ * kafe redup lilin (marun), Velvet Alcove = daun merah jambu lembut + langsir
+ * merah wain.
+ */
+const MENDARI_LAYOUT: Record<
+	string,
+	{ angle: number; radius: number; scale: number; groundColor: string }
+> = {
+	zymelisse: { angle: 0, radius: 0, scale: 1.25, groundColor: '#e78bab' },
+	zymimic: { angle: -Math.PI / 2.4, radius: 3.9, scale: 1, groundColor: '#c7ced4' },
+	zyminque: { angle: Math.PI / 4.4, radius: 4.1, scale: 1.05, groundColor: '#e6a9c9' },
+	zymarleq: { angle: Math.PI, radius: 2.5, scale: 0.7, groundColor: '#5c2430' },
+	zymirae: { angle: Math.PI * 0.62, radius: 3.4, scale: 0.95, groundColor: '#c98aa0' },
+};
 
-/** Susun kawasan dalam bentuk pentagon/heksagon rata di sekeliling pusat
- * pulau supaya semuanya kelihatan serentak dari kamera overview. */
-export function layoutKawasanAnchors(
-	ids: { id: string; nama: string }[],
-	colors: string[],
-	radius = 3.4,
-): KawasanAnchor[] {
-	const count = ids.length;
-	return ids.map((entry, index) => {
-		const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+export function layoutMendariAnchors(entities: { id: string; nama: string; kawasan?: string }[]): KawasanAnchor[] {
+	return entities.map((e) => {
+		const cfg = MENDARI_LAYOUT[e.id] ?? { angle: 0, radius: 3.4, scale: 1, groundColor: '#e0b56a' };
 		return {
-			id: entry.id,
-			nama: entry.nama,
-			position: new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius),
-			color: colors[index % colors.length],
+			id: e.id,
+			nama: e.kawasan ?? e.nama,
+			position: new THREE.Vector3(Math.cos(cfg.angle) * cfg.radius, 0, Math.sin(cfg.angle) * cfg.radius),
+			groundColor: cfg.groundColor,
+			scale: cfg.scale,
 		};
 	});
 }
 
-/** Bina geometri "pulau" faceted rendah-poligon — tinggi & warna setiap
- * verteks dipengaruhi oleh kawasan terdekat supaya sempadan antara kawasan
- * kelihatan sebagai peralihan warna poligon, bukan gradien tekstur. */
+const PLAZA_HEIGHT = 0.18;
+const EDGE_START = ISLAND_RADIUS * 0.74;
+const EDGE_END = ISLAND_RADIUS * 1.12;
+/** Applause Steps — tangga marmar berperingkat yang dideskripsikan tepat di
+ * jantung Veilrose Quarter (pusat pulau), bukan bonjolan gunung rawak. */
+const HEART_STEP_RADIUS = 1.75;
+
+/** Bina geometri plaza faceted rendah-poligon — "kota-taman yang terlalu
+ * sempurna" patut rata & tersusun (bukan bukit organik rawak), dengan tepi
+ * yang turun lembut macam hujung taman yang direka, dan warna yang
+ * bergradasi ke arah kawasan terdekat ikut warna sebenar dalam lore. */
 export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string): THREE.BufferGeometry {
 	const geometry = new THREE.PlaneGeometry(
-		ISLAND_RADIUS * 2.4,
-		ISLAND_RADIUS * 2.4,
+		ISLAND_RADIUS * 2.3,
+		ISLAND_RADIUS * 2.3,
 		GRID_SEGMENTS,
 		GRID_SEGMENTS,
 	);
@@ -53,16 +70,22 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 
 	const position = geometry.attributes.position;
 	const base = new THREE.Color(baseColor);
-	const anchorColors = anchors.map((a) => new THREE.Color(a.color));
 	const colors: number[] = [];
 
 	for (let i = 0; i < position.count; i++) {
 		const x = position.getX(i);
 		const z = position.getZ(i);
 		const distFromCenter = Math.hypot(x, z);
-		const falloff = THREE.MathUtils.clamp(1 - distFromCenter / ISLAND_RADIUS, 0, 1);
-		const shaped = Math.pow(falloff, 2.2);
-		const height = shaped > 0 ? ripple(x, z) * 0.4 * shaped + shaped * 0.32 : -0.45;
+
+		let height = PLAZA_HEIGHT;
+		if (distFromCenter > EDGE_START) {
+			const edgeT = THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (EDGE_END - EDGE_START), 0, 1);
+			height = THREE.MathUtils.lerp(PLAZA_HEIGHT, -0.55, Math.pow(edgeT, 1.6));
+		}
+		if (distFromCenter < HEART_STEP_RADIUS) {
+			const tier = Math.floor((1 - distFromCenter / HEART_STEP_RADIUS) * 3);
+			height += tier * 0.085;
+		}
 		position.setY(i, height);
 
 		let nearestIndex = 0;
@@ -74,10 +97,13 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 				nearestIndex = idx;
 			}
 		});
-		const blend = THREE.MathUtils.clamp(1 - nearestDist / 2.6, 0, 0.55);
-		const shade = THREE.MathUtils.lerp(0.5, 1, shaped);
-		const c = base.clone().lerp(anchorColors[nearestIndex] ?? base, blend);
-		colors.push(c.r * shade, c.g * shade, c.b * shade);
+		const blend = THREE.MathUtils.clamp(1 - nearestDist / 3, 0, 0.45);
+		const c = base.clone().lerp(new THREE.Color(anchors[nearestIndex]?.groundColor ?? baseColor), blend);
+		const edgeShade =
+			distFromCenter > EDGE_START
+				? THREE.MathUtils.lerp(1, 0.5, THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (ISLAND_RADIUS - EDGE_START), 0, 1))
+				: 1;
+		colors.push(c.r * edgeShade, c.g * edgeShade, c.b * edgeShade);
 	}
 
 	geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));

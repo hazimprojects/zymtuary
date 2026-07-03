@@ -4,14 +4,12 @@ import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import type { EntityData, WilayahData } from '../entities/SpheralExperience';
-import { buildIslandGeometry, layoutKawasanAnchors, type KawasanAnchor } from './wilayahTerrain';
+import { buildIslandGeometry, layoutMendariAnchors, type KawasanAnchor } from './wilayahTerrain';
 import { KawasanMarker } from './KawasanMarker';
 
 function easeInOutCubic(t: number): number {
 	return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
-
-const KAWASAN_HUES = ['#f2c14e', '#e8985f', '#d9789a', '#8fb6d9', '#a9d18e'];
 
 export function WilayahScene({
 	wilayah,
@@ -30,11 +28,7 @@ export function WilayahScene({
 	const controlsRef = useRef<OrbitControlsImpl>(null);
 
 	const anchors = useMemo(
-		() =>
-			layoutKawasanAnchors(
-				entities.map((e) => ({ id: e.id, nama: e.kawasan ?? e.nama })),
-				KAWASAN_HUES,
-			),
+		() => layoutMendariAnchors(entities.map((e) => ({ id: e.id, nama: e.nama, kawasan: e.kawasan }))),
 		[entities],
 	);
 
@@ -46,7 +40,7 @@ export function WilayahScene({
 	const overviewPos = useMemo(() => {
 		const aspect = size.width / Math.max(size.height, 1);
 		const portraitBoost = aspect < 1 ? THREE.MathUtils.clamp(1 / aspect, 1, 2.2) : 1;
-		const base = (isMobile ? 8.4 : 8.6) * portraitBoost;
+		const base = (isMobile ? 9.6 : 9.8) * portraitBoost;
 		return new THREE.Vector3(0, base, base);
 	}, [isMobile, size.width, size.height]);
 	const overviewTarget = useMemo(() => new THREE.Vector3(0, 0, 0), []);
@@ -79,9 +73,13 @@ export function WilayahScene({
 
 			const anchor = anchors.find((a) => a.id === activeId);
 			if (anchor) {
-				const dir = anchor.position.clone().normalize();
-				flyToPos.current.copy(anchor.position).addScaledVector(dir, 2.1).setY(1.85);
-				flyToTarget.current.set(anchor.position.x, 0.55, anchor.position.z);
+				// Veilrose Quarter (jantung Mendari) duduk tepat di pusat (0,0,0) —
+				// normalize() atas vektor sifar tak beri arah berguna, jadi guna
+				// arah lalai bila kawasan itu sendiri ialah pusat.
+				const dir = anchor.position.lengthSq() > 0.01 ? anchor.position.clone().normalize() : new THREE.Vector3(0, 0, 1);
+				const closeDistance = 1.6 * anchor.scale + 1.1;
+				flyToPos.current.copy(anchor.position).addScaledVector(dir, closeDistance).setY(1.4 * anchor.scale + 0.7);
+				flyToTarget.current.set(anchor.position.x, 0.4 * anchor.scale, anchor.position.z);
 			} else {
 				flyToPos.current.copy(overviewPos);
 				flyToTarget.current.copy(overviewTarget);
@@ -126,7 +124,7 @@ export function WilayahScene({
 				makeDefault
 				target={overviewTarget}
 				enablePan={false}
-				minDistance={3.2}
+				minDistance={2.2}
 				maxDistance={28}
 				minPolarAngle={0.3}
 				maxPolarAngle={1.1}
