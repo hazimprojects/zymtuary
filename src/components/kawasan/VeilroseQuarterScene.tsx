@@ -20,10 +20,11 @@ const ZYM_GLOW_COLOR = '#d4a843';
 /** Plaza rata berakhir di ~0.74 x islandRadius — kekalkan watak dalam kawasan ini. */
 const PLAZA_WALK_RADIUS = VEILROSE_ISLAND_RADIUS * 0.72;
 /** heartStepTierHeight dinaikkan daripada lalai (0.085) supaya Tangga
- * Tepukan terasa macam tangga sebenar yang boleh didaki, bukan riak yang
- * nyaris tak nampak — lihat ApplauseStepsLandmark dalam veilroseLandmarks.tsx
- * yang membina geometrinya terus daripada nombor yang sama ini. */
-const VEILROSE_TERRAIN = { islandRadius: VEILROSE_ISLAND_RADIUS, heartStepTierHeight: 0.2 } as const;
+ * Tepukan terasa macam tangga sebenar yang boleh didaki dan cukup tinggi
+ * dari tanah untuk kelihatan sebagai dais, bukan riak yang nyaris tak
+ * nampak — lihat ApplauseStepsLandmark dalam veilroseLandmarks.tsx yang
+ * membina geometrinya terus daripada nombor yang sama ini. */
+const VEILROSE_TERRAIN = { islandRadius: VEILROSE_ISLAND_RADIUS, heartStepTierHeight: 0.28 } as const;
 
 export function VeilroseQuarterScene({
 	spots,

@@ -32,10 +32,15 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 	});
 
 	const { heartStepRadius: R, heartStepTierHeight: H } = terrainParams(terrainOptions);
-	// Dua tingkat terangkat sebenar (band terluar heart-step tidak naik
-	// langsung — ia rata dengan plaza sekeliling) — lihat pecahan formula
-	// tanah dalam wilayahTerrain.ts.
+	// Apron asas melitupi SELURUH jejari heart-step (termasuk band terluar
+	// yang tidak naik dalam formula tanah) supaya cerun tanah terdedah tidak
+	// kelihatan — tanpa ini, cerun emas yang terdedah antara R dan 2R/3
+	// itulah yang sebenarnya nampak macam timbunan pasir dari jauh, bukan
+	// silinder marmar kecil di atasnya. Dua tingkat seterusnya terangkat
+	// sebenar mengikut pecahan formula tanah dalam wilayahTerrain.ts.
+	const BASE_APRON_HEIGHT = 0.06;
 	const stepTiers = [
+		{ r: R + 0.05, h: BASE_APRON_HEIGHT },
 		{ r: (2 * R) / 3, h: H },
 		{ r: R / 3, h: H },
 	];
@@ -49,33 +54,50 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 				const pos = y + tier.h / 2;
 				y += tier.h;
 				return (
-					<mesh key={i} position={[0, pos, 0]}>
-						<cylinderGeometry args={[tier.r, tier.r + 0.18, tier.h, 20]} />
-						{/* fog={false} + putih terang (bukan cream) sengaja — kabus
-						 * jarak scene ini condong ke warna emas tanah (BASE_GROUND_COLOR),
-						 * jadi tanpa ini marmar bercampur dengan pasir dan nampak macam
-						 * timbunan pasir dari jauh, bukan tangga marmar putih yang jelas. */}
-						<meshStandardMaterial
-							color="#FFFFFF"
-							emissive="#FFFFFF"
-							emissiveIntensity={0.1}
-							flatShading
-							roughness={0.55}
-							fog={false}
-						/>
-					</mesh>
+					<group key={i}>
+						<mesh position={[0, pos, 0]}>
+							<cylinderGeometry args={[tier.r, tier.r + 0.18, tier.h, 20]} />
+							{/* fog={false} + putih terang (bukan cream) sengaja — kabus
+							 * jarak scene ini condong ke warna emas tanah (BASE_GROUND_COLOR),
+							 * jadi tanpa ini marmar bercampur dengan pasir dan nampak macam
+							 * timbunan pasir dari jauh, bukan tangga marmar putih yang jelas. */}
+							<meshStandardMaterial
+								color="#FFFFFF"
+								emissive="#FFFFFF"
+								emissiveIntensity={0.1}
+								flatShading
+								roughness={0.55}
+								fog={false}
+							/>
+						</mesh>
+						{/* Jalur emas di bucu setiap tingkat — takrifan "tepi tangga"
+						 * yang kekal terbaca dari jauh walaupun ketinggian tiap tingkat
+						 * cetek, tanpa perlu struktur berasingan yang menjulang. */}
+						<mesh position={[0, pos + tier.h / 2 - 0.02, 0]}>
+							<cylinderGeometry args={[tier.r + 0.185, tier.r + 0.185, 0.04, 20]} />
+							<meshStandardMaterial
+								color={VEILROSE_PALETTE.gold}
+								emissive={VEILROSE_PALETTE.gold}
+								emissiveIntensity={0.35}
+								flatShading
+								roughness={0.4}
+								fog={false}
+							/>
+						</mesh>
+					</group>
 				);
 			})}
-			<mesh ref={glowRef} position={[0, y + 0.04, 0]}>
-				<cylinderGeometry args={[R / 3 - 0.18, R / 3 - 0.18, 0.06, 16]} />
+			<mesh ref={glowRef} position={[0, y + 0.06, 0]}>
+				<cylinderGeometry args={[R / 3 - 0.1, R / 3 - 0.1, 0.12, 20]} />
 				<meshStandardMaterial
 					color={VEILROSE_PALETTE.gold}
 					emissive={VEILROSE_PALETTE.gold}
-					emissiveIntensity={0.55}
+					emissiveIntensity={0.6}
 					roughness={0.4}
+					fog={false}
 				/>
 			</mesh>
-			<pointLight position={[0, y + 1.3, 0]} intensity={0.6} color={VEILROSE_PALETTE.gold} distance={5.5} />
+			<pointLight position={[0, y + 1.1, 0]} intensity={0.9} color={VEILROSE_PALETTE.gold} distance={9} />
 			<pointLight position={[R * 0.55, y * 0.4, R * 0.2]} intensity={0.28} color={VEILROSE_PALETTE.pink} distance={4} />
 			<pointLight position={[-R * 0.5, y * 0.4, -R * 0.3]} intensity={0.28} color={VEILROSE_PALETTE.purple} distance={4} />
 
