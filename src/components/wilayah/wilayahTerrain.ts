@@ -13,6 +13,23 @@ export type KawasanAnchor = {
 const ISLAND_RADIUS = 6.4;
 const GRID_SEGMENTS = 34;
 
+export type IslandTerrainOptions = {
+	/** Jejari plaza — lalai sama dengan pulau Mendari */
+	islandRadius?: number;
+};
+
+function terrainParams(options?: IslandTerrainOptions) {
+	const islandRadius = options?.islandRadius ?? ISLAND_RADIUS;
+	const scale = islandRadius / ISLAND_RADIUS;
+	return {
+		islandRadius,
+		edgeStart: islandRadius * 0.74,
+		edgeEnd: islandRadius * 1.12,
+		heartStepRadius: 1.75 * scale,
+		anchorBlendRadius: 3 * scale,
+	};
+}
+
 /**
  * Susun atur Mendari ikut hubungan sebenar dalam dokumen — Veilrose Quarter
  * ialah "jantung Mendari" jadi ia diletak di tengah (jejari 0), bukan setara
@@ -49,20 +66,20 @@ export function layoutMendariAnchors(entities: { id: string; nama: string; kawas
 }
 
 const PLAZA_HEIGHT = 0.18;
-const EDGE_START = ISLAND_RADIUS * 0.74;
-const EDGE_END = ISLAND_RADIUS * 1.12;
-/** Applause Steps — tangga marmar berperingkat yang dideskripsikan tepat di
- * jantung Veilrose Quarter (pusat pulau), bukan bonjolan gunung rawak. */
-const HEART_STEP_RADIUS = 1.75;
 
 /** Bina geometri plaza faceted rendah-poligon — "kota-taman yang terlalu
  * sempurna" patut rata & tersusun (bukan bukit organik rawak), dengan tepi
  * yang turun lembut macam hujung taman yang direka, dan warna yang
  * bergradasi ke arah kawasan terdekat ikut warna sebenar dalam lore. */
-export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string): THREE.BufferGeometry {
+export function buildIslandGeometry(
+	anchors: KawasanAnchor[],
+	baseColor: string,
+	options?: IslandTerrainOptions,
+): THREE.BufferGeometry {
+	const { islandRadius, edgeStart, edgeEnd, heartStepRadius, anchorBlendRadius } = terrainParams(options);
 	const geometry = new THREE.PlaneGeometry(
-		ISLAND_RADIUS * 2.3,
-		ISLAND_RADIUS * 2.3,
+		islandRadius * 2.3,
+		islandRadius * 2.3,
 		GRID_SEGMENTS,
 		GRID_SEGMENTS,
 	);
@@ -78,12 +95,12 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 		const distFromCenter = Math.hypot(x, z);
 
 		let height = PLAZA_HEIGHT;
-		if (distFromCenter > EDGE_START) {
-			const edgeT = THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (EDGE_END - EDGE_START), 0, 1);
+		if (distFromCenter > edgeStart) {
+			const edgeT = THREE.MathUtils.clamp((distFromCenter - edgeStart) / (edgeEnd - edgeStart), 0, 1);
 			height = THREE.MathUtils.lerp(PLAZA_HEIGHT, -0.55, Math.pow(edgeT, 1.6));
 		}
-		if (distFromCenter < HEART_STEP_RADIUS) {
-			const tier = Math.floor((1 - distFromCenter / HEART_STEP_RADIUS) * 3);
+		if (distFromCenter < heartStepRadius) {
+			const tier = Math.floor((1 - distFromCenter / heartStepRadius) * 3);
 			height += tier * 0.085;
 		}
 		position.setY(i, height);
@@ -97,11 +114,11 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 				nearestIndex = idx;
 			}
 		});
-		const blend = THREE.MathUtils.clamp(1 - nearestDist / 3, 0, 0.45);
+		const blend = THREE.MathUtils.clamp(1 - nearestDist / anchorBlendRadius, 0, 0.45);
 		const c = base.clone().lerp(new THREE.Color(anchors[nearestIndex]?.groundColor ?? baseColor), blend);
 		const edgeShade =
-			distFromCenter > EDGE_START
-				? THREE.MathUtils.lerp(1, 0.5, THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (ISLAND_RADIUS - EDGE_START), 0, 1))
+			distFromCenter > edgeStart
+				? THREE.MathUtils.lerp(1, 0.5, THREE.MathUtils.clamp((distFromCenter - edgeStart) / (islandRadius - edgeStart), 0, 1))
 				: 1;
 		colors.push(c.r * edgeShade, c.g * edgeShade, c.b * edgeShade);
 	}
@@ -113,15 +130,16 @@ export function buildIslandGeometry(anchors: KawasanAnchor[], baseColor: string)
 
 /** Sampel ketinggian permukaan plaza pada (x, z) — sama formula dengan
  * buildIslandGeometry supaya watak "melekat" pada tanah. */
-export function sampleIslandGroundHeight(x: number, z: number): number {
+export function sampleIslandGroundHeight(x: number, z: number, options?: IslandTerrainOptions): number {
+	const { edgeStart, edgeEnd, heartStepRadius } = terrainParams(options);
 	const distFromCenter = Math.hypot(x, z);
 	let height = PLAZA_HEIGHT;
-	if (distFromCenter > EDGE_START) {
-		const edgeT = THREE.MathUtils.clamp((distFromCenter - EDGE_START) / (EDGE_END - EDGE_START), 0, 1);
+	if (distFromCenter > edgeStart) {
+		const edgeT = THREE.MathUtils.clamp((distFromCenter - edgeStart) / (edgeEnd - edgeStart), 0, 1);
 		height = THREE.MathUtils.lerp(PLAZA_HEIGHT, -0.55, Math.pow(edgeT, 1.6));
 	}
-	if (distFromCenter < HEART_STEP_RADIUS) {
-		const tier = Math.floor((1 - distFromCenter / HEART_STEP_RADIUS) * 3);
+	if (distFromCenter < heartStepRadius) {
+		const tier = Math.floor((1 - distFromCenter / heartStepRadius) * 3);
 		height += tier * 0.085;
 	}
 	return height;

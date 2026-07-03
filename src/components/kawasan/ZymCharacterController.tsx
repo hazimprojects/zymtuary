@@ -7,7 +7,7 @@ import {
 	springAlpha,
 } from './gameControlConfig';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
-import { sampleIslandGroundHeight } from '../wilayah/wilayahTerrain';
+import { sampleIslandGroundHeight, type IslandTerrainOptions } from '../wilayah/wilayahTerrain';
 import { ZymAvatar, type ZymMotionState } from './ZymAvatar';
 
 export type ZymJoystickVisual = {
@@ -137,6 +137,7 @@ export function ZymCharacterController({
 	interactionPaused,
 	flying,
 	collisionRoot,
+	terrainOptions,
 	onNearSpotChange,
 	onJoystickChange,
 }: {
@@ -148,13 +149,14 @@ export function ZymCharacterController({
 	interactionPaused: boolean;
 	flying: boolean;
 	collisionRoot?: RefObject<THREE.Object3D | null>;
+	terrainOptions?: IslandTerrainOptions;
 	onNearSpotChange?: (id: string | null) => void;
 	onJoystickChange?: (joystick: ZymJoystickVisual | null) => void;
 }) {
 	const { camera, gl } = useThree();
 	const avatarGroupRef = useRef<THREE.Group>(null);
 	const characterPos = useRef(new THREE.Vector3(...startPosition));
-	const characterHeight = useRef(sampleIslandGroundHeight(startPosition[0], startPosition[2]));
+	const characterHeight = useRef(sampleIslandGroundHeight(startPosition[0], startPosition[2], terrainOptions));
 	const startYaw = Math.atan2(-startPosition[0], -startPosition[2]);
 	const facingYaw = useRef(startYaw);
 	const camYaw = useRef(startYaw);
@@ -425,7 +427,7 @@ export function ZymCharacterController({
 		}
 		pitchInputSmooth.current += (pitchInputRaw - pitchInputSmooth.current) * Math.min(1, delta * 5);
 
-		const groundY = sampleIslandGroundHeight(characterPos.current.x, characterPos.current.z);
+		const groundY = sampleIslandGroundHeight(characterPos.current.x, characterPos.current.z, terrainOptions);
 		const targetHeight = groundY + FLY_HEIGHT * flyBlend.current;
 		characterHeight.current += (targetHeight - characterHeight.current) * Math.min(1, delta * FLY_BLEND_RATE * 1.8);
 
