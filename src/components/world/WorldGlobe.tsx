@@ -19,6 +19,14 @@ const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
 	equilara: 'Equilara',
 };
 
+/** Langit dari dalam atmosfera patut biru cair berawan, bukan gelap/kelabu
+ * seperti ruang angkasa — hanya orbit jauh yang kekal gelap berbintang. */
+const BACKGROUND_BY_MODE: Record<ZoomMode, string> = {
+	orbit: '#020408',
+	atmosphere: '#0c2338',
+	descent: '#8fc4ea',
+};
+
 export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [hoveredEntity, setHoveredEntity] = useState<EntityEntry | null>(null);
 	const [isMobile, setIsMobile] = useState(false);
@@ -89,7 +97,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 						style={{ touchAction: 'none' }}
 						onCreated={handleCanvasCreated}
 					>
-						<color attach="background" args={['#020408']} />
+						<color attach="background" args={[BACKGROUND_BY_MODE[zoomMode]]} />
 						<Suspense fallback={null}>
 							<GlobeScene
 								entities={entities}

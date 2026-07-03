@@ -62,24 +62,54 @@ export function DescentController({
 	const pointers = useRef(new Map<number, { x: number; y: number }>());
 	const joystick = useRef<JoystickState | null>(null);
 
+	// Nilai permulaan/sasaran untuk animasi "menembusi awan" — dilerap sepanjang
+	// transition, bukan dilangkau terus, supaya sudut kamera "tetap" pada saat
+	// masuk (sepadan tepat dengan apa yang OrbitControls baru sahaja tunjukkan)
+	// dan hanya beransur ke sudut ufuk selepas itu.
+	const pitchStart = useRef(0);
+	const pitchTarget = useRef(0);
+	const altitudeStart = useRef(0);
+	const altitudeTarget = useRef(0);
+
+	// Nilai `anchor` terkini disimpan dalam ref, bukan dependency `useCallback` —
+	// jika tidak, setiap kali `onAnchorChange` mengemas kini anchor (cth. bila
+	// joystick dilepaskan), initFromCamera akan dicetuskan semula dan menetapkan
+	// semula sudut kamera ke pengiraan "pandang pusat", bukan kekal di mana
+	// pengguna sebenarnya berhenti melihat.
+	const anchorPropRef = useRef(anchor);
+	anchorPropRef.current = anchor;
+
 	const initFromCamera = useCallback(() => {
-		anchorRef.current.copy(anchor).normalize();
+		anchorRef.current.copy(anchorPropRef.current).normalize();
 		const frame = buildSurfaceFrame(anchorRef.current);
 		const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), camera.position).normalize();
 		const angles = anglesFromDirection(toCenter, frame);
 		yaw.current = angles.yaw;
-		pitch.current = THREE.MathUtils.clamp(
-			THREE.MathUtils.lerp(angles.pitch, 0.08, 0.55),
+
+		// Mula tepat di sudut yang kamera sudah pandang (kontinu, tiada lonjakan),
+		// sasaran ialah pandangan ufuk yang lebih "immersive" untuk descent.
+		pitchStart.current = THREE.MathUtils.clamp(
+			angles.pitch,
 			DESCENT_CONFIG.minPitch,
 			DESCENT_CONFIG.maxPitch,
 		);
-		altitude.current = THREE.MathUtils.clamp(
+		pitchTarget.current = 0.08;
+		pitch.current = pitchStart.current;
+
+		altitudeStart.current = THREE.MathUtils.clamp(
 			camera.position.length() - GLOBE_RADIUS,
+			DESCENT_CONFIG.minAltitude,
+			DESCENT_CONFIG.maxAltitude + 0.3,
+		);
+		altitudeTarget.current = THREE.MathUtils.clamp(
+			altitudeStart.current,
 			DESCENT_CONFIG.minAltitude,
 			DESCENT_CONFIG.maxAltitude,
 		);
+		altitude.current = altitudeStart.current;
+
 		transition.current = 0;
-	}, [anchor, camera]);
+	}, [camera]);
 
 	useEffect(() => {
 		if (active) initFromCamera();
@@ -262,11 +292,19 @@ export function DescentController({
 		if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
 
 		if (transition.current < 1) {
-			transition.current = Math.min(1, transition.current + delta * 1.1);
+			transition.current = Math.min(1, transition.current + delta * 0.6);
 			const t = easeOutCubic(transition.current);
 			camera.fov = THREE.MathUtils.lerp(48, DESCENT_CONFIG.fov, t);
 			camera.near = 0.015;
 			camera.updateProjectionMatrix();
+
+			// Beransur dari sudut kemasukan (kontinu dengan OrbitControls) ke
+			// pandangan ufuk — bukan sekali sahaja pada bingkai pertama. Berhenti
+			// beransur sebaik pengguna mula seret/cubit supaya input mereka menang.
+			if (!dragging.current && !pinchStart.current) {
+				pitch.current = THREE.MathUtils.lerp(pitchStart.current, pitchTarget.current, t);
+				altitude.current = THREE.MathUtils.lerp(altitudeStart.current, altitudeTarget.current, t);
+			}
 		}
 
 		if (joystick.current) {

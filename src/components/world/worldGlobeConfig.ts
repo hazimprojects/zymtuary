@@ -119,21 +119,23 @@ function hash(s: string): number {
 
 export type ZoomMode = 'orbit' | 'atmosphere' | 'descent';
 
-/** Ambang jarak kamera → mod zoom immersive */
-export const ZOOM_THRESHOLDS = {
-	atmosphereEnter: 4.2,
-	descentEnter: 2.75,
-} as const;
-
 export const DESCENT_CONFIG = {
 	minAltitude: 0.05,
 	maxAltitude: 0.55,
-	// hampir julat penuh menegak supaya bumi di bawah boleh dipandang terus,
-	// bukan hanya langit — dahulu minPitch -0.28 menyekat pandangan ke bawah
-	minPitch: -1.4,
+	// hampir julat penuh menegak (termasuk lurus ke bawah) supaya bumi di bawah
+	// boleh dipandang terus dan kemasukan descent tidak perlu klip pitch mentah
+	minPitch: -1.5,
 	maxPitch: 1.4,
 	fov: 68,
 	orbitExitDistance: 4.6,
+} as const;
+
+/** Ambang jarak kamera → mod zoom immersive */
+export const ZOOM_THRESHOLDS = {
+	atmosphereEnter: 4.2,
+	// Sepadan tepat dengan maxAltitude supaya masuk descent tidak melonjak
+	// kedudukan kamera — pada jarak ini altitud sudah dalam julat descent.
+	descentEnter: GLOBE_RADIUS + DESCENT_CONFIG.maxAltitude,
 } as const;
 
 /**

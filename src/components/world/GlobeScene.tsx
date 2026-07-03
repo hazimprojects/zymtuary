@@ -110,7 +110,9 @@ export function GlobeScene({
 
 	const fogNear = descentActive ? 0.8 : zoomMode === 'atmosphere' ? 4.5 : 8;
 	const fogFar = descentActive ? 14 : 22;
-	const fogColor = descentActive ? '#9ab8d8' : '#0a1420';
+	// Langit sebenar dilihat dari dalam atmosfera — biru cair, bukan kelabu —
+	// sepadan dengan warna latar Canvas di WorldGlobe.tsx mengikut zoomMode.
+	const fogColor = descentActive ? '#8fc4ea' : '#0a1420';
 
 	return (
 		<>
