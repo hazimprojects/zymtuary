@@ -42,7 +42,7 @@ export default function WilayahWorld({
 	// nisbah bidang sebenar — kurangkan "kelip" bingkai pertama pada potret.
 	const aspect = ready ? window.innerWidth / Math.max(window.innerHeight, 1) : 1;
 	const portraitBoost = aspect < 1 ? Math.min(2.2, 1 / aspect) : 1;
-	const initialDist = (isMobile ? 8.4 : 8.6) * portraitBoost;
+	const initialDist = (isMobile ? 9.6 : 9.8) * portraitBoost;
 	const initialCameraPosition: [number, number, number] = [0, initialDist, initialDist];
 
 	return (
