@@ -1,12 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import MendariWilayahVN from '../../components/scenes/MendariWilayahVN';
+import WilayahWorld from '../../components/wilayah/WilayahWorld';
 import zipModel from '../../data/zip-model.json';
 
 const wilayah = zipModel.wilayah.find((w) => w.id === 'mendari');
 if (!wilayah) throw new Error('Wilayah "mendari" tidak dijumpai dalam zip-model.json');
+
+const entities = zipModel.entities.filter((e) => e.wilayah === 'mendari');
 ---
 
 <Layout title={`${wilayah.nama} · Zymtuary`} immersive>
-	<MendariWilayahVN client:load />
+	<WilayahWorld client:load wilayah={wilayah} entities={entities} />
 </Layout>
