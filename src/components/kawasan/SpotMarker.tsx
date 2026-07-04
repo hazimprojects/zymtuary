@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -37,6 +37,10 @@ export function SpotMarker({
 	const groupRef = useRef<THREE.Group>(null);
 	const labelRef = useRef<HTMLSpanElement>(null);
 	const labelWorldPos = useRef(new THREE.Vector3());
+	// Sudut arah anchor dari tengah plaza — dipakai oleh spot yang perlu
+	// menghala ke tengah (cth. lengkung galeri The Memory Room); spot lain
+	// abaikan prop ini.
+	const facingAngle = useMemo(() => Math.atan2(anchor.position.x, anchor.position.z), [anchor.position]);
 
 	useFrame(({ clock, camera }) => {
 		if (groupRef.current) {
@@ -62,7 +66,7 @@ export function SpotMarker({
 	return (
 		<group position={anchor.position} scale={anchor.scale}>
 			<group ref={groupRef}>
-				<VeilroseSpotLandmark id={anchor.id} terrainOptions={terrainOptions} />
+				<VeilroseSpotLandmark id={anchor.id} terrainOptions={terrainOptions} facingAngle={facingAngle} />
 			</group>
 			<Html center position={[0, 2, 0]} occlude={false}>
 				<span
