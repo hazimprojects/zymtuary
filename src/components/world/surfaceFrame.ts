@@ -50,8 +50,6 @@ export function applyDescentPose(
 	pitch: number,
 	altitude: number,
 	globeRadius: number,
-	/** Semasa peralihan masuk, up-vektor sudah dilerp di luar — hantar di sini
-	 * supaya kita tidak override dengan frame.up secara mengejut. */
 	upOverride?: THREE.Vector3,
 ): void {
 	const frame = buildSurfaceFrame(anchor);
@@ -62,31 +60,45 @@ export function applyDescentPose(
 	camera.lookAt(camera.position.clone().add(forward));
 }
 
-/** Sepertii applyDescentPose tapi kamera diletakkan di belakang+atas avatar
- * (third-person), bukan di atas permukaan tepat. */
+/**
+ * Kamera third-person ala Veilrose Quarter — pivot pada bahu avatar, kamera
+ * di belakang+atas pada sudut camPitch, lookAt condong ke bawah menuju pivot.
+ * Zym kelihatan di bahagian bawah-tengah skrin seperti dalam Veilrose.
+ */
 export function applyThirdPersonGlobePose(
 	camera: THREE.PerspectiveCamera,
 	anchor: THREE.Vector3,
 	yaw: number,
-	pitch: number,
 	globeRadius: number,
-	camDist: number,
-	camHeightAboveSurface: number,
+	avatarScale: number,
 	upOverride?: THREE.Vector3,
-): { avatarPos: THREE.Vector3; avatarForward: THREE.Vector3 } {
+): { avatarPos: THREE.Vector3; avatarForward: THREE.Vector3; frame: SurfaceFrame } {
 	const frame = buildSurfaceFrame(anchor);
-	// Avatar offset dari permukaan — kecil supaya sepadan dengan AVATAR_SCALE di DescentController
-	const avatarPos = anchor.clone().multiplyScalar(globeRadius + 0.04);
-	// Arah hadap avatar = arah pandang diunjur ke satah tangen
+
+	// Kaki avatar tepat atas permukaan
+	const avatarPos = anchor.clone().multiplyScalar(globeRadius + avatarScale * 0.04);
+
+	// Arah hadap avatar — yaw sahaja, pitch 0 (horizontal di permukaan)
 	const avatarForward = lookDirectionFromAngles(yaw, 0, frame, new THREE.Vector3());
-	// Kamera: di belakang + sedikit atas avatar
-	const camPos = avatarPos.clone()
-		.addScaledVector(avatarForward, -camDist)
-		.addScaledVector(frame.up, camHeightAboveSurface);
-	// Pandang ke titik sedikit di hadapan avatar
-	const lookAt = avatarPos.clone().addScaledVector(avatarForward, 0.4).addScaledVector(frame.up, 0.1);
+
+	// Pivot di bahu avatar (~87% ketinggian badan)
+	const AVATAR_H = avatarScale * 1.2;
+	const pivot = avatarPos.clone().addScaledVector(frame.up, AVATAR_H * 0.88);
+
+	// Kamera: mundur + naik mengikut camPitch (sama dengan GAME_CONTROL_CONFIG.defaultPitch)
+	const CAM_PITCH = 0.36;
+	const CAM_DIST = AVATAR_H * 3.2;
+	const backward = avatarForward.clone().negate();
+	const camPos = pivot.clone()
+		.addScaledVector(backward, CAM_DIST * Math.cos(CAM_PITCH))
+		.addScaledVector(frame.up, CAM_DIST * Math.sin(CAM_PITCH));
+
+	// LookAt sedikit ke hadapan pivot — kamera condong ke bawah (ala lookAhead Veilrose)
+	const lookTarget = pivot.clone().addScaledVector(avatarForward, AVATAR_H * 0.45);
+
 	camera.position.copy(camPos);
 	camera.up.copy(upOverride ?? frame.up);
-	camera.lookAt(lookAt);
-	return { avatarPos, avatarForward };
+	camera.lookAt(lookTarget);
+
+	return { avatarPos, avatarForward, frame };
 }

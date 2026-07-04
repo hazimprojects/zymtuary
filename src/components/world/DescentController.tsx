@@ -14,6 +14,7 @@ import {
 	buildSurfaceFrame,
 	lookDirectionFromAngles,
 	applyThirdPersonGlobePose,
+	type SurfaceFrame,
 } from './surfaceFrame';
 import { InteriorAtmosphere } from './InteriorAtmosphere';
 import { ZymAvatar } from '../kawasan/ZymAvatar';
@@ -44,13 +45,11 @@ function easeOutCubic(t: number): number {
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-// Globe radius = 1.55 unit. Avatar perlu sangat kecil supaya nampak seperti
-// insan di permukaan planet, bukan gergasi yang menutup seluruh globe.
-// AVATAR_SCALE 0.055 → tinggi ~0.066 unit ≈ 4% jejari globe.
-// CAM_DIST_BACK 0.45 → avatar ambil ~24% FOV — nampak jelas tapi globe kekal terbuka.
-const AVATAR_SCALE = 0.055;
-const CAM_DIST_BACK = 0.45;
-const CAM_HEIGHT = 0.18;
+// Globe radius = 1.55 unit. AVATAR_SCALE dikira supaya Zym kelihatan seperti
+// insan di permukaan planet — ~7% jejari globe. applyThirdPersonGlobePose
+// menggunakan formula Veilrose (pivot bahu + camPitch 0.36) supaya rasa kamera
+// sama macam di Veilrose Quarter.
+const AVATAR_SCALE = 0.07;
 const ZYM_GLOW = '#d4a843';
 
 type JoystickState = {
@@ -76,9 +75,9 @@ export function DescentController({
 	const yaw = useRef(0);
 	const pitch = useRef(0.05);
 	const altitude = useRef(0.25);
-	// Pre-allocated untuk orientasi avatar — elak GC pressure dalam useFrame
-	const _avatarRight = new THREE.Vector3();
-	const _avatarMatrix = new THREE.Matrix4();
+	// Pre-allocated — elak pembinaan objek Three.js dalam setiap bingkai
+	const _avatarRight = useRef(new THREE.Vector3());
+	const _avatarMatrix = useRef(new THREE.Matrix4());
 	const transition = useRef(1);
 	const anchorRef = useRef(new THREE.Vector3());
 	const dragging = useRef(false);
@@ -353,9 +352,9 @@ export function DescentController({
 			if (mag > JOYSTICK_CONFIG.deadzone && rawMag > 0) {
 				const ndx = dx / rawMag;
 				const ndy = dy / rawMag;
-				const frame = buildSurfaceFrame(anchorRef.current);
-				const forwardWorld = lookDirectionFromAngles(yaw.current, 0, frame);
-				const rightWorld = lookDirectionFromAngles(yaw.current + Math.PI / 2, 0, frame);
+				const moveFrame = buildSurfaceFrame(anchorRef.current);
+				const forwardWorld = lookDirectionFromAngles(yaw.current, 0, moveFrame);
+				const rightWorld = lookDirectionFromAngles(yaw.current + Math.PI / 2, 0, moveFrame);
 				const moveWorld = new THREE.Vector3()
 					.addScaledVector(forwardWorld, -ndy)
 					.addScaledVector(rightWorld, ndx);
@@ -366,8 +365,8 @@ export function DescentController({
 					if (axis.lengthSq() > 1e-8) {
 						const angleStep = JOYSTICK_CONFIG.moveAngularSpeed * mag * delta;
 						const nextAnchor = anchorRef.current.clone().applyAxisAngle(axis, angleStep).normalize();
-						const newFrame = buildSurfaceFrame(nextAnchor);
-						yaw.current = anglesFromDirection(forwardWorld, newFrame).yaw;
+						const nextFrame = buildSurfaceFrame(nextAnchor);
+						yaw.current = anglesFromDirection(forwardWorld, nextFrame).yaw;
 						anchorRef.current.copy(nextAnchor);
 					}
 				}
@@ -382,32 +381,33 @@ export function DescentController({
 
 		// Lerp camera.up dari up asal → surface frame.up sepanjang transition
 		// untuk elak "guling" mendadak semasa masuk descent dari orbit.
-		const frame = buildSurfaceFrame(anchorRef.current);
+		const frameForUp = buildSurfaceFrame(anchorRef.current);
 		const blendedUp =
 			transition.current < 1
-				? cameraUpStart.current.clone().lerp(frame.up, easeOutCubic(transition.current))
-				: frame.up;
+				? cameraUpStart.current.clone().lerp(frameForUp.up, easeOutCubic(transition.current))
+				: frameForUp.up;
 
-		// Kamera third-person — Zym kelihatan di hadapan
-		const { avatarPos, avatarForward } = applyThirdPersonGlobePose(
+		// Kamera third-person ala Veilrose — applyThirdPersonGlobePose mengembalikan
+		// frame supaya kita boleh guna semula untuk orientasi avatar tanpa kira ulang.
+		const { avatarPos, avatarForward, frame: avatarFrame } = applyThirdPersonGlobePose(
 			camera,
 			anchorRef.current,
 			yaw.current,
-			pitch.current,
 			GLOBE_RADIUS,
-			CAM_DIST_BACK,
-			CAM_HEIGHT,
+			AVATAR_SCALE,
 			blendedUp,
 		);
 
-		// Kemaskini kedudukan & orientasi avatar Zym
-		// Quaternion betul untuk permukaan glob: atas = surface normal, hadapan = avatarForward
+		// Orientasi avatar: atas = surface normal, hadapan = avatarForward
 		if (avatarGroupRef.current) {
 			avatarGroupRef.current.position.copy(avatarPos);
-			_avatarRight.crossVectors(avatarForward, frame.up).normalize();
-			// Three.js basis: X=kanan, Y=atas, Z=-hadapan
-			_avatarMatrix.makeBasis(_avatarRight, frame.up, avatarForward.clone().negate());
-			avatarGroupRef.current.quaternion.setFromRotationMatrix(_avatarMatrix);
+			_avatarRight.current.crossVectors(avatarForward, avatarFrame.up).normalize();
+			_avatarMatrix.current.makeBasis(
+				_avatarRight.current,
+				avatarFrame.up,
+				avatarForward.clone().negate(),
+			);
+			avatarGroupRef.current.quaternion.setFromRotationMatrix(_avatarMatrix.current);
 		}
 
 		if (onPortalNear) {
