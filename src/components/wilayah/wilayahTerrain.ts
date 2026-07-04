@@ -20,7 +20,7 @@ export type KawasanAnchor = {
 	obstaclePoints?: { dx: number; dz: number; radius: number }[];
 };
 
-const ISLAND_RADIUS = 6.4;
+export const ISLAND_RADIUS = 6.4;
 const GRID_SEGMENTS = 34;
 const HEART_STEP_TIER_HEIGHT = 0.085;
 
@@ -174,4 +174,4 @@ export function sampleIslandGroundHeight(x: number, z: number, options?: IslandT
 	return height;
 }
 
-export { ISLAND_RADIUS };
+// ISLAND_RADIUS sudah dieksport terus dari baris deklarasi

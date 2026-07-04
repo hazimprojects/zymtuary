@@ -50,11 +50,42 @@ export function applyDescentPose(
 	pitch: number,
 	altitude: number,
 	globeRadius: number,
+	/** Semasa peralihan masuk, up-vektor sudah dilerp di luar — hantar di sini
+	 * supaya kita tidak override dengan frame.up secara mengejut. */
+	upOverride?: THREE.Vector3,
 ): void {
 	const frame = buildSurfaceFrame(anchor);
 	const radius = globeRadius + altitude;
 	camera.position.copy(anchor).multiplyScalar(radius);
 	const forward = lookDirectionFromAngles(yaw, pitch, frame);
-	camera.up.copy(frame.up);
+	camera.up.copy(upOverride ?? frame.up);
 	camera.lookAt(camera.position.clone().add(forward));
+}
+
+/** Sepertii applyDescentPose tapi kamera diletakkan di belakang+atas avatar
+ * (third-person), bukan di atas permukaan tepat. */
+export function applyThirdPersonGlobePose(
+	camera: THREE.PerspectiveCamera,
+	anchor: THREE.Vector3,
+	yaw: number,
+	pitch: number,
+	globeRadius: number,
+	camDist: number,
+	camHeightAboveSurface: number,
+	upOverride?: THREE.Vector3,
+): { avatarPos: THREE.Vector3; avatarForward: THREE.Vector3 } {
+	const frame = buildSurfaceFrame(anchor);
+	const avatarPos = anchor.clone().multiplyScalar(globeRadius + 0.08);
+	// Arah hadap avatar = arah pandang diunjur ke satah tangen
+	const avatarForward = lookDirectionFromAngles(yaw, 0, frame, new THREE.Vector3());
+	// Kamera: di belakang + sedikit atas avatar
+	const camPos = avatarPos.clone()
+		.addScaledVector(avatarForward, -camDist)
+		.addScaledVector(frame.up, camHeightAboveSurface);
+	// Pandang ke titik sedikit di hadapan avatar
+	const lookAt = avatarPos.clone().addScaledVector(avatarForward, 0.4).addScaledVector(frame.up, 0.1);
+	camera.position.copy(camPos);
+	camera.up.copy(upOverride ?? frame.up);
+	camera.lookAt(lookAt);
+	return { avatarPos, avatarForward };
 }
