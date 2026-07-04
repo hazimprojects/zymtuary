@@ -199,10 +199,12 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 				transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 			>
 				{zoomMode === 'descent'
-					? 'Joystick kiri untuk bergerak · seret kanan untuk toleh · cubit untuk zoom'
+					? 'Joystick kiri bawah untuk bergerak · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
 					: zoomMode === 'atmosphere'
-						? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
-						: 'Perhatikan cahaya yang menyusup · putar · zoom untuk mendekat'}
+						? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
+						: isMobile
+							? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk mendekat'
+							: 'Perhatikan cahaya yang menyusup · putar · zoom untuk mendekat'}
 			</motion.p>
 
 			{joystick ? (

@@ -85,7 +85,12 @@ export function getStarVisibility(blend: number): number {
 }
 
 export function getInteriorBlend(blend: number): number {
-	return smoothstep(0.52, 0.92, blend);
+	return smoothstep(0.68, 0.96, blend);
+}
+
+/** Selubung luar — hanya kelihatan rapat ke globe, elak cincin berlapis di angkasa */
+export function getExteriorVeilIntensity(blend: number): number {
+	return smoothstep(0.28, 0.72, blend) * 0.11;
 }
 
 export function getCameraFov(blend: number, isMobile: boolean): number {

@@ -7,21 +7,20 @@ type AtmosphereVeilProps = {
 	intensity?: number;
 };
 
-/** Selubung kabut Equilara — lebih kuat apabila masuk atmosfera */
+/** Halimunan lembut di tepi globe — satu lapisan sahaja, tanpa putaran */
 export function AtmosphereVeil({ intensity = 0.025 }: AtmosphereVeilProps) {
-	const ref = useRef<THREE.Mesh>(null);
+	const matRef = useRef<THREE.MeshBasicMaterial>(null);
 
-	useFrame(({ clock }) => {
-		if (!ref.current) return;
-		ref.current.rotation.y = clock.elapsedTime * 0.015;
-		ref.current.rotation.x = Math.sin(clock.elapsedTime * 0.08) * 0.04;
+	useFrame(() => {
+		if (matRef.current) matRef.current.opacity = intensity;
 	});
 
 	return (
-		<mesh ref={ref} renderOrder={4}>
-			<sphereGeometry args={[GLOBE_RADIUS * 1.18, 40, 40]} />
+		<mesh renderOrder={4}>
+			<sphereGeometry args={[GLOBE_RADIUS * 1.14, 32, 32]} />
 			<meshBasicMaterial
-				color="#c4b89a"
+				ref={matRef}
+				color="#a8c4d8"
 				transparent
 				opacity={intensity}
 				side={THREE.BackSide}

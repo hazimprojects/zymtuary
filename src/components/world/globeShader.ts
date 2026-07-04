@@ -121,7 +121,7 @@ float cloudLayer(vec3 n, float proximity) {
 	float c2 = fbm(n * 8.0 + drift * 1.3 + vec3(2.0, 0.0, 1.0)) * 0.55;
 	float c = c1 + c2;
 	float density = smoothstep(0.46, 0.72, c);
-	float fade = mix(0.42, 0.08, proximity);
+	float fade = mix(0.06, 0.2, proximity);
 	return density * fade;
 }
 

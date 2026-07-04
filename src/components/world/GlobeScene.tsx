@@ -14,6 +14,7 @@ import {
 import {
 	getAtmosphereBlend,
 	getCameraFov,
+	getExteriorVeilIntensity,
 	getFogColor,
 	getFogRange,
 	getInteriorBlend,
@@ -62,7 +63,8 @@ export function GlobeScene({
 	const [descentActive, setDescentActive] = useState(false);
 	const [descentAnchor, setDescentAnchor] = useState(() => new THREE.Vector3(0, 0.6, 0.8));
 	const [showStars, setShowStars] = useState(true);
-	const [veilIntensity, setVeilIntensity] = useState(0.03);
+	const [showInterior, setShowInterior] = useState(false);
+	const [veilIntensity, setVeilIntensity] = useState(0);
 	const [globeProximity, setGlobeProximity] = useState(0);
 	const groupRotationRef = useRef(0);
 	const blockDescentEntry = useRef(false);
@@ -106,9 +108,12 @@ export function GlobeScene({
 		if (starVis < 0.03 && showStars) setShowStars(false);
 		else if (starVis >= 0.03 && !showStars) setShowStars(true);
 
-		const nextVeil = 0.03 + blend * 0.16;
-		if (Math.abs(nextVeil - veilIntensity) > 0.008) setVeilIntensity(nextVeil);
+		const nextVeil = getExteriorVeilIntensity(blend);
+		if (Math.abs(nextVeil - veilIntensity) > 0.006) setVeilIntensity(nextVeil);
 		if (Math.abs(blend - globeProximity) > 0.012) setGlobeProximity(blend);
+		const interior = getInteriorBlend(blend);
+		if (interior > 0.06 && !showInterior) setShowInterior(true);
+		else if (interior <= 0.04 && showInterior) setShowInterior(false);
 
 		if (blockDescentEntry.current && dist > ZOOM_THRESHOLDS.atmosphereEnter + 0.05) {
 			blockDescentEntry.current = false;
@@ -127,6 +132,7 @@ export function GlobeScene({
 			dragging ||
 			interactionPaused ||
 			descentActive ||
+			isMobile ||
 			dist <= ZOOM_THRESHOLDS.atmosphereEnter;
 
 		if (groupRef.current && !freezeGlobeSpin) {
@@ -200,6 +206,7 @@ export function GlobeScene({
 				anchor={descentAnchor}
 				interactionPaused={interactionPaused}
 				isMobile={isMobile}
+				groupRef={groupRef}
 				onAnchorChange={setDescentAnchor}
 				onJoystickChange={onJoystickChange}
 				onPortalNear={onPortalNear}
@@ -207,11 +214,13 @@ export function GlobeScene({
 				groupRotationRef={groupRotationRef}
 			/>
 
-			<InteriorAtmosphere interiorBlendRef={interiorBlend} isMobile={isMobile} />
+			{showInterior ? (
+				<InteriorAtmosphere interiorBlendRef={interiorBlend} isMobile={isMobile} />
+			) : null}
 
 			<OrbitControls
 				ref={controlsRef}
-				enabled={!interactionPaused && !descentActive}
+				enabled={!interactionPaused && !isMobile && !descentActive}
 				enablePan={false}
 				enableZoom
 				enableDamping
