@@ -8,7 +8,7 @@ import { ScenePlaceholderBackground } from './ScenePlaceholderBackground';
  * Latar sementara guna ScenePlaceholderBackground (Pilihan C); apabila
  * ilustrasi sebenar sedia, gantikan sahaja bahagian itu dengan <img>.
  */
-export function SceneViewer({ scene, onNavigate }: { scene: Scene; onNavigate: (target: string) => void }) {
+export function SceneViewer({ scene, onNavigate }: { scene: Scene; onNavigate?: (target: string) => void }) {
 	return (
 		<AnimatePresence mode="wait">
 			<motion.div
@@ -21,17 +21,21 @@ export function SceneViewer({ scene, onNavigate }: { scene: Scene; onNavigate: (
 			>
 				<ScenePlaceholderBackground sceneId={scene.id} label={scene.namaSpot ?? scene.namaKawasan} />
 
-				{scene.hotspot.map((h) => (
-					<button
-						key={h.target}
-						type="button"
-						onClick={() => onNavigate(h.target)}
-						className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/40 bg-black/35 px-4 py-2 font-body text-[0.6rem] uppercase tracking-[0.2em] text-[#f5f0e8]/85 backdrop-blur-sm transition-colors active:bg-black/55"
-						style={{ left: `${h.position[0]}%`, top: `${h.position[1]}%` }}
-					>
-						{h.label}
-					</button>
-				))}
+				{scene.hotspot.map((h) => {
+					const className =
+						'pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/40 bg-black/35 px-4 py-2 font-body text-[0.6rem] uppercase tracking-[0.2em] text-[#f5f0e8]/85 backdrop-blur-sm transition-colors active:bg-black/55';
+					const style = { left: `${h.position[0]}%`, top: `${h.position[1]}%` };
+					const key = h.href ?? h.target ?? h.label;
+					return h.href ? (
+						<a key={key} href={h.href} className={className} style={style}>
+							{h.label}
+						</a>
+					) : (
+						<button key={key} type="button" onClick={() => h.target && onNavigate?.(h.target)} className={className} style={style}>
+							{h.label}
+						</button>
+					);
+				})}
 
 				<AnimatePresence mode="wait">
 					{scene.deskripsi ? (
