@@ -186,7 +186,7 @@ export type LandmarkFeature = {
 	radius: number;
 };
 
-function deg(d: number): number {
+export function deg(d: number): number {
 	return (d * Math.PI) / 180;
 }
 
