@@ -1,22 +1,12 @@
-import { forwardRef, useImperativeHandle, useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import {
-	GLOBE_RADIUS,
-	getProximity,
-	type EntityEntry,
-	type ResonancePlacement,
-} from './worldGlobeConfig';
-import { createEntityGlowUniforms, updateEntityGlowUniforms } from './entityGlowUniforms';
+import { GLOBE_RADIUS, getProximity } from './worldGlobeConfig';
+import { createEntityGlowUniforms } from './entityGlowUniforms';
 import { createGlobeMaterial } from './globeShader';
-import { pickNearestEntity, setHoverGlow } from './pickNearestEntity';
 
 type GlobeSurfaceProps = {
 	segments: number;
-	placements: ResonancePlacement[];
-	onHover: (entity: EntityEntry | null) => void;
-	hoveredEntity: EntityEntry | null;
 	interactionPaused: boolean;
 	/** Override proximity shader — ikut blend atmosfera berterusan */
 	proximityOverride?: number;
@@ -25,10 +15,7 @@ type GlobeSurfaceProps = {
 export type GlobeSurfaceHandle = THREE.Mesh;
 
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
-	function GlobeSurface(
-		{ segments, placements, onHover, hoveredEntity, interactionPaused, proximityOverride },
-		ref,
-	) {
+	function GlobeSurface({ segments, proximityOverride }, ref) {
 		const meshRef = useRef<THREE.Mesh>(null);
 		const { camera } = useThree();
 		const glowUniforms = useMemo(() => createEntityGlowUniforms(), []);
@@ -42,34 +29,11 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		useImperativeHandle(ref, () => meshRef.current as THREE.Mesh);
 
-		useEffect(() => {
-			updateEntityGlowUniforms(glowUniforms, placements);
-		}, [glowUniforms, placements]);
-
 		useFrame(({ clock }) => {
 			material.uniforms.uTime.value = clock.elapsedTime;
 			material.uniforms.uProximity.value =
 				proximityOverride ?? getProximity(camera.position.length());
-
-			const hovered = placements.find((p) => p.entity.id === hoveredEntity?.id);
-			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);
 		});
-
-		const hitNormal = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) => {
-			return e.object.worldToLocal(e.point.clone()).normalize();
-		};
-
-		const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-			if (interactionPaused) return;
-			e.stopPropagation();
-			const n = hitNormal(e);
-			const entity = pickNearestEntity(n.x, n.y, n.z, placements, 0.88);
-			onHover(entity);
-		};
-
-		const handlePointerOut = () => {
-			onHover(null);
-		};
 
 		return (
 			<group>
@@ -78,12 +42,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 					<meshBasicMaterial color="#061018" depthWrite depthTest />
 				</mesh>
 
-				<mesh
-					ref={meshRef}
-					renderOrder={1}
-					onPointerMove={handlePointerMove}
-					onPointerOut={handlePointerOut}
-				>
+				<mesh ref={meshRef} renderOrder={1}>
 					<sphereGeometry args={[GLOBE_RADIUS * 1.001, segments, segments]} />
 					<primitive object={material} attach="material" />
 				</mesh>

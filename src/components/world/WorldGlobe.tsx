@@ -2,30 +2,15 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import ImmersiveRefresh from '../ui/ImmersiveRefresh';
-import {
-	FAMILY_COLORS,
-	HEMISPHERE_COLORS,
-	JOYSTICK_CONFIG,
-	WILAYAH_PORTALS,
-	type EntityEntry,
-	type SpheralRegionId,
-	type ZoomMode,
-} from './worldGlobeConfig';
+import { JOYSTICK_CONFIG, WILAYAH_PORTALS, type ZoomMode } from './worldGlobeConfig';
 import { getSkyColor } from './atmosphereTransition';
 import { GlobeScene } from './GlobeScene';
 import type { JoystickVisual } from './DescentController';
 
-const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
-	luminara: 'Luminara',
-	noctira: 'Noctira',
-	equilara: 'Equilara',
-};
-
 /** Langit luar Canvas — disegerakkan dengan blend atmosfera dalam scene */
 const SPACE_BG = '#020408';
 
-export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
-	const [hoveredEntity, setHoveredEntity] = useState<EntityEntry | null>(null);
+export default function WorldGlobe() {
 	const [isMobile, setIsMobile] = useState(false);
 	const [isPortrait, setIsPortrait] = useState(false);
 	const [ready, setReady] = useState(false);
@@ -62,10 +47,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const handleCanvasCreated = useCallback(({ gl }: { gl: { domElement: HTMLCanvasElement } }) => {
 		const canvas = gl.domElement;
 		canvasEl.current = canvas;
-		// `style` pada <Canvas> hanya terpakai pada div pembungkus, bukan elemen
-		// <canvas> sebenar yang menerima sentuhan — set terus di sini supaya
-		// gerak isyarat asli pelayar (skrol, pinch-zoom halaman) tidak merampas
-		// seret/cubit sebelum pengendali penuding kita sempat menerimanya.
 		canvas.style.touchAction = 'none';
 		canvas.style.overscrollBehavior = 'none';
 		const onLost = (e: Event) => e.preventDefault();
@@ -74,15 +55,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		canvas.addEventListener('webglcontextrestored', onRestored, false);
 	}, []);
 
-	/**
-	 * Kunci landscape secara automatik supaya pelawat tak perlu putar peranti
-	 * sendiri. Screen Orientation Lock API perlu (a) dicetuskan oleh gerak isyarat
-	 * pengguna sebenar dan (b) selalunya perlu mod skrin penuh dahulu di pelayar
-	 * mobile biasa — jadi ini dipanggil terus dalam pengendali ketik pada overlay
-	 * "putar peranti", bukan automatik semasa mount. Kalau tidak disokong (cth.
-	 * Safari iOS langsung tiada API ini), gagal senyap dan mesej putar manual
-	 * kekal sebagai jalan fallback.
-	 */
 	const handleRequestLandscape = useCallback(async () => {
 		try {
 			const el = document.documentElement;
@@ -96,15 +68,10 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 		}
 	}, []);
 
-	// Descent yang keluar daripada mod descent (naik semula ke orbit) patut
-	// buang prom pt portal juga — DescentController sudah reset bila `active`
-	// jadi false, tapi ini jaring keselamatan kalau ada susunan unmount pelik.
 	useEffect(() => {
 		if (zoomMode !== 'descent') setNearPortalId(null);
 	}, [zoomMode]);
 
-	/** Sentuh butang portal → sekejap "menyelam" (fade ke warna wilayah itu)
-	 * sebelum navigasi sebenar — melembutkan potongan keras penukaran halaman. */
 	const handleEnterPortal = useCallback(() => {
 		if (!nearPortal || diving) return;
 		setDiving(true);
@@ -112,10 +79,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 			window.location.href = nearPortal.route;
 		}, 620);
 	}, [nearPortal, diving]);
-
-	const familyColor = hoveredEntity
-		? (FAMILY_COLORS[hoveredEntity.keluarga_aetherys] ?? HEMISPHERE_COLORS.equilara)
-		: HEMISPHERE_COLORS.equilara;
 
 	const showRotatePrompt = isMobile && isPortrait;
 
@@ -137,9 +100,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 					>
 						<Suspense fallback={null}>
 							<GlobeScene
-								entities={entities}
-								onHover={setHoveredEntity}
-								hoveredEntity={hoveredEntity}
 								isMobile={isMobile}
 								interactionPaused={showRotatePrompt}
 								onZoomModeChange={setZoomMode}
@@ -163,33 +123,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 				>
 					← Keluar
 				</a>
-				<p className="font-display mt-8 text-base font-light tracking-[0.18em] text-[#f5f0e8]/45 md:text-lg">
-					Equilara
-				</p>
 			</header>
-
-			<AnimatePresence>
-				{hoveredEntity ? (
-					<motion.div
-						key={hoveredEntity.id}
-						className="pointer-events-none absolute bottom-28 left-0 right-0 flex flex-col items-center gap-2 px-6 md:bottom-24"
-						initial={{ opacity: 0, y: 12 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 8 }}
-						transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-					>
-						<span
-							className="font-display text-lg font-light italic tracking-wide text-[#f5f0e8]/55 md:text-xl"
-							style={{ textShadow: `0 0 32px ${familyColor}44` }}
-						>
-							{hoveredEntity.nama}
-						</span>
-						<span className="font-body text-[0.55rem] uppercase tracking-[0.32em] text-[#f5f0e8]/25">
-							{hoveredEntity.wilayah ? `${hoveredEntity.kawasan} · ${SPHERAL_NAMA[hoveredEntity.spheral_rumah as SpheralRegionId] ?? hoveredEntity.wilayah}` : 'cahaya dari dalam'}
-						</span>
-					</motion.div>
-				) : null}
-			</AnimatePresence>
 
 			<motion.p
 				key={zoomMode}
@@ -204,7 +138,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 						? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
 						: isMobile
 							? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk mendekat'
-							: 'Perhatikan cahaya yang menyusup · putar · zoom untuk mendekat'}
+							: 'Putar · zoom untuk mendekat ke permukaan'}
 			</motion.p>
 
 			{joystick ? (
@@ -282,7 +216,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 							Ketik untuk masuk landscape
 						</p>
 						<p className="font-display max-w-xs text-sm font-light leading-relaxed text-[#f5f0e8]/35">
-							Equilara paling immersive dalam landscape. Kalau peranti anda tidak menyokong
+							Pengalaman paling immersive dalam landscape. Kalau peranti anda tidak menyokong
 							putaran automatik, putar secara manual untuk meneruskan.
 						</p>
 					</motion.button>
