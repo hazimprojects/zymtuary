@@ -40,7 +40,7 @@ export function SpotMarker({
 	// Sudut arah anchor ke pusat plaza — dipakai oleh spot yang perlu
 	// menghala ke tengah (cth. lengkung galeri The Memory Room).
 	const facingAngle = useMemo(
-		() => Math.atan2(-anchor.position.x, 1 - anchor.position.z),
+		() => Math.atan2(-anchor.position.x, 2 - anchor.position.z),
 		[anchor.position],
 	);
 

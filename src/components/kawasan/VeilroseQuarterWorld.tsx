@@ -77,7 +77,7 @@ export default function VeilroseQuarterWorld({ entity }: { entity: EntityData })
 							position: [0, 2.0, 4.0],
 							fov: isMobile ? GAME_CONTROL_CONFIG.baseFovMobile : GAME_CONTROL_CONFIG.baseFovDesktop,
 							near: 0.1,
-							far: 100,
+							far: 120,
 						}}
 						dpr={isMobile ? [1, 1.75] : [1, 2]}
 						gl={{ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' }}

@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
-import { PERIMETER_BUILDINGS } from './veilroseBuildings';
+import { QUARTER_BUILDINGS, buildingColliderPoints } from './veilroseBuildings';
 import { VEILROSE_PALETTE } from './veilrosePalette';
 import { VEILROSE_QUARTER_BOUNDS } from './veilroseQuarterTerrain';
 
-/** Jejari berjalan kuartir — lebih besar daripada plaza pusat, merangkumi lorong. */
 export const VEILROSE_ISLAND_RADIUS = Math.max(VEILROSE_QUARTER_BOUNDS.halfWidth, VEILROSE_QUARTER_BOUNDS.halfDepth);
 
 const MEMORY_ROOM_CURVE_RADIUS = 4.2;
@@ -28,8 +27,8 @@ function memoryRoomObstaclePoints(facingAngle: number): { dx: number; dz: number
 }
 
 /**
- * Susun atur kartesian Veilrose Quarter — kuartir bandar dengan plaza
- * tertutup, Memory Room sebagai dinding perimeter, lorong ke spot tersorok.
+ * Spot diletak dalam "pocket" tersorok — tidak kelihatan dari sudut lain
+ * kerana disekat bangunan di antara.
  */
 const SPOT_LAYOUT: Record<
 	string,
@@ -44,21 +43,21 @@ const SPOT_LAYOUT: Record<
 > = {
 	'The Applause Steps': {
 		x: 0,
-		z: 1,
+		z: 2,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.cream,
 		obstacleRadius: 0.25,
 	},
 	'The Memory Room of Smiling Frames': {
-		x: -10,
-		z: 2,
+		x: -18,
+		z: 5,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.purple,
-		obstaclePoints: memoryRoomObstaclePoints(Math.atan2(-10, 2)),
+		obstaclePoints: memoryRoomObstaclePoints(Math.atan2(18, 2 - 5)),
 	},
 	"The Mask Vendor's Row": {
-		x: -3,
-		z: 7.5,
+		x: -10,
+		z: 12,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.pink,
 		obstaclePoints: [
@@ -71,8 +70,8 @@ const SPOT_LAYOUT: Record<
 		],
 	},
 	'The Rehearsal Mirrors': {
-		x: 9,
-		z: -7.5,
+		x: 18,
+		z: -14,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.purple,
 		obstaclePoints: [
@@ -82,8 +81,8 @@ const SPOT_LAYOUT: Record<
 		],
 	},
 	'The Room of Fallen Petals': {
-		x: 1.5,
-		z: -13.5,
+		x: 3,
+		z: -24,
 		scale: 0.95,
 		groundColor: VEILROSE_PALETTE.ash,
 		obstaclePoints: [
@@ -93,16 +92,15 @@ const SPOT_LAYOUT: Record<
 	},
 };
 
-/** Titik mula di mulut jalan utara — menghadap plaza. */
-export const VEILROSE_SPAWN: [number, number, number] = [0, 0, 11];
+export const VEILROSE_SPAWN: [number, number, number] = [0, 0, 22];
 
 const SPAWN_POINT: [number, number] = [VEILROSE_SPAWN[0], VEILROSE_SPAWN[2]];
-const SPAWN_KEEPOUT = 1.8;
+const SPAWN_KEEPOUT = 2.0;
 
 const SPOT_KEEPOUTS: { x: number; z: number; r: number }[] = Object.values(SPOT_LAYOUT).map((cfg) => ({
 	x: cfg.x,
 	z: cfg.z,
-	r: cfg.scale * 1.8 + 1.3,
+	r: cfg.scale * 2.0 + 1.5,
 }));
 
 function isClearOfSpawn(x: number, z: number): boolean {
@@ -134,84 +132,95 @@ export function layoutVeilroseAnchors(spots: { nama: string }[]): KawasanAnchor[
 	});
 }
 
-/** Perlanggaran bangunan perimeter — membentuk dinding tidak boleh ditembusi. */
 export function layoutBuildingColliders(): KawasanAnchor[] {
-	return PERIMETER_BUILDINGS.map((b, i) => ({
+	return QUARTER_BUILDINGS.map((b, i) => ({
 		id: `__building_${i}`,
 		nama: '',
 		position: new THREE.Vector3(b.x, 0, b.z),
 		groundColor: VEILROSE_PALETTE.gold,
 		scale: 1,
-		obstaclePoints: [{ dx: 0, dz: 0, radius: Math.max(b.width, b.depth) * 0.52 }],
+		obstaclePoints: buildingColliderPoints(b),
 	}));
 }
 
-/** Gerai mawar di lorong & sudut — ganjaran visual sepanjang laluan. */
 export const AMBIENT_ROSE_STALLS: { x: number; z: number; rot: number; scale: number }[] = [
-	{ x: 5.5, z: 5.2, rot: 0.4, scale: 0.82 },
-	{ x: -6.5, z: 5.8, rot: -0.5, scale: 0.75 },
-	{ x: 7.2, z: -2.5, rot: 1.0, scale: 0.78 },
-	{ x: 6.8, z: -9.5, rot: -0.8, scale: 0.72 },
-	{ x: 3.5, z: -11.5, rot: 0.6, scale: 0.8 },
-	{ x: -2.5, z: -10.8, rot: 1.2, scale: 0.74 },
-	{ x: -5.5, z: -13.2, rot: -0.4, scale: 0.7 },
-	{ x: 4.2, z: -14.2, rot: 0.9, scale: 0.76 },
-	{ x: 10.5, z: -4.5, rot: -1.1, scale: 0.68 },
-	{ x: -8.5, z: -5.5, rot: 0.3, scale: 0.72 },
+	{ x: -14, z: 8, rot: 0.3, scale: 0.78 },
+	{ x: -8, z: 16, rot: -0.5, scale: 0.72 },
+	{ x: 14, z: 6, rot: 1.0, scale: 0.8 },
+	{ x: 14, z: -2, rot: -0.7, scale: 0.74 },
+	{ x: 14, z: -10, rot: 0.9, scale: 0.76 },
+	{ x: 10, z: -16, rot: -1.1, scale: 0.7 },
+	{ x: 6, z: -20, rot: 0.5, scale: 0.78 },
+	{ x: -4, z: -18, rot: 1.2, scale: 0.72 },
+	{ x: -10, z: -14, rot: -0.4, scale: 0.74 },
+	{ x: -14, z: -20, rot: 0.8, scale: 0.7 },
+	{ x: 8, z: -22, rot: -0.6, scale: 0.68 },
+	{ x: -6, z: -8, rot: 0.4, scale: 0.75 },
+	{ x: 4, z: -14, rot: -0.9, scale: 0.73 },
+	{ x: -12, z: -4, rot: 1.4, scale: 0.7 },
 ].filter((s) => isClearOfSpotsAndSpawn(s.x, s.z));
 
 export const AMBIENT_FLOWERING_TREES: { x: number; z: number; rot: number; scale: number }[] = [
-	{ x: 5.8, z: -5.5, rot: 0.2, scale: 0.88 },
-	{ x: 3.2, z: -12.5, rot: -0.5, scale: 0.82 },
-	{ x: -4.5, z: -12.8, rot: 1.0, scale: 0.78 },
-	{ x: 7.5, z: -11.2, rot: -1.2, scale: 0.85 },
-	{ x: -6.8, z: -8.5, rot: 0.6, scale: 0.8 },
-	{ x: 2.8, z: 9.5, rot: -0.3, scale: 0.9 },
+	{ x: 13, z: -6, rot: 0.2, scale: 0.85 },
+	{ x: 11, z: -14, rot: -0.5, scale: 0.8 },
+	{ x: -6, z: -20, rot: 1.0, scale: 0.78 },
+	{ x: 8, z: -22, rot: -1.2, scale: 0.82 },
+	{ x: -12, z: -16, rot: 0.6, scale: 0.76 },
+	{ x: -14, z: 2, rot: -0.3, scale: 0.88 },
+	{ x: 6, z: -10, rot: 0.7, scale: 0.8 },
+	{ x: -8, z: -10, rot: -0.8, scale: 0.77 },
 ].filter((t) => isClearOfSpawn(t.x, t.z));
 
-const GRASS_COUNT = 38;
+const GRASS_COUNT = 52;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 export const AMBIENT_GRASS_TUFTS: { x: number; z: number; rot: number; scale: number }[] = (() => {
 	const tufts: { x: number; z: number; rot: number; scale: number }[] = [];
-	for (let i = 0; tufts.length < GRASS_COUNT && i < GRASS_COUNT * 3; i++) {
-		const t = i / (GRASS_COUNT * 3);
-		const x = (t - 0.5) * 22;
-		const z = 6 - t * 24;
+	for (let i = 0; tufts.length < GRASS_COUNT && i < GRASS_COUNT * 4; i++) {
+		const t = i / (GRASS_COUNT * 4);
+		const x = (t - 0.5) * 38;
+		const z = 14 - t * 42;
 		if (!isClearOfSpotsAndSpawn(x, z)) continue;
-		if (Math.abs(x) > 11 && z > 0) continue;
+		if (Math.hypot(x, z - 2) < 3.2) continue;
 		tufts.push({
 			x,
 			z,
 			rot: (i * 0.37) % (Math.PI * 2),
-			scale: 0.65 + ((i * 53) % 30) / 100,
+			scale: 0.62 + ((i * 53) % 32) / 100,
 		});
 	}
 	return tufts;
 })();
 
-/** Bendera rentang lorong — gaya perayaan Mediterranean. */
 export const ALLEY_FLAG_LINES: {
 	from: [number, number, number];
 	to: [number, number, number];
 }[] = [
-	{ from: [-5.5, 2.6, 6.5], to: [5.5, 2.6, 6.5] },
-	{ from: [5.5, 2.4, 2], to: [11.5, 2.4, -4] },
-	{ from: [4, 2.2, -6], to: [11, 2.2, -9] },
-	{ from: [-3, 2.3, -8], to: [3, 2.3, -11] },
+	{ from: [-4, 2.8, 20], to: [4, 2.8, 20] },
+	{ from: [-14, 2.6, 8], to: [-14, 2.6, -2] },
+	{ from: [14, 2.5, 6], to: [14, 2.5, -12] },
+	{ from: [-3, 2.4, -14], to: [3, 2.4, -22] },
+	{ from: [-8, 2.3, -10], to: [8, 2.3, -10] },
+	{ from: [10, 2.2, -4], to: [10, 2.2, -18] },
+	{ from: [-10, 2.5, 0], to: [-10, 2.5, 10] },
 ];
 
-/** Hiasan sudut lorong — bangku, pasu, lampu (tiada perlanggaran). */
 export const ALLEY_CORNER_DECOR: {
 	x: number;
 	z: number;
 	rot: number;
 	kind: 'bench' | 'pot' | 'lamp';
 }[] = [
-	{ x: 5.2, z: 4.8, rot: -0.5, kind: 'bench' },
-	{ x: 7.8, z: -3.2, rot: 0.8, kind: 'pot' },
-	{ x: 6.2, z: -8.5, rot: -0.3, kind: 'lamp' },
-	{ x: -5.8, z: -7.5, rot: 1.1, kind: 'bench' },
-	{ x: 2.5, z: -10.5, rot: 0.4, kind: 'pot' },
-	{ x: -3.5, z: -11.8, rot: -0.7, kind: 'lamp' },
+	{ x: -13, z: 10, rot: 0.5, kind: 'bench' },
+	{ x: -13, z: 0, rot: -0.5, kind: 'pot' },
+	{ x: -13, z: -6, rot: 0.8, kind: 'lamp' },
+	{ x: 13, z: 4, rot: -0.6, kind: 'bench' },
+	{ x: 13, z: -6, rot: 0.4, kind: 'pot' },
+	{ x: 13, z: -14, rot: -0.3, kind: 'lamp' },
+	{ x: 5, z: -16, rot: 0.7, kind: 'bench' },
+	{ x: -5, z: -18, rot: -0.9, kind: 'pot' },
+	{ x: 0, z: -20, rot: 0.2, kind: 'lamp' },
+	{ x: 8, z: -20, rot: -1.1, kind: 'bench' },
+	{ x: -8, z: -14, rot: 0.5, kind: 'pot' },
+	{ x: 4, z: -10, rot: -0.4, kind: 'lamp' },
 ];

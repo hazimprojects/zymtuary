@@ -14,7 +14,8 @@ import {
 } from './veilroseQuarterLayout';
 import { buildVeilroseQuarterGeometry } from './veilroseQuarterTerrain';
 import {
-	VeilrosePerimeterBuildings,
+	VeilroseQuarterBuildings,
+	VeilroseAlleyPavements,
 	VeilroseCitySilhouettes,
 	VeilroseStreetMouths,
 } from './veilroseBuildings';
@@ -26,7 +27,7 @@ import { ZymCharacterController, type ZymJoystickVisual } from './ZymCharacterCo
 
 const BASE_GROUND_COLOR = VEILROSE_PALETTE.gold;
 const ZYM_GLOW_COLOR = '#d4a843';
-const PLAZA_WALK_RADIUS = VEILROSE_ISLAND_RADIUS * 0.95;
+const PLAZA_WALK_RADIUS = VEILROSE_ISLAND_RADIUS * 0.98;
 const VEILROSE_TERRAIN = {
 	terrainProfile: 'veilrose-quarter' as const,
 	heartStepTierHeight: 0.28,
@@ -71,7 +72,7 @@ export function VeilroseQuarterScene({
 
 	return (
 		<>
-			<fog attach="fog" args={[BASE_GROUND_COLOR, 10, 42]} />
+			<fog attach="fog" args={[BASE_GROUND_COLOR, 12, 58]} />
 			<hemisphereLight args={['#fbe2a8', '#5a3d2a', 0.85]} />
 			<directionalLight position={[-4, 3.5, 2]} intensity={1.3} color="#ffd9a0" />
 			<ambientLight intensity={0.25} color={BASE_GROUND_COLOR} />
@@ -114,7 +115,8 @@ export function VeilroseQuarterScene({
 					<meshStandardMaterial vertexColors flatShading roughness={0.85} metalness={0.02} />
 				</mesh>
 
-				<VeilrosePerimeterBuildings />
+				<VeilroseAlleyPavements />
+				<VeilroseQuarterBuildings />
 				<VeilroseStreetMouths />
 
 				{spotAnchors.map((anchor, index) => (
