@@ -160,8 +160,21 @@ export function DescentController({
 	useEffect(() => {
 		if (!active || interactionPaused) return;
 		const el = gl.domElement;
-		const rotateSpeed = isMobile ? 0.0038 : 0.0028;
-		const pitchSpeed = isMobile ? 0.0028 : 0.0022;
+		const rotateSpeed = isMobile ? DESCENT_CONFIG.lookYawSpeedMobile : DESCENT_CONFIG.lookYawSpeedDesktop;
+		const pitchSpeed = isMobile ? DESCENT_CONFIG.lookPitchSpeedMobile : DESCENT_CONFIG.lookPitchSpeedDesktop;
+
+		const applyLookDrag = (clientX: number, clientY: number) => {
+			const dx = clientX - lastPointer.current.x;
+			const dy = clientY - lastPointer.current.y;
+			lastPointer.current = { x: clientX, y: clientY };
+			// Seret kanan = pandang kanan (globe berpusing ke kiri); seret atas = pandang atas
+			yaw.current += dx * rotateSpeed;
+			pitch.current = THREE.MathUtils.clamp(
+				pitch.current - dy * pitchSpeed,
+				DESCENT_CONFIG.minPitch,
+				DESCENT_CONFIG.maxPitch,
+			);
+		};
 
 		const pointerDist = () => {
 			const pts = [...pointers.current.values()];
@@ -215,7 +228,15 @@ export function DescentController({
 			const role: 'move' | 'look' = isMoveZone(e.clientX) ? 'move' : 'look';
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
 
-			// Dua jari = cubit zoom — batalkan joystick supaya tidak bercelaru
+			// Joystick aktif + jari kedua = toleh kamera serentak (ala Sky / Veilrose)
+			if (joystick.current) {
+				pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'look' });
+				dragging.current = true;
+				lastPointer.current = { x: e.clientX, y: e.clientY };
+				return;
+			}
+
+			// Dua jari tanpa joystick = cubit zoom
 			if (pointers.current.size >= 2) {
 				startPinchZoom();
 				return;
@@ -245,16 +266,19 @@ export function DescentController({
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
 
 			if (isOrphan) {
-				if (pointers.current.size >= 2 && !pinchStart.current) {
+				if (joystick.current) {
+					dragging.current = true;
+					lastPointer.current = { x: e.clientX, y: e.clientY };
+				} else if (pointers.current.size >= 2 && !pinchStart.current) {
 					startPinchZoom();
 				} else if (pointers.current.size === 1) {
-					dragging.current = role === 'look' && !joystick.current;
+					dragging.current = role === 'look';
 					lastPointer.current = { x: e.clientX, y: e.clientY };
 				}
 				return;
 			}
 
-			if (pointers.current.size === 2 && pinchStart.current) {
+			if (pointers.current.size === 2 && pinchStart.current && !joystick.current) {
 				const dist = Math.max(pointerDist(), 1);
 				const scale = dist / pinchStart.current.dist;
 				// Buka jari (scale > 1) = zoom masuk = altitude KURANG (rapat ke permukaan)
@@ -274,18 +298,11 @@ export function DescentController({
 
 			if (!dragging.current) return;
 			const entry = pointers.current.get(e.pointerId);
-			if (!entry || entry.role !== 'look') return;
+			if (!entry) return;
+			// Semasa joystick aktif, mana-mana jari lain boleh toleh kamera
+			if (!joystick.current && entry.role !== 'look') return;
 
-			const dx = e.clientX - lastPointer.current.x;
-			const dy = e.clientY - lastPointer.current.y;
-			lastPointer.current = { x: e.clientX, y: e.clientY };
-			// Seret kiri = toleh kiri (arah dibalikkan supaya rasa semula jadi)
-			yaw.current -= dx * rotateSpeed;
-			pitch.current = THREE.MathUtils.clamp(
-				pitch.current + dy * pitchSpeed,
-				DESCENT_CONFIG.minPitch,
-				DESCENT_CONFIG.maxPitch,
-			);
+			applyLookDrag(e.clientX, e.clientY);
 		};
 
 		const onPointerUp = (e: PointerEvent) => {
@@ -380,7 +397,7 @@ export function DescentController({
 					moveWorld.normalize();
 					const axis = new THREE.Vector3().crossVectors(anchorRef.current, moveWorld).normalize();
 					if (axis.lengthSq() > 1e-8) {
-						const angleStep = JOYSTICK_CONFIG.moveAngularSpeed * mag * delta;
+						const angleStep = DESCENT_CONFIG.moveAngularSpeed * mag * delta;
 						const nextAnchor = anchorRef.current.clone().applyAxisAngle(axis, angleStep).normalize();
 						const nextFrame = buildSurfaceFrame(nextAnchor);
 						yaw.current = anglesFromDirection(forwardWorld, nextFrame).yaw;

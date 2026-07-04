@@ -167,6 +167,12 @@ export const DESCENT_CONFIG = {
 	maxPitch: 1.4,
 	fov: 68,
 	orbitExitDistance: 4.6,
+	/** Kelajuan joystick bergerak di permukaan globe — lebih perlahan supaya terkawal */
+	moveAngularSpeed: 0.24,
+	lookYawSpeedMobile: 0.0042,
+	lookYawSpeedDesktop: 0.0032,
+	lookPitchSpeedMobile: 0.0032,
+	lookPitchSpeedDesktop: 0.0026,
 } as const;
 
 /** Ambang jarak kamera → mod zoom immersive */
