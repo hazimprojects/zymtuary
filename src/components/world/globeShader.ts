@@ -168,7 +168,7 @@ vec3 hazeLayer(vec3 n, float proximity, out float density) {
 vec3 featureColor(float t, float lat) {
 	float warm = step(0.0, lat);
 	if (t < 0.5) return mix(vec3(0.6, 0.92, 1.0), vec3(1.0, 0.45, 0.08), warm); // rekahan
-	if (t < 1.5) return mix(vec3(0.03, 0.025, 0.04), vec3(0.16, 0.07, 0.05), warm); // gunung — lebih gelap, kontras jelas
+	if (t < 1.5) return mix(vec3(0.09, 0.08, 0.11), vec3(0.22, 0.12, 0.08), warm); // gunung — gelap tapi tak jadi lubang hitam
 	if (t < 2.5) return mix(vec3(0.02, 0.05, 0.1), vec3(0.16, 0.42, 0.38), warm); // air
 	if (t < 3.5) return mix(vec3(0.08, 0.2, 0.13), vec3(0.42, 0.48, 0.16), warm); // hijau
 	if (t < 4.5) return vec3(0.5, 0.42, 0.28); // padang pasir
@@ -188,16 +188,20 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 
 		float align = dot(n, dir);
 		// Tapisan murah dahulu (satu dot product) — elak kira fbm2 mahal untuk
-		// piksel yang jelas jauh di luar radius maksimum (radius * 1.6 ikut
+		// piksel yang jelas jauh di luar radius maksimum (radius * 1.7 ikut
 		// gangguan tepi di bawah). Dengan 11 mercu tanda per piksel, ini elak
 		// beban noise yang melonjak pada permukaan yang jauh daripada semua
 		// mercu tanda (majoriti permukaan pada bila-bila masa).
-		if (align < cos(radius * 1.7)) continue;
+		if (align < cos(radius * 1.9)) continue;
 
-		float edgeNoise = fbm2(n * 7.0 + dir * 3.0) - 0.5;
-		float cosR = cos(radius * (1.0 + edgeNoise * 0.6));
-		float mask = smoothstep(cosR - 0.02, cosR + 0.02, align);
-		if (mask < 0.001) continue;
+		float edgeNoise = fbm2(n * 9.0 + dir * 3.0) - 0.5;
+		float cosR = cos(radius * (1.0 + edgeNoise * 0.45));
+		// Peralihan berkadar dengan saiz mercu tanda (bukan pemalar tegar) —
+		// pada sfera rendah-poligon (48 sisi mobile), pemalar kecil terbentuk
+		// tepi tajam/segi tiga kelihatan. Peralihan lebar melenyapkan itu.
+		float epsilon = max(radius * 0.4, 0.03);
+		float mask = smoothstep(cosR - epsilon, cosR + epsilon, align);
+		if (mask < 0.004) continue;
 
 		vec3 fc = featureColor(t, n.y);
 
@@ -208,24 +212,24 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col += fc * glow * 1.8;
 		} else if (t < 1.5) {
 			float ridge = 0.7 + 0.3 * fbm2(n * 12.0 + dir * 2.0);
-			col = mix(col, fc * ridge, mask * 0.95);
+			col = mix(col, fc * ridge, mask * 0.8);
 		} else if (t < 2.5) {
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
-			col = mix(col, fc, mask * 0.9);
+			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
 		} else if (t < 3.5) {
 			float speckle = smoothstep(0.7, 0.88, fbm2(n * 26.0 + dir * 6.0));
-			col = mix(col, fc, mask * 0.88);
+			col = mix(col, fc, mask * 0.78);
 			col += speckle * mask * fc * 0.5;
 		} else if (t < 4.5) {
-			col = mix(col, fc, mask * 0.85);
+			col = mix(col, fc, mask * 0.75);
 		} else if (t < 5.5) {
 			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 40.0);
-			col = mix(col, fc * (0.75 + rings * 0.4), mask * 0.9);
+			col = mix(col, fc * (0.75 + rings * 0.4), mask * 0.78);
 		} else {
-			float core = smoothstep(cosR + 0.01, 1.0, align);
-			col = mix(col, fc, mask * 0.85);
-			col += fc * core * 0.6;
+			float core = smoothstep(cosR + epsilon * 0.6, 1.0, align);
+			col = mix(col, fc, mask * 0.75);
+			col += fc * core * 0.5;
 		}
 	}
 	return col;
@@ -265,9 +269,11 @@ vec3 aethirionGlow(vec3 n) {
 	float ring = sqrt(max(0.0, 1.0 - y * y));
 	vec3 dir = vec3(ring * sin(theta), y, ring * cos(theta));
 	float align = dot(n, dir);
-	float mask = smoothstep(0.986, 0.999, align);
+	// Susut eksponen lembut (bukan smoothstep sempit) — sinar cahaya yang
+	// pudar keluar, bukan cakera putih bertepi keras.
+	float glow = exp(-max(0.0, 1.0 - align) * 90.0);
 	float pulse = 0.7 + 0.3 * sin(uTime * 1.1);
-	return vec3(0.95, 0.92, 0.8) * mask * pulse * 1.6;
+	return vec3(0.95, 0.92, 0.8) * glow * pulse * 1.3;
 }
 
 vec3 innerResonance(vec3 n, float frontMask) {
