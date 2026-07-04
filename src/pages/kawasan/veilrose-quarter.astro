@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import VeilroseQuarterVN from '../../components/scenes/VeilroseQuarterVN';
+import VeilroseQuarterWorld from '../../components/kawasan/VeilroseQuarterWorld';
 import zipModel from '../../data/zip-model.json';
 
 const entity = zipModel.entities.find((e) => e.id === 'zymelisse');
@@ -8,5 +8,5 @@ if (!entity) throw new Error('Entiti "zymelisse" (Veilrose Quarter) tidak dijump
 ---
 
 <Layout title={`${entity.kawasan} · Zymtuary`} immersive>
-	<VeilroseQuarterVN client:load />
+	<VeilroseQuarterWorld client:load entity={entity} />
 </Layout>
