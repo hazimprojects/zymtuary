@@ -204,7 +204,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Luminara — gunung berapi, teres air panas, padang bunga (gema
 	// Elythrean Bloomfields), laut hangat, Heartbloom.
 	{ id: 'gunung-berapi', nama: 'Gunung Berapi', type: 'mountain', theta: deg(208), y: 0.78, radius: 0.19 },
-	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.18 },
+	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
 	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2 },
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
 	{ id: 'heartbloom', nama: 'Heartbloom', type: 'tree', theta: deg(100), y: 0.5, radius: 0.15 },
@@ -250,7 +250,7 @@ function normalize3(a: [number, number, number]): [number, number, number] {
 	return [a[0] / len, a[1] / len, a[2] / len];
 }
 
-function tangentBasis(dir: [number, number, number]): {
+export function tangentBasis(dir: [number, number, number]): {
 	u: [number, number, number];
 	v: [number, number, number];
 } {
@@ -262,7 +262,7 @@ function tangentBasis(dir: [number, number, number]): {
 
 /** RNG berbenih (mulberry32) — supaya rangkaian bercabang konsisten antara
  * muat semula, bukan berubah rawak setiap kali. */
-function seededRng(seed: number): () => number {
+export function seededRng(seed: number): () => number {
 	let s = seed | 0;
 	return () => {
 		s = (s + 0x6d2b79f5) | 0;
@@ -272,7 +272,7 @@ function seededRng(seed: number): () => number {
 	};
 }
 
-function localToDir(
+export function localToDir(
 	center: [number, number, number],
 	u: [number, number, number],
 	v: [number, number, number],
@@ -280,6 +280,22 @@ function localToDir(
 	lv: number,
 ): [number, number, number] {
 	return normalize3([center[0] + u[0] * lu + v[0] * lv, center[1] + u[1] * lu + v[1] * lv, center[2] + u[2] * lu + v[2] * lv]);
+}
+
+/** Songsang localToDir kasar — unjur satu arah sfera ke koordinat satah
+ * tangen setempat (anggaran munasabah untuk pemisahan sudut kecil-sederhana),
+ * supaya sungai boleh disasarkan tepat ke arah ciri lain (cth. laut). */
+function dot3(a: [number, number, number], b: [number, number, number]): number {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+export function projectToTangent(
+	center: [number, number, number],
+	u: [number, number, number],
+	v: [number, number, number],
+	target: [number, number, number],
+): [number, number] {
+	return [dot3(target, u), dot3(target, v)];
 }
 
 export type FissureCenter = { id: string; nama: string; theta: number; y: number; radius: number; seed: number };
@@ -376,13 +392,24 @@ export type RiverNetwork = {
 /** Dua sungai — satu setiap hemisfera. `from`/`to` dalam unit satah tangen
  * (bukan sudut sfera) supaya laluan boleh bengkok/bercabang secara semula
  * jadi sebelum diunjur ke permukaan sfera. */
+/** Sasarkan hujung sungai tepat ke arah ciri lain (cth. laut/tasik) supaya
+ * sungai kelihatan benar-benar mengalir masuk ke situ, bukan berhenti di
+ * tengah padang tanpa destinasi. */
+function riverTargetLocal(centerTheta: number, centerY: number, targetTheta: number, targetY: number): [number, number] {
+	const center = directionFromThetaY(centerTheta, centerY);
+	const { u, v } = tangentBasis(center);
+	const target = directionFromThetaY(targetTheta, targetY);
+	return projectToTangent(center, u, v, target);
+}
+
 export const RIVER_NETWORKS: RiverNetwork[] = [
 	{
 		id: 'sungai-cahaya',
 		nama: 'Sungai Cahaya',
 		center: { theta: deg(290), y: 0.5 },
 		from: [-0.22, 0.08],
-		to: [0.24, -0.06],
+		// Muara ke Laut Keemasan (theta 15°, y 0.35)
+		to: riverTargetLocal(deg(290), 0.5, deg(15), 0.35),
 		seed: 71,
 		warna: '#5ba3a0',
 	},
@@ -391,7 +418,8 @@ export const RIVER_NETWORKS: RiverNetwork[] = [
 		nama: 'Sungai Kelabu',
 		center: { theta: deg(115), y: -0.63 },
 		from: [-0.24, -0.05],
-		to: [0.22, 0.07],
+		// Muara ke Tasik Gelap (theta 150°, y -0.55)
+		to: riverTargetLocal(deg(115), -0.63, deg(150), -0.55),
 		seed: 133,
 		warna: '#4a5568',
 	},

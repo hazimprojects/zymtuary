@@ -26,6 +26,8 @@ import { DescentController, type JoystickVisual } from './DescentController';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResponsiveCamera } from './ResponsiveCamera';
 import AethirionIsland from './AethirionIsland';
+import Vegetation from './Vegetation';
+import FeatureParticles from './FeatureParticles';
 
 const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
@@ -188,6 +190,8 @@ export function GlobeScene({
 					segments={segments}
 					proximityOverride={globeProximity}
 				/>
+				<Vegetation />
+				<FeatureParticles />
 			</group>
 
 			<AethirionIsland atmosphereBlendRef={atmosphereBlend} />
