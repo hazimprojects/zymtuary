@@ -75,7 +75,8 @@ export function applyThirdPersonGlobePose(
 	upOverride?: THREE.Vector3,
 ): { avatarPos: THREE.Vector3; avatarForward: THREE.Vector3 } {
 	const frame = buildSurfaceFrame(anchor);
-	const avatarPos = anchor.clone().multiplyScalar(globeRadius + 0.08);
+	// Avatar offset dari permukaan — kecil supaya sepadan dengan AVATAR_SCALE di DescentController
+	const avatarPos = anchor.clone().multiplyScalar(globeRadius + 0.04);
 	// Arah hadap avatar = arah pandang diunjur ke satah tangen
 	const avatarForward = lookDirectionFromAngles(yaw, 0, frame, new THREE.Vector3());
 	// Kamera: di belakang + sedikit atas avatar
