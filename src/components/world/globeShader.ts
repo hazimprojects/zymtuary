@@ -325,21 +325,37 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 		vec3 fc = featureColor(t, n.y);
 
 		if (t < 1.5) {
+			// Badlands/gunung batu — ridge + rekahan tanah halus (garis gelap
+			// tajam) supaya permukaan batu terasa retak, bukan rata licin.
 			float ridge = 0.7 + 0.3 * fbm2(n * 12.0 + dir * 2.0);
+			float groundCrack = smoothstep(0.78, 0.9, fbm2(n * 34.0 + dir * 9.0));
 			col = mix(col, fc * ridge, mask * 0.8);
+			col = mix(col, fc * 0.35, mask * groundCrack * 0.6);
 		} else if (t < 2.5) {
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
 			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
+			// Jurang parit laut dalam (Thalyssan Depths) — jalur gelap
+			// memanjang merentasi lobus air, bukan permukaan rata sekata.
+			float trench = smoothstep(0.6, 0.82, fbm2(n * 10.0 + dir * 5.0 + vec3(4.0, 1.0, 0.0)));
+			col = mix(col, fc * 0.3, mask * trench * 0.55);
 		} else if (t < 3.5) {
 			float speckle = smoothstep(0.7, 0.88, fbm2(n * 26.0 + dir * 6.0));
 			col = mix(col, fc, mask * 0.78);
 			col += speckle * mask * fc * 0.5;
 		} else if (t < 4.5) {
+			float groundCrack = smoothstep(0.76, 0.89, fbm2(n * 30.0 + dir * 8.0));
 			col = mix(col, fc, mask * 0.75);
+			col = mix(col, fc * 0.4, mask * groundCrack * 0.55);
 		} else if (t < 5.5) {
-			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 40.0);
-			col = mix(col, fc * (0.75 + rings * 0.4), mask * 0.78);
+			// Teres air panas ceria — kolam tosca terang berselang jalur
+			// mineral jingga, dengan kilauan wap putih di tepi setiap terase.
+			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 34.0);
+			vec3 poolColor = vec3(0.35, 0.72, 0.66);
+			vec3 terraceColor = mix(poolColor, fc * 1.15, rings);
+			float steam = smoothstep(0.4, 0.52, abs(sin(acos(clamp(align, -1.0, 1.0)) * 34.0)) ) * 0.3;
+			col = mix(col, terraceColor, mask * 0.82);
+			col += vec3(0.9, 0.95, 0.9) * steam * mask * 0.25;
 		} else {
 			float core = smoothstep(cosR + epsilon * 0.6, 1.0, align);
 			col = mix(col, fc, mask * 0.75);
