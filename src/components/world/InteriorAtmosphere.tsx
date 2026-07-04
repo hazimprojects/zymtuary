@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLOBE_RADIUS } from './worldGlobeConfig';
 import { createInteriorCloudMaterial } from './interiorAtmosphereShader';
@@ -7,28 +8,26 @@ import { createInteriorCloudMaterial } from './interiorAtmosphereShader';
 const SUN_DIR = new THREE.Vector3(0.35, 0.55, 0.75).normalize();
 
 type InteriorAtmosphereProps = {
-	active: boolean;
+	interiorBlendRef: RefObject<number>;
 	isMobile?: boolean;
 };
 
-export function InteriorAtmosphere({ active, isMobile = false }: InteriorAtmosphereProps) {
+export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: InteriorAtmosphereProps) {
 	const sunRef = useRef<THREE.Group>(null);
 	const haloRef = useRef<THREE.Mesh>(null);
+	const skyHazeRef = useRef<THREE.Mesh>(null);
+	const sunMatRef = useRef<THREE.MeshBasicMaterial>(null);
+	const haloMatRef = useRef<THREE.MeshBasicMaterial>(null);
 	const { camera } = useThree();
 
-	// Shell awan bertindih boleh menjunam kadar bingkai di GPU mobile —
-	// kurangkan bilangan shell & resolusi (bukan shader itu sendiri, supaya
-	// hasil visual kekal sama seperti yang telah disahkan berfungsi).
-	const cloudMaterials = useMemo(
-		() =>
-			isMobile
-				? [createInteriorCloudMaterial(0.5), createInteriorCloudMaterial(0.3)]
-				: [
-						createInteriorCloudMaterial(0.55),
-						createInteriorCloudMaterial(0.38),
-						createInteriorCloudMaterial(0.22),
-					],
+	const baseOpacities = useMemo(
+		() => (isMobile ? [0.5, 0.3] : [0.55, 0.38, 0.22]),
 		[isMobile],
+	);
+
+	const cloudMaterials = useMemo(
+		() => baseOpacities.map((o) => createInteriorCloudMaterial(o)),
+		[baseOpacities],
 	);
 
 	const shellRadii = useMemo(
@@ -42,18 +41,25 @@ export function InteriorAtmosphere({ active, isMobile = false }: InteriorAtmosph
 	const shellSegments = isMobile ? 22 : 48;
 
 	useFrame(({ clock }) => {
-		if (!active) return;
+		const blend = interiorBlendRef.current;
+		if (blend <= 0.001) return;
 
 		if (sunRef.current) {
 			sunRef.current.position.copy(camera.position).addScaledVector(SUN_DIR, 38);
 		}
 
-		for (const mat of cloudMaterials) {
+		for (let i = 0; i < cloudMaterials.length; i++) {
+			const mat = cloudMaterials[i];
 			mat.uniforms.uTime.value = clock.elapsedTime;
+			mat.uniforms.uOpacity.value = baseOpacities[i] * blend;
+		}
+
+		if (sunMatRef.current) sunMatRef.current.opacity = 0.95 * blend;
+		if (haloMatRef.current) haloMatRef.current.opacity = 0.18 * blend;
+		if (skyHazeRef.current?.material instanceof THREE.MeshBasicMaterial) {
+			skyHazeRef.current.material.opacity = 0.06 * blend;
 		}
 	});
-
-	if (!active) return null;
 
 	return (
 		<group>
@@ -67,26 +73,33 @@ export function InteriorAtmosphere({ active, isMobile = false }: InteriorAtmosph
 			<group ref={sunRef} renderOrder={20}>
 				<mesh>
 					<sphereGeometry args={[1.8, 24, 24]} />
-					<meshBasicMaterial color="#fff6dc" transparent opacity={0.95} depthWrite={false} />
+					<meshBasicMaterial
+						ref={sunMatRef}
+						color="#fff6dc"
+						transparent
+						opacity={0}
+						depthWrite={false}
+					/>
 				</mesh>
 				<mesh ref={haloRef}>
 					<sphereGeometry args={[3.2, 16, 16]} />
 					<meshBasicMaterial
+						ref={haloMatRef}
 						color="#ffd080"
 						transparent
-						opacity={0.18}
+						opacity={0}
 						depthWrite={false}
 						blending={THREE.AdditiveBlending}
 					/>
 				</mesh>
 			</group>
 
-			<mesh renderOrder={5}>
+			<mesh ref={skyHazeRef} renderOrder={5}>
 				<sphereGeometry args={[GLOBE_RADIUS + 0.62, 32, 32]} />
 				<meshBasicMaterial
 					color="#b8d4f0"
 					transparent
-					opacity={0.06}
+					opacity={0}
 					side={THREE.BackSide}
 					depthWrite={false}
 					blending={THREE.AdditiveBlending}

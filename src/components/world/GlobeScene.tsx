@@ -5,17 +5,30 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import {
 	getOrbitControlsForMode,
-	getProximity,
 	getZoomMode,
 	layoutResonancePoints,
 	ZOOM_THRESHOLDS,
 	type EntityEntry,
 	type ZoomMode,
 } from './worldGlobeConfig';
+import {
+	getAtmosphereBlend,
+	getCameraFov,
+	getFogColor,
+	getFogRange,
+	getInteriorBlend,
+	getStarVisibility,
+	smoothDamp,
+} from './atmosphereTransition';
+import { AtmosphereSky } from './AtmosphereSky';
 import { AtmosphereVeil } from './AtmosphereVeil';
+import { InteriorAtmosphere } from './InteriorAtmosphere';
 import { DescentController, type JoystickVisual } from './DescentController';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
 import { ResponsiveCamera } from './ResponsiveCamera';
+
+const SPACE_AMB = new THREE.Color('#8aa0b0');
+const INNER_AMB = new THREE.Color('#c8d8e8');
 
 type GlobeSceneProps = {
 	entities: EntityEntry[];
@@ -24,6 +37,7 @@ type GlobeSceneProps = {
 	isMobile: boolean;
 	interactionPaused: boolean;
 	onZoomModeChange?: (mode: ZoomMode) => void;
+	onAtmosphereBlendChange?: (blend: number) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 	onPortalNear?: (wilayahId: string | null) => void;
 };
@@ -35,30 +49,34 @@ export function GlobeScene({
 	isMobile,
 	interactionPaused,
 	onZoomModeChange,
+	onAtmosphereBlendChange,
 	onJoystickChange,
 	onPortalNear,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
 	const controlsRef = useRef<OrbitControlsImpl>(null);
+	const ambLightRef = useRef<THREE.AmbientLight>(null);
+	const dirLightRef = useRef<THREE.DirectionalLight>(null);
 	const [dragging, setDragging] = useState(false);
 	const [descentActive, setDescentActive] = useState(false);
 	const [descentAnchor, setDescentAnchor] = useState(() => new THREE.Vector3(0, 0.6, 0.8));
-	// Portal wilayah (lihat worldGlobeConfig.ts) ditakrif dalam ruang tempatan
-	// `groupRef` (di mana kedudukan entiti sebenar dilukis), tetapi anchor
-	// descent dikira dalam ruang dunia — groupRef berputar perlahan semasa
-	// mod orbit, jadi DescentController perlu tahu sudut putaran semasa untuk
-	// padankan kedua-dua ruang koordinat itu bila menyemak kedekatan portal.
+	const [showStars, setShowStars] = useState(true);
+	const [veilIntensity, setVeilIntensity] = useState(0.03);
+	const [globeProximity, setGlobeProximity] = useState(0);
 	const groupRotationRef = useRef(0);
 	const blockDescentEntry = useRef(false);
-	const { camera } = useThree();
+	const atmosphereBlend = useRef(0);
+	const interiorBlend = useRef(0);
+	const fogColor = useRef(new THREE.Color('#0a1420'));
+	const ambColor = useRef(new THREE.Color('#8aa0b0'));
+	const { camera, scene } = useThree();
 	const segments = isMobile ? 48 : 64;
 
 	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
 	const distance = camera.position.length();
 	const zoomMode = getZoomMode(distance, descentActive);
 	const orbitConfig = useMemo(() => getOrbitControlsForMode(zoomMode, isMobile), [zoomMode, isMobile]);
-	const [atmosphereIntensity, setAtmosphereIntensity] = useState(0.03);
 
 	useEffect(() => {
 		onZoomModeChange?.(zoomMode);
@@ -77,6 +95,20 @@ export function GlobeScene({
 
 	useFrame((_, delta) => {
 		const dist = camera.position.length();
+		const targetBlend = getAtmosphereBlend(dist);
+		atmosphereBlend.current = smoothDamp(atmosphereBlend.current, targetBlend, delta, 4.2);
+		interiorBlend.current = getInteriorBlend(atmosphereBlend.current);
+
+		onAtmosphereBlendChange?.(atmosphereBlend.current);
+
+		const blend = atmosphereBlend.current;
+		const starVis = getStarVisibility(blend);
+		if (starVis < 0.03 && showStars) setShowStars(false);
+		else if (starVis >= 0.03 && !showStars) setShowStars(true);
+
+		const nextVeil = 0.03 + blend * 0.16;
+		if (Math.abs(nextVeil - veilIntensity) > 0.008) setVeilIntensity(nextVeil);
+		if (Math.abs(blend - globeProximity) > 0.012) setGlobeProximity(blend);
 
 		if (blockDescentEntry.current && dist > ZOOM_THRESHOLDS.atmosphereEnter + 0.05) {
 			blockDescentEntry.current = false;
@@ -89,9 +121,6 @@ export function GlobeScene({
 			}
 		}
 
-		const proximity = getProximity(dist, descentActive);
-		setAtmosphereIntensity(0.03 + proximity * 0.14);
-
 		if (groupRef.current) groupRotationRef.current = groupRef.current.rotation.y;
 
 		const freezeGlobeSpin =
@@ -100,31 +129,47 @@ export function GlobeScene({
 			descentActive ||
 			dist <= ZOOM_THRESHOLDS.atmosphereEnter;
 
-		if (!groupRef.current || freezeGlobeSpin) return;
-		groupRef.current.rotation.y += delta * 0.035;
-	});
+		if (groupRef.current && !freezeGlobeSpin) {
+			groupRef.current.rotation.y += delta * 0.035;
+		}
 
-	const fogNear = descentActive ? 0.8 : zoomMode === 'atmosphere' ? 4.5 : 8;
-	const fogFar = descentActive ? 14 : 22;
-	// Langit sebenar dilihat dari dalam atmosfera — biru cair, bukan kelabu —
-	// sepadan dengan warna latar Canvas di WorldGlobe.tsx mengikut zoomMode.
-	const fogColor = descentActive ? '#8fc4ea' : '#0a1420';
+		const fog = getFogRange(blend);
+		fogColor.current = getFogColor(blend);
+		if (scene.fog instanceof THREE.Fog) {
+			scene.fog.color.copy(fogColor.current);
+			scene.fog.near = fog.near;
+			scene.fog.far = fog.far;
+		}
+
+		ambColor.current.copy(SPACE_AMB).lerp(INNER_AMB, blend);
+		if (ambLightRef.current) {
+			ambLightRef.current.intensity = THREE.MathUtils.lerp(0.38, 0.55, blend);
+			ambLightRef.current.color.copy(ambColor.current);
+		}
+		if (dirLightRef.current) {
+			dirLightRef.current.intensity = THREE.MathUtils.lerp(0.85, 1.1, blend);
+		}
+
+		if (camera instanceof THREE.PerspectiveCamera) {
+			const targetFov = getCameraFov(blend, isMobile);
+			camera.fov = smoothDamp(camera.fov, targetFov, delta, 3.5);
+			camera.near = THREE.MathUtils.lerp(0.08, 0.015, interiorBlend.current);
+			camera.updateProjectionMatrix();
+		}
+	});
 
 	return (
 		<>
-			<fog attach="fog" args={[fogColor, fogNear, fogFar]} />
+			<fog attach="fog" args={[fogColor.current, 8, 24]} />
+			<AtmosphereSky blendRef={atmosphereBlend} />
 			<ResponsiveCamera isMobile={isMobile} disabled={descentActive} />
 
-			<ambientLight intensity={descentActive ? 0.55 : 0.38} color={descentActive ? '#c8d8e8' : '#8aa0b0'} />
-			<directionalLight
-				position={[4, 6, 5]}
-				intensity={descentActive ? 1.1 : 0.85}
-				color="#f0e6d0"
-			/>
+			<ambientLight ref={ambLightRef} intensity={0.38} color="#8aa0b0" />
+			<directionalLight ref={dirLightRef} position={[4, 6, 5]} intensity={0.85} color="#f0e6d0" />
 			<pointLight position={[2, 4, 5]} intensity={0.45} color="#c4a86a" distance={14} />
 			<pointLight position={[-3, -2, -4]} intensity={0.28} color="#6a5898" distance={14} />
 
-			{!descentActive ? (
+			{showStars ? (
 				<Stars
 					radius={90}
 					depth={50}
@@ -137,7 +182,7 @@ export function GlobeScene({
 			) : null}
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
-				<AtmosphereVeil intensity={atmosphereIntensity} />
+				<AtmosphereVeil intensity={veilIntensity} />
 
 				<GlobeSurface
 					ref={globeRef}
@@ -146,6 +191,7 @@ export function GlobeScene({
 					onHover={onHover}
 					hoveredEntity={hoveredEntity}
 					interactionPaused={interactionPaused || descentActive}
+					proximityOverride={globeProximity}
 				/>
 			</group>
 
@@ -160,6 +206,8 @@ export function GlobeScene({
 				onExitDescent={endDescentInstant}
 				groupRotationRef={groupRotationRef}
 			/>
+
+			<InteriorAtmosphere interiorBlendRef={interiorBlend} isMobile={isMobile} />
 
 			<OrbitControls
 				ref={controlsRef}

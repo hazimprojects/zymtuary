@@ -18,14 +18,15 @@ type GlobeSurfaceProps = {
 	onHover: (entity: EntityEntry | null) => void;
 	hoveredEntity: EntityEntry | null;
 	interactionPaused: boolean;
-	forceProximity?: number;
+	/** Override proximity shader — ikut blend atmosfera berterusan */
+	proximityOverride?: number;
 };
 
 export type GlobeSurfaceHandle = THREE.Mesh;
 
 export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 	function GlobeSurface(
-		{ segments, placements, onHover, hoveredEntity, interactionPaused, forceProximity },
+		{ segments, placements, onHover, hoveredEntity, interactionPaused, proximityOverride },
 		ref,
 	) {
 		const meshRef = useRef<THREE.Mesh>(null);
@@ -48,7 +49,7 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 		useFrame(({ clock }) => {
 			material.uniforms.uTime.value = clock.elapsedTime;
 			material.uniforms.uProximity.value =
-				forceProximity ?? getProximity(camera.position.length());
+				proximityOverride ?? getProximity(camera.position.length());
 
 			const hovered = placements.find((p) => p.entity.id === hoveredEntity?.id);
 			setHoverGlow(material, hovered?.direction ?? null, hovered ? 1 : 0);

@@ -16,7 +16,6 @@ import {
 	lookDirectionFromAngles,
 	applyDescentPose,
 } from './surfaceFrame';
-import { InteriorAtmosphere } from './InteriorAtmosphere';
 
 export type JoystickVisual = {
 	originX: number;
@@ -365,5 +364,5 @@ export function DescentController({
 		}
 	});
 
-	return <InteriorAtmosphere active={active} isMobile={isMobile} />;
+	return null;
 }

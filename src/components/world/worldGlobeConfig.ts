@@ -204,8 +204,7 @@ export function getZoomMode(distance: number, descentActive: boolean): ZoomMode 
 }
 
 /** 0 = orbit jauh, 1 = dalam atmosfera / descent */
-export function getProximity(distance: number, descentActive = false): number {
-	if (descentActive) return 1;
+export function getProximity(distance: number): number {
 	const near = GLOBE_RADIUS + 0.18;
 	const far = ZOOM_THRESHOLDS.atmosphereEnter;
 	return 1 - Math.min(1, Math.max(0, (distance - near) / (far - near)));

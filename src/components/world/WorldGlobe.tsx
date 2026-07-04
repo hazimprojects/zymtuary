@@ -11,6 +11,7 @@ import {
 	type SpheralRegionId,
 	type ZoomMode,
 } from './worldGlobeConfig';
+import { getSkyColor } from './atmosphereTransition';
 import { GlobeScene } from './GlobeScene';
 import type { JoystickVisual } from './DescentController';
 
@@ -20,13 +21,8 @@ const SPHERAL_NAMA: Record<SpheralRegionId, string> = {
 	equilara: 'Equilara',
 };
 
-/** Langit dari dalam atmosfera patut biru cair berawan, bukan gelap/kelabu
- * seperti ruang angkasa — hanya orbit jauh yang kekal gelap berbintang. */
-const BACKGROUND_BY_MODE: Record<ZoomMode, string> = {
-	orbit: '#020408',
-	atmosphere: '#0c2338',
-	descent: '#8fc4ea',
-};
+/** Langit luar Canvas — disegerakkan dengan blend atmosfera dalam scene */
+const SPACE_BG = '#020408';
 
 export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [hoveredEntity, setHoveredEntity] = useState<EntityEntry | null>(null);
@@ -34,6 +30,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 	const [isPortrait, setIsPortrait] = useState(false);
 	const [ready, setReady] = useState(false);
 	const [zoomMode, setZoomMode] = useState<ZoomMode>('orbit');
+	const [skyBackground, setSkyBackground] = useState(SPACE_BG);
 	const [canvasKey, setCanvasKey] = useState(0);
 	const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
 	const [nearPortalId, setNearPortalId] = useState<string | null>(null);
@@ -122,8 +119,12 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 
 	const showRotatePrompt = isMobile && isPortrait;
 
+	const handleAtmosphereBlend = useCallback((blend: number) => {
+		setSkyBackground(getSkyColor(blend).getStyle());
+	}, []);
+
 	return (
-		<div className="fixed inset-0 bg-[#020408]">
+		<div className="fixed inset-0" style={{ backgroundColor: skyBackground }}>
 			<div className="absolute inset-0">
 				{ready ? (
 					<Canvas
@@ -134,7 +135,6 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 						style={{ touchAction: 'none' }}
 						onCreated={handleCanvasCreated}
 					>
-						<color attach="background" args={[BACKGROUND_BY_MODE[zoomMode]]} />
 						<Suspense fallback={null}>
 							<GlobeScene
 								entities={entities}
@@ -143,6 +143,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 								isMobile={isMobile}
 								interactionPaused={showRotatePrompt}
 								onZoomModeChange={setZoomMode}
+								onAtmosphereBlendChange={handleAtmosphereBlend}
 								onJoystickChange={setJoystick}
 								onPortalNear={setNearPortalId}
 							/>
