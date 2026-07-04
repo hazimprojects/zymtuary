@@ -228,13 +228,16 @@ export function DescentController({
 			if (pointers.current.size === 2 && pinchStart.current && !joystick.current) {
 				const dist = pointerDist();
 				const scale = dist / Math.max(pinchStart.current.dist, 1);
+				// Buka jari (scale > 1) = zoom masuk = altitude KURANG (rapat ke permukaan)
+				// Cubit (scale < 1) = zoom keluar = altitude NAIK (menjauh dari permukaan)
 				const next = THREE.MathUtils.clamp(
-					pinchStart.current.alt * scale,
+					pinchStart.current.alt / scale,
 					DESCENT_CONFIG.minAltitude,
 					DESCENT_CONFIG.maxAltitude + 0.08,
 				);
 				altitude.current = next;
-				if (scale > 1.35) onRequestExit();
+				// Cubit dengan kuat (scale < 0.74) = zoom keluar ketara → keluar descent
+				if (next >= DESCENT_CONFIG.maxAltitude * 0.92) onRequestExit();
 				return;
 			}
 
@@ -283,13 +286,15 @@ export function DescentController({
 
 		const onWheel = (e: WheelEvent) => {
 			e.preventDefault();
+			// deltaY > 0 = skrol turun = zoom masuk = altitude KURANG (rapat ke permukaan)
 			const next = THREE.MathUtils.clamp(
-				altitude.current + e.deltaY * 0.00035,
+				altitude.current - e.deltaY * 0.00035,
 				DESCENT_CONFIG.minAltitude,
 				DESCENT_CONFIG.maxAltitude + 0.1,
 			);
 			altitude.current = next;
-			if (next >= DESCENT_CONFIG.maxAltitude * 0.95 && e.deltaY > 0) onRequestExit();
+			// Skrol naik (deltaY < 0) = zoom keluar = altitude naik → keluar descent
+			if (next >= DESCENT_CONFIG.maxAltitude * 0.92 && e.deltaY < 0) onRequestExit();
 		};
 
 		el.addEventListener('pointerdown', onPointerDown);
