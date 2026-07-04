@@ -176,27 +176,36 @@ export function DescentController({
 			emitJoystick();
 		};
 
+		const startPinchZoom = () => {
+			if (joystick.current) {
+				joystick.current = null;
+				onJoystickChange?.(null);
+			}
+			dragging.current = false;
+			pinchStart.current = { dist: pointerDist(), alt: altitude.current };
+		};
+
 		const onPointerDown = (e: PointerEvent) => {
 			try { el.setPointerCapture(e.pointerId); } catch { /* pointerId mungkin tidak sah */ }
 
-			if (!joystick.current && isMoveZone(e.clientX)) {
+			const role: 'move' | 'look' = isMoveZone(e.clientX) ? 'move' : 'look';
+			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
+
+			// Dua jari = cubit zoom — batalkan joystick supaya tidak bercelaru
+			if (pointers.current.size >= 2) {
+				startPinchZoom();
+				return;
+			}
+
+			// Satu jari di zon kiri = joystick floating
+			if (role === 'move') {
 				joystick.current = { pointerId: e.pointerId, originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 };
-				pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'move' });
 				emitJoystick();
 				return;
 			}
 
-			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'look' });
-			if (joystick.current) {
-				dragging.current = true;
-				lastPointer.current = { x: e.clientX, y: e.clientY };
-			} else if (pointers.current.size === 1) {
-				dragging.current = true;
-				lastPointer.current = { x: e.clientX, y: e.clientY };
-			} else if (pointers.current.size === 2) {
-				dragging.current = false;
-				pinchStart.current = { dist: pointerDist(), alt: altitude.current };
-			}
+			dragging.current = true;
+			lastPointer.current = { x: e.clientX, y: e.clientY };
 		};
 
 		const onPointerMove = (e: PointerEvent) => {
@@ -212,20 +221,16 @@ export function DescentController({
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
 
 			if (isOrphan) {
-				if (joystick.current) {
-					dragging.current = true;
-					lastPointer.current = { x: e.clientX, y: e.clientY };
+				if (pointers.current.size >= 2 && !pinchStart.current) {
+					startPinchZoom();
 				} else if (pointers.current.size === 1) {
-					dragging.current = role === 'look';
+					dragging.current = role === 'look' && !joystick.current;
 					lastPointer.current = { x: e.clientX, y: e.clientY };
-				} else if (pointers.current.size === 2 && !pinchStart.current) {
-					dragging.current = false;
-					pinchStart.current = { dist: pointerDist(), alt: altitude.current };
 				}
 				return;
 			}
 
-			if (pointers.current.size === 2 && pinchStart.current && !joystick.current) {
+			if (pointers.current.size === 2 && pinchStart.current) {
 				const dist = pointerDist();
 				const scale = dist / Math.max(pinchStart.current.dist, 1);
 				// Buka jari (scale > 1) = zoom masuk = altitude KURANG (rapat ke permukaan)
