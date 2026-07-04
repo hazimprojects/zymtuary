@@ -3,8 +3,13 @@ export type SceneHotspot = {
 	label: string;
 	/** Kedudukan peratus (x, y) dalam imej latar — 0-100 */
 	position: [number, number];
-	/** id Scene destinasi */
-	target: string;
+	/** id Scene destinasi — untuk peralihan DALAM VN yang sama (tiada muat
+	 * semula halaman). Tetapkan salah satu sahaja daripada target/href. */
+	target?: string;
+	/** Laluan URL sebenar — untuk navigasi KE HALAMAN Astro lain (cth. dari
+	 * hub wilayah ke /kawasan/veilrose-quarter). Tetapkan salah satu sahaja
+	 * daripada target/href. */
+	href?: string;
 };
 
 export type Scene = {
