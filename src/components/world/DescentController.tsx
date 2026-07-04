@@ -29,16 +29,13 @@ type DescentControllerProps = {
 	anchor: THREE.Vector3;
 	interactionPaused: boolean;
 	isMobile: boolean;
-	onRequestExit: () => void;
 	onAnchorChange?: (anchor: THREE.Vector3) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 	onPortalNear?: (wilayahId: string | null) => void;
+	/** Cubit keluar pada altitud maks — serah kepada OrbitControls tanpa animasi auto */
+	onExitDescent?: () => void;
 	groupRotationRef?: RefObject<number>;
 };
-
-function easeOutCubic(t: number): number {
-	return 1 - (1 - t) ** 3;
-}
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -55,17 +52,16 @@ export function DescentController({
 	anchor,
 	interactionPaused,
 	isMobile,
-	onRequestExit,
 	onAnchorChange,
 	onJoystickChange,
 	onPortalNear,
+	onExitDescent,
 	groupRotationRef,
 }: DescentControllerProps) {
 	const { camera, gl } = useThree();
 	const yaw = useRef(0);
 	const pitch = useRef(0);
 	const altitude = useRef(0.25);
-	const transition = useRef(1);
 	const anchorRef = useRef(new THREE.Vector3());
 	const dragging = useRef(false);
 	const lastPointer = useRef({ x: 0, y: 0 });
@@ -73,22 +69,12 @@ export function DescentController({
 	const pointers = useRef(new Map<number, { x: number; y: number; role: 'move' | 'look' }>());
 	const joystick = useRef<JoystickState | null>(null);
 	const lastNearPortal = useRef<string | null>(null);
-	/** Elak cubit orbit yang masih aktif semasa kemasukan terus picu keluar descent. */
-	const exitGuardUntil = useRef(0);
-	const onRequestExitRef = useRef(onRequestExit);
 	const onAnchorChangeRef = useRef(onAnchorChange);
 	const onJoystickChangeRef = useRef(onJoystickChange);
-	onRequestExitRef.current = onRequestExit;
+	const onExitDescentRef = useRef(onExitDescent);
 	onAnchorChangeRef.current = onAnchorChange;
 	onJoystickChangeRef.current = onJoystickChange;
-
-	// camera.up semasa masuk descent — lerp halus, bukan snap sekali-gus
-	const cameraUpStart = useRef(new THREE.Vector3(0, 1, 0));
-
-	const pitchStart = useRef(0);
-	const pitchTarget = useRef(0);
-	const altitudeStart = useRef(0);
-	const altitudeTarget = useRef(0);
+	onExitDescentRef.current = onExitDescent;
 
 	const anchorPropRef = useRef(anchor);
 	anchorPropRef.current = anchor;
@@ -106,34 +92,17 @@ export function DescentController({
 		anchorRef.current.copy(anchorPropRef.current).normalize();
 		const frame = buildSurfaceFrame(anchorRef.current);
 
-		// Pandang dari kamera ke pusat globe — arah pandang OrbitControls semasa ini
 		const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), camera.position).normalize();
 		const angles = anglesFromDirection(toCenter, frame);
 		yaw.current = angles.yaw;
+		pitch.current = THREE.MathUtils.clamp(angles.pitch, DESCENT_CONFIG.minPitch, DESCENT_CONFIG.maxPitch);
 
-		// KEKAL pada sudut kemasukan — camera tidak bergeser ke ufuk.
-		// "Menghadap ke globe" bermakna pitch negatif (pandang ke bawah ke permukaan),
-		// bukan pitch = 0.08 (ufuk). Pengguna bebas seret untuk ubah sudut.
-		pitchStart.current = THREE.MathUtils.clamp(angles.pitch, DESCENT_CONFIG.minPitch, DESCENT_CONFIG.maxPitch);
-		pitchTarget.current = pitchStart.current;
-		pitch.current = pitchStart.current;
-
-		altitudeStart.current = THREE.MathUtils.clamp(
+		// Kekalkan jarak semasa — tiada lerp auto semasa masuk atmosfera
+		altitude.current = THREE.MathUtils.clamp(
 			camera.position.length() - GLOBE_RADIUS,
-			DESCENT_CONFIG.minAltitude,
-			DESCENT_CONFIG.maxAltitude + 0.3,
-		);
-		altitudeTarget.current = THREE.MathUtils.clamp(
-			altitudeStart.current,
 			DESCENT_CONFIG.minAltitude,
 			DESCENT_CONFIG.maxAltitude,
 		);
-		altitude.current = altitudeStart.current;
-
-		// Simpan camera.up untuk lerp halus → elak guling mendadak
-		cameraUpStart.current.copy(camera.up);
-
-		transition.current = 0;
 	}, [camera]);
 
 	const resetPointerState = useCallback(() => {
@@ -150,7 +119,6 @@ export function DescentController({
 		if (active) {
 			initFromCamera();
 			resetPointerState();
-			exitGuardUntil.current = performance.now() + 480;
 		} else if (lastNearPortal.current !== null) {
 			lastNearPortal.current = null;
 			onPortalNear?.(null);
@@ -167,7 +135,6 @@ export function DescentController({
 			const dx = clientX - lastPointer.current.x;
 			const dy = clientY - lastPointer.current.y;
 			lastPointer.current = { x: clientX, y: clientY };
-			// Seret kanan = pandang kanan (globe berpusing ke kiri); seret atas = pandang atas
 			yaw.current += dx * rotateSpeed;
 			pitch.current = THREE.MathUtils.clamp(
 				pitch.current - dy * pitchSpeed,
@@ -182,7 +149,6 @@ export function DescentController({
 			return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
 		};
 
-		// Separuh kiri skrin = zon joystick (floating, sama macam Veilrose Quarter)
 		const isMoveZone = (clientX: number) => {
 			const rect = el.getBoundingClientRect();
 			return clientX - rect.left < rect.width * 0.5;
@@ -197,8 +163,6 @@ export function DescentController({
 				dy: joystick.current.dy,
 			});
 		};
-
-		const canExitDescent = () => performance.now() >= exitGuardUntil.current;
 
 		const updateJoystickOffset = (clientX: number, clientY: number) => {
 			if (!joystick.current) return;
@@ -228,7 +192,6 @@ export function DescentController({
 			const role: 'move' | 'look' = isMoveZone(e.clientX) ? 'move' : 'look';
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
 
-			// Joystick aktif + jari kedua = toleh kamera serentak (ala Sky / Veilrose)
 			if (joystick.current) {
 				pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'look' });
 				dragging.current = true;
@@ -236,13 +199,11 @@ export function DescentController({
 				return;
 			}
 
-			// Dua jari tanpa joystick = cubit zoom
 			if (pointers.current.size >= 2) {
 				startPinchZoom();
 				return;
 			}
 
-			// Satu jari di zon kiri = joystick floating
 			if (role === 'move') {
 				joystick.current = { pointerId: e.pointerId, originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 };
 				emitJoystick();
@@ -281,25 +242,23 @@ export function DescentController({
 			if (pointers.current.size === 2 && pinchStart.current && !joystick.current) {
 				const dist = Math.max(pointerDist(), 1);
 				const scale = dist / pinchStart.current.dist;
-				// Buka jari (scale > 1) = zoom masuk = altitude KURANG (rapat ke permukaan)
-				// Cubit (scale < 1) = zoom keluar = altitude NAIK (menjauh dari permukaan)
-				const next = THREE.MathUtils.clamp(
-					pinchStart.current.alt / scale,
-					DESCENT_CONFIG.minAltitude,
-					DESCENT_CONFIG.maxAltitude + 0.08,
-				);
-				altitude.current = next;
-				// Keluar hanya pada cubit keluar yang jelas — bukan sisa gerakan masuk dari orbit
-				if (canExitDescent() && scale < 0.78 && next >= DESCENT_CONFIG.maxAltitude * 0.9) {
-					onRequestExitRef.current();
+				const rawNext = pinchStart.current.alt / scale;
+				if (rawNext > DESCENT_CONFIG.maxAltitude && scale < 0.82) {
+					altitude.current = DESCENT_CONFIG.maxAltitude;
+					onExitDescentRef.current?.();
+					return;
 				}
+				altitude.current = THREE.MathUtils.clamp(
+					rawNext,
+					DESCENT_CONFIG.minAltitude,
+					DESCENT_CONFIG.maxAltitude,
+				);
 				return;
 			}
 
 			if (!dragging.current) return;
 			const entry = pointers.current.get(e.pointerId);
 			if (!entry) return;
-			// Semasa joystick aktif, mana-mana jari lain boleh toleh kamera
 			if (!joystick.current && entry.role !== 'look') return;
 
 			applyLookDrag(e.clientX, e.clientY);
@@ -332,52 +291,22 @@ export function DescentController({
 			}
 		};
 
-		const onWheel = (e: WheelEvent) => {
-			e.preventDefault();
-			// deltaY > 0 = skrol turun = zoom masuk = altitude KURANG (rapat ke permukaan)
-			const next = THREE.MathUtils.clamp(
-				altitude.current - e.deltaY * 0.00035,
-				DESCENT_CONFIG.minAltitude,
-				DESCENT_CONFIG.maxAltitude + 0.1,
-			);
-			altitude.current = next;
-			// Skrol naik (deltaY < 0) = zoom keluar = altitude naik → keluar descent
-			if (canExitDescent() && next >= DESCENT_CONFIG.maxAltitude * 0.9 && e.deltaY < 0) {
-				onRequestExitRef.current();
-			}
-		};
-
 		el.addEventListener('pointerdown', onPointerDown);
 		el.addEventListener('pointermove', onPointerMove);
 		el.addEventListener('pointerup', onPointerUp);
 		el.addEventListener('pointercancel', onPointerUp);
-		el.addEventListener('wheel', onWheel, { passive: false });
 
 		return () => {
 			el.removeEventListener('pointerdown', onPointerDown);
 			el.removeEventListener('pointermove', onPointerMove);
 			el.removeEventListener('pointerup', onPointerUp);
 			el.removeEventListener('pointercancel', onPointerUp);
-			el.removeEventListener('wheel', onWheel);
 			if (joystick.current) { joystick.current = null; onJoystickChangeRef.current?.(null); }
 		};
 	}, [active, interactionPaused, isMobile, gl]);
 
 	useFrame((_, delta) => {
 		if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
-
-		if (transition.current < 1) {
-			transition.current = Math.min(1, transition.current + delta * 0.55);
-			const t = easeOutCubic(transition.current);
-			camera.fov = THREE.MathUtils.lerp(48, DESCENT_CONFIG.fov, t);
-			camera.near = 0.015;
-			camera.updateProjectionMatrix();
-			// Hanya altitude yang berubah semasa transition — pitch dan yaw KEKAL tetap
-			// supaya kamera sentiasa kekal menghala ke globe pada saat masuk.
-			if (!dragging.current && !pinchStart.current) {
-				altitude.current = THREE.MathUtils.lerp(altitudeStart.current, altitudeTarget.current, t);
-			}
-		}
 
 		if (joystick.current) {
 			const { dx, dy } = joystick.current;
@@ -407,15 +336,7 @@ export function DescentController({
 			}
 		}
 
-		// Lerp camera.up dari world-up → surface normal sepanjang transition
-		// untuk elak guling mendadak semasa masuk descent dari orbit
 		const frame = buildSurfaceFrame(anchorRef.current);
-		const blendedUp =
-			transition.current < 1
-				? cameraUpStart.current.clone().lerp(frame.up, easeOutCubic(transition.current))
-				: frame.up;
-
-		// First-person: kamera di atas permukaan, pandang mengikut yaw+pitch semasa
 		applyDescentPose(
 			camera,
 			anchorRef.current,
@@ -423,7 +344,7 @@ export function DescentController({
 			pitch.current,
 			altitude.current,
 			GLOBE_RADIUS,
-			blendedUp,
+			frame.up,
 		);
 
 		if (onPortalNear) {

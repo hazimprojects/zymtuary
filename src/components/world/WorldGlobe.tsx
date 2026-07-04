@@ -198,7 +198,7 @@ export default function WorldGlobe({ entities }: { entities: EntityEntry[] }) {
 				transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 			>
 				{zoomMode === 'descent'
-					? 'Seret penjuru bawah untuk bergerak · seret di tempat lain untuk toleh 360° · cubit keluar untuk naik'
+					? 'Joystick kiri untuk bergerak · seret kanan untuk toleh · cubit untuk zoom'
 					: zoomMode === 'atmosphere'
 						? 'Zoom masuk lagi · masuki atmosfera seperti payung terjun'
 						: 'Perhatikan cahaya yang menyusup · putar · zoom untuk mendekat'}

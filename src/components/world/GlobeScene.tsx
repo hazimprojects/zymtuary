@@ -4,7 +4,6 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import {
-	DESCENT_CONFIG,
 	getOrbitControlsForMode,
 	getProximity,
 	getZoomMode,
@@ -29,10 +28,6 @@ type GlobeSceneProps = {
 	onPortalNear?: (wilayahId: string | null) => void;
 };
 
-function easeInOutCubic(t: number): number {
-	return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-}
-
 export function GlobeScene({
 	entities,
 	onHover,
@@ -48,13 +43,7 @@ export function GlobeScene({
 	const controlsRef = useRef<OrbitControlsImpl>(null);
 	const [dragging, setDragging] = useState(false);
 	const [descentActive, setDescentActive] = useState(false);
-	const [exitingDescent, setExitingDescent] = useState(false);
 	const [descentAnchor, setDescentAnchor] = useState(() => new THREE.Vector3(0, 0.6, 0.8));
-	const exitProgress = useRef(0);
-	const exitFrom = useRef(new THREE.Vector3());
-	const exitTo = useRef(new THREE.Vector3());
-	const exitFromQuat = useRef(new THREE.Quaternion());
-	const exitToQuat = useRef(new THREE.Quaternion());
 	// Portal wilayah (lihat worldGlobeConfig.ts) ditakrif dalam ruang tempatan
 	// `groupRef` (di mana kedudukan entiti sebenar dilukis), tetapi anchor
 	// descent dikira dalam ruang dunia — groupRef berputar perlahan semasa
@@ -74,44 +63,13 @@ export function GlobeScene({
 		onZoomModeChange?.(zoomMode);
 	}, [onZoomModeChange, zoomMode]);
 
-	const descentAnchorRef = useRef(descentAnchor);
-	descentAnchorRef.current = descentAnchor;
-	const exitingDescentRef = useRef(exitingDescent);
-	exitingDescentRef.current = exitingDescent;
-
-	const beginExitDescent = useCallback(() => {
-		if (exitingDescentRef.current) return;
-		exitFrom.current.copy(camera.position);
-		exitTo.current.copy(descentAnchorRef.current).normalize().multiplyScalar(DESCENT_CONFIG.orbitExitDistance);
-		// Kekalkan sudut pandang semasa sebagai titik mula putaran, bukan terus
-		// "snap" ke lookAt(0,0,0) — dieselang perlahan ke sudut sasaran sepanjang
-		// transisi supaya keluar dari descent terasa lancar (padanan dengan
-		// pembetulan "snap" masuk descent sebelum ini).
-		exitFromQuat.current.copy(camera.quaternion);
-		const targetMatrix = new THREE.Matrix4().lookAt(exitTo.current, new THREE.Vector3(0, 0, 0), camera.up);
-		exitToQuat.current.setFromRotationMatrix(targetMatrix);
-		exitProgress.current = 0;
-		setExitingDescent(true);
+	const endDescentInstant = useCallback(() => {
 		setDescentActive(false);
-	}, [camera]);
+		requestAnimationFrame(() => controlsRef.current?.update());
+	}, []);
 
 	useFrame((_, delta) => {
-		if (exitingDescent && camera instanceof THREE.PerspectiveCamera) {
-			exitProgress.current = Math.min(1, exitProgress.current + delta * 1.1);
-			const t = easeInOutCubic(exitProgress.current);
-			camera.position.lerpVectors(exitFrom.current, exitTo.current, t);
-			camera.quaternion.slerpQuaternions(exitFromQuat.current, exitToQuat.current, t);
-			camera.fov = THREE.MathUtils.lerp(DESCENT_CONFIG.fov, isMobile ? 50 : 45, t);
-			camera.near = 0.08;
-			camera.updateProjectionMatrix();
-			if (exitProgress.current >= 1) {
-				setExitingDescent(false);
-				controlsRef.current?.update();
-			}
-			return;
-		}
-
-		if (!descentActive && !exitingDescent && !interactionPaused) {
+		if (!descentActive && !interactionPaused) {
 			const dist = camera.position.length();
 			if (dist <= ZOOM_THRESHOLDS.descentEnter) {
 				setDescentAnchor(camera.position.clone().normalize());
@@ -124,8 +82,14 @@ export function GlobeScene({
 
 		if (groupRef.current) groupRotationRef.current = groupRef.current.rotation.y;
 
-		if (!groupRef.current || dragging || interactionPaused || descentActive || exitingDescent) return;
-		if (zoomMode !== 'orbit') return;
+		const dist = camera.position.length();
+		const freezeGlobeSpin =
+			dragging ||
+			interactionPaused ||
+			descentActive ||
+			dist <= ZOOM_THRESHOLDS.atmosphereEnter;
+
+		if (!groupRef.current || freezeGlobeSpin) return;
 		groupRef.current.rotation.y += delta * 0.035;
 	});
 
@@ -138,7 +102,7 @@ export function GlobeScene({
 	return (
 		<>
 			<fog attach="fog" args={[fogColor, fogNear, fogFar]} />
-			<ResponsiveCamera isMobile={isMobile} disabled={descentActive || exitingDescent} />
+			<ResponsiveCamera isMobile={isMobile} disabled={descentActive} />
 
 			<ambientLight intensity={descentActive ? 0.55 : 0.38} color={descentActive ? '#c8d8e8' : '#8aa0b0'} />
 			<directionalLight
@@ -171,25 +135,24 @@ export function GlobeScene({
 					onHover={onHover}
 					hoveredEntity={hoveredEntity}
 					interactionPaused={interactionPaused || descentActive}
-					forceProximity={descentActive ? 1 : undefined}
 				/>
 			</group>
 
 			<DescentController
-				active={descentActive && !exitingDescent}
+				active={descentActive}
 				anchor={descentAnchor}
 				interactionPaused={interactionPaused}
 				isMobile={isMobile}
-				onRequestExit={beginExitDescent}
 				onAnchorChange={setDescentAnchor}
 				onJoystickChange={onJoystickChange}
 				onPortalNear={onPortalNear}
+				onExitDescent={endDescentInstant}
 				groupRotationRef={groupRotationRef}
 			/>
 
 			<OrbitControls
 				ref={controlsRef}
-				enabled={!interactionPaused && !descentActive && !exitingDescent}
+				enabled={!interactionPaused && !descentActive}
 				enablePan={false}
 				enableZoom
 				enableDamping
