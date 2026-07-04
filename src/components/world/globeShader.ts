@@ -1,5 +1,11 @@
 import * as THREE from 'three';
-import { HEMISPHERE_COLORS } from './worldGlobeConfig';
+import {
+	HEMISPHERE_COLORS,
+	MAX_FEATURES,
+	MAX_RIVER_POINTS,
+	buildFeatureUniformArrays,
+	buildRiverUniformArrays,
+} from './worldGlobeConfig';
 import { createEntityGlowUniforms, type EntityGlowUniforms } from './entityGlowUniforms';
 
 function hexToVec3(hex: string): THREE.Vector3 {
@@ -23,6 +29,8 @@ void main() {
 
 export const globeFragmentShader = /* glsl */ `
 #define MAX_GLOWS 24
+#define MAX_FEATURES 16
+#define MAX_RIVER_POINTS 7
 
 uniform float uTime;
 uniform float uProximity;
@@ -35,6 +43,14 @@ uniform vec3 uEntityColors[MAX_GLOWS];
 uniform float uEntityStrength[MAX_GLOWS];
 uniform vec3 uHoverDir;
 uniform float uHoverActive;
+uniform int uFeatureCount;
+uniform vec3 uFeatureDirs[MAX_FEATURES];
+uniform float uFeatureType[MAX_FEATURES];
+uniform float uFeatureRadius[MAX_FEATURES];
+uniform vec3 uRiverAPoints[MAX_RIVER_POINTS];
+uniform vec3 uRiverBPoints[MAX_RIVER_POINTS];
+uniform vec3 uRiverAColor;
+uniform vec3 uRiverBColor;
 
 varying vec3 vNormal;
 varying vec3 vObjectNormal;
@@ -74,6 +90,14 @@ float fbm(vec3 p) {
 		p *= 2.1;
 		a *= 0.5;
 	}
+	return v;
+}
+
+/** Versi murah fbm (2 oktaf) — untuk tekstur mercu tanda supaya kos per-piksel
+ * tidak melonjak dengan banyak mercu tanda aktif serentak. */
+float fbm2(vec3 p) {
+	float v = noise(p) * 0.5;
+	v += noise(p * 2.1) * 0.25;
 	return v;
 }
 
@@ -135,6 +159,117 @@ vec3 hazeLayer(vec3 n, float proximity, out float density) {
 	return hazeCol;
 }
 
+/**
+ * Warna asas setiap jenis mercu tanda — dicondongkan ikut hemisfera (warm =
+ * Luminara, sebaliknya Noctira) supaya "gunung" atau "air" yang sama jenis
+ * kelihatan berbeza wataknya: gunung berapi vs obsidian, laut hangat vs
+ * tasik gelap tak berdasar, padang bunga vs hutan senja.
+ */
+vec3 featureColor(float t, float lat) {
+	float warm = step(0.0, lat);
+	if (t < 0.5) return mix(vec3(0.6, 0.92, 1.0), vec3(1.0, 0.45, 0.08), warm); // rekahan
+	if (t < 1.5) return mix(vec3(0.03, 0.025, 0.04), vec3(0.16, 0.07, 0.05), warm); // gunung — lebih gelap, kontras jelas
+	if (t < 2.5) return mix(vec3(0.02, 0.05, 0.1), vec3(0.16, 0.42, 0.38), warm); // air
+	if (t < 3.5) return mix(vec3(0.08, 0.2, 0.13), vec3(0.42, 0.48, 0.16), warm); // hijau
+	if (t < 4.5) return vec3(0.5, 0.42, 0.28); // padang pasir
+	if (t < 5.5) return vec3(0.85, 0.42, 0.08); // teres air panas — jingga terang, bukan keemasan pudar
+	return vec3(0.3, 0.42, 0.15); // pokok Heartbloom
+}
+
+/** Mercu tanda liar — gema lapisan mitos yang lebih dalam menembusi
+ * permukaan wilayah kini. Tepi setiap tampalan diganggu noise supaya bukan
+ * bulatan licin — bentuknya terasa organik, bukan dicap-tera. */
+vec3 applyFeatures(vec3 col, vec3 n) {
+	for (int i = 0; i < MAX_FEATURES; i++) {
+		if (i >= uFeatureCount) break;
+		vec3 dir = uFeatureDirs[i];
+		float t = uFeatureType[i];
+		float radius = uFeatureRadius[i];
+
+		float align = dot(n, dir);
+		// Tapisan murah dahulu (satu dot product) — elak kira fbm2 mahal untuk
+		// piksel yang jelas jauh di luar radius maksimum (radius * 1.6 ikut
+		// gangguan tepi di bawah). Dengan 11 mercu tanda per piksel, ini elak
+		// beban noise yang melonjak pada permukaan yang jauh daripada semua
+		// mercu tanda (majoriti permukaan pada bila-bila masa).
+		if (align < cos(radius * 1.7)) continue;
+
+		float edgeNoise = fbm2(n * 7.0 + dir * 3.0) - 0.5;
+		float cosR = cos(radius * (1.0 + edgeNoise * 0.6));
+		float mask = smoothstep(cosR - 0.02, cosR + 0.02, align);
+		if (mask < 0.001) continue;
+
+		vec3 fc = featureColor(t, n.y);
+
+		if (t < 0.5) {
+			float crack = smoothstep(0.4, 0.78, fbm2(n * 30.0 + dir * 5.0));
+			float glow = mask * crack * (0.7 + 0.3 * sin(uTime * 1.4 + float(i)));
+			col = mix(col, fc, mask * 0.35);
+			col += fc * glow * 1.8;
+		} else if (t < 1.5) {
+			float ridge = 0.7 + 0.3 * fbm2(n * 12.0 + dir * 2.0);
+			col = mix(col, fc * ridge, mask * 0.95);
+		} else if (t < 2.5) {
+			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
+			col = mix(col, fc, mask * 0.9);
+			col += sparkle * mask * 0.06;
+		} else if (t < 3.5) {
+			float speckle = smoothstep(0.7, 0.88, fbm2(n * 26.0 + dir * 6.0));
+			col = mix(col, fc, mask * 0.88);
+			col += speckle * mask * fc * 0.5;
+		} else if (t < 4.5) {
+			col = mix(col, fc, mask * 0.85);
+		} else if (t < 5.5) {
+			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 40.0);
+			col = mix(col, fc * (0.75 + rings * 0.4), mask * 0.9);
+		} else {
+			float core = smoothstep(cosR + 0.01, 1.0, align);
+			col = mix(col, fc, mask * 0.85);
+			col += fc * core * 0.6;
+		}
+	}
+	return col;
+}
+
+float distToSegment(vec3 p, vec3 a, vec3 b) {
+	vec3 ab = b - a;
+	float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0);
+	return distance(p, a + ab * t);
+}
+
+/** Jarak ke titik-titik sungai sahaja (bukan segmen) akan jadi rantaian
+ * "manik" terputus-putus — ukur jarak ke SEGMEN antara titik berturutan
+ * supaya sungai kelihatan sebagai alur berterusan. */
+float riverMask(vec3 n, vec3 pts[MAX_RIVER_POINTS], float width) {
+	float d = 10.0;
+	for (int i = 0; i < MAX_RIVER_POINTS - 1; i++) {
+		d = min(d, distToSegment(n, pts[i], pts[i + 1]));
+	}
+	return smoothstep(width, width * 0.25, d);
+}
+
+vec3 applyRivers(vec3 col, vec3 n) {
+	float da = riverMask(n, uRiverAPoints, 0.05);
+	float db = riverMask(n, uRiverBPoints, 0.05);
+	col = mix(col, uRiverAColor, da * 0.85);
+	col = mix(col, uRiverBColor, db * 0.85);
+	return col;
+}
+
+/** Aethirion — pulau terapung yang "tidak pernah diam di satu kedudukan
+ * cukup lama untuk dipetakan", jadi kedudukannya dikira terus daripada masa
+ * (bukan koordinat tetap) — hanyut perlahan mengelilingi garisan Equilara. */
+vec3 aethirionGlow(vec3 n) {
+	float theta = uTime * 0.05 + 1.4;
+	float y = 0.03 + 0.06 * sin(uTime * 0.09);
+	float ring = sqrt(max(0.0, 1.0 - y * y));
+	vec3 dir = vec3(ring * sin(theta), y, ring * cos(theta));
+	float align = dot(n, dir);
+	float mask = smoothstep(0.986, 0.999, align);
+	float pulse = 0.7 + 0.3 * sin(uTime * 1.1);
+	return vec3(0.95, 0.92, 0.8) * mask * pulse * 1.6;
+}
+
 vec3 innerResonance(vec3 n, float frontMask) {
 	vec3 glow = vec3(0.0);
 	for (int i = 0; i < MAX_GLOWS; i++) {
@@ -160,6 +295,8 @@ void main() {
 	float detailBoost = uProximity;
 
 	vec3 col = mythicSurface(n, detailBoost);
+	col = applyFeatures(col, n);
+	col = applyRivers(col, n);
 
 	vec3 lightDir = normalize(vec3(0.35, 0.55, 0.75));
 	float diffuse = 0.55 + 0.45 * max(dot(n, lightDir), 0.0);
@@ -168,6 +305,7 @@ void main() {
 
 	vec3 resonance = innerResonance(n, frontMask);
 	col += resonance * mix(0.32, 0.18, uProximity);
+	col += aethirionGlow(n) * frontMask;
 
 	float hazeDensity;
 	vec3 haze = hazeLayer(n, uProximity, hazeDensity);
@@ -189,6 +327,17 @@ void main() {
 export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.ShaderMaterial {
 	const glow = entityUniforms ?? createEntityGlowUniforms();
 
+	const { dirs, types, radii, count } = buildFeatureUniformArrays();
+	const featureDirs = Array.from({ length: MAX_FEATURES }, (_, i) =>
+		dirs[i] ? new THREE.Vector3(...dirs[i]) : new THREE.Vector3(0, 1, 0),
+	);
+	const featureTypes = Array.from({ length: MAX_FEATURES }, (_, i) => types[i] ?? 0);
+	const featureRadii = Array.from({ length: MAX_FEATURES }, (_, i) => radii[i] ?? 0.1);
+
+	const rivers = buildRiverUniformArrays();
+	const riverPoints = (river?: (typeof rivers)[number]) =>
+		Array.from({ length: MAX_RIVER_POINTS }, (_, i) => new THREE.Vector3(...(river?.points[i] ?? [0, 1, 0])));
+
 	return new THREE.ShaderMaterial({
 		vertexShader: globeVertexShader,
 		fragmentShader: globeFragmentShader,
@@ -198,6 +347,14 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 			uLuminara: { value: hexToVec3(HEMISPHERE_COLORS.luminara) },
 			uNoctira: { value: hexToVec3(HEMISPHERE_COLORS.noctira) },
 			uEquilara: { value: hexToVec3(HEMISPHERE_COLORS.equilara) },
+			uFeatureCount: { value: count },
+			uFeatureDirs: { value: featureDirs },
+			uFeatureType: { value: featureTypes },
+			uFeatureRadius: { value: featureRadii },
+			uRiverAPoints: { value: riverPoints(rivers[0]) },
+			uRiverBPoints: { value: riverPoints(rivers[1]) },
+			uRiverAColor: { value: hexToVec3(rivers[0]?.color ?? '#5ba3a0') },
+			uRiverBColor: { value: hexToVec3(rivers[1]?.color ?? '#4a5568') },
 			...glow,
 		},
 	});
