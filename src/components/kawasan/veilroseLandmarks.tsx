@@ -241,6 +241,39 @@ function MemoryRoomLandmark({ facingAngle = 0 }: { facingAngle?: number }) {
 	);
 }
 
+/** Variasi bentuk muka topeng — gembira melampau, tenang, "sempurna" simetri. */
+function MaskFace({ variant, color, thin }: { variant: 'exaggerated' | 'calm' | 'perfect'; color: string; thin: boolean }) {
+	const opacity = thin ? 0.45 : 1;
+	if (variant === 'exaggerated') {
+		return (
+			<mesh rotation={[0.15, 0, 0]} scale={[1.15, 1.25, 1]}>
+				<sphereGeometry args={[0.17, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.85]} />
+				<meshStandardMaterial color={color} flatShading roughness={0.55} transparent={thin} opacity={opacity} side={THREE.DoubleSide} />
+			</mesh>
+		);
+	}
+	if (variant === 'calm') {
+		return (
+			<mesh rotation={[0.12, 0, 0]}>
+				<boxGeometry args={[0.3, 0.34, thin ? 0.03 : 0.14]} />
+				<meshStandardMaterial color={color} flatShading roughness={0.6} transparent={thin} opacity={opacity} />
+			</mesh>
+		);
+	}
+	return (
+		<group rotation={[0.15, 0, 0]}>
+			<mesh>
+				<sphereGeometry args={[0.17, 10, 8]} />
+				<meshStandardMaterial color={color} flatShading roughness={0.5} transparent={thin} opacity={opacity} />
+			</mesh>
+			<mesh position={[0, 0, 0.1]}>
+				<torusGeometry args={[0.1, 0.015, 6, 12]} />
+				<meshStandardMaterial color={VEILROSE_PALETTE.gold} emissive={VEILROSE_PALETTE.gold} emissiveIntensity={0.35} flatShading />
+			</mesh>
+		</group>
+	);
+}
+
 /** The Mask Vendor's Row — "gerai-gerai yang menjual topeng senyuman...
  * dari yang paling nipis dan lutsinar sehingga yang tebal" — enam gerai kini
  * jelas lebih besar berbanding avatar Zym (bumbung menjulang jauh melebihi
@@ -249,13 +282,21 @@ function MemoryRoomLandmark({ facingAngle = 0 }: { facingAngle?: number }) {
  * disalin berulang. Ketebalan topeng dibezakan secara literal: nipis =
  * cakera legap-lutsinar, tebal = sfera pejal penuh. */
 function MaskVendorRowLandmark() {
-	const stalls: { x: number; scale: number; kind: 'cone' | 'dome' | 'awning'; wood: string; roof: string; thin: boolean }[] = [
-		{ x: -5, scale: 0.85, kind: 'cone', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true },
-		{ x: -3, scale: 1.15, kind: 'dome', wood: '#7a5236', roof: VEILROSE_PALETTE.purple, thin: false },
-		{ x: -1, scale: 1.35, kind: 'awning', wood: '#8a6a4a', roof: VEILROSE_PALETTE.gold, thin: true },
-		{ x: 1, scale: 1.0, kind: 'cone', wood: '#5a4030', roof: VEILROSE_PALETTE.purple, thin: false },
-		{ x: 3, scale: 1.2, kind: 'dome', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true },
-		{ x: 5, scale: 0.95, kind: 'awning', wood: '#7a5236', roof: VEILROSE_PALETTE.gold, thin: false },
+	const stalls: {
+		x: number;
+		scale: number;
+		kind: 'cone' | 'dome' | 'awning';
+		wood: string;
+		roof: string;
+		thin: boolean;
+		masks: ('exaggerated' | 'calm' | 'perfect')[];
+	}[] = [
+		{ x: -5, scale: 0.85, kind: 'cone', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true, masks: ['exaggerated', 'calm', 'perfect'] },
+		{ x: -3, scale: 1.15, kind: 'dome', wood: '#7a5236', roof: VEILROSE_PALETTE.purple, thin: false, masks: ['calm', 'perfect', 'exaggerated'] },
+		{ x: -1, scale: 1.35, kind: 'awning', wood: '#8a6a4a', roof: VEILROSE_PALETTE.gold, thin: true, masks: ['perfect', 'exaggerated', 'calm'] },
+		{ x: 1, scale: 1.0, kind: 'cone', wood: '#5a4030', roof: VEILROSE_PALETTE.purple, thin: false, masks: ['exaggerated', 'calm', 'perfect'] },
+		{ x: 3, scale: 1.2, kind: 'dome', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true, masks: ['calm', 'perfect', 'exaggerated'] },
+		{ x: 5, scale: 0.95, kind: 'awning', wood: '#7a5236', roof: VEILROSE_PALETTE.gold, thin: false, masks: ['perfect', 'calm', 'exaggerated'] },
 	];
 
 	return (
@@ -288,16 +329,10 @@ function MaskVendorRowLandmark() {
 
 					{[-0.28, 0, 0.28].map((mx, mi) => {
 						const color = mi === 1 ? VEILROSE_PALETTE.purple : VEILROSE_PALETTE.pink;
-						return s.thin ? (
-							<mesh key={mi} position={[mx, 1.12, 0.4]} rotation={[0.15, 0, 0]}>
-								<cylinderGeometry args={[0.17, 0.17, 0.04, 8]} />
-								<meshStandardMaterial color={color} flatShading roughness={0.5} transparent opacity={0.45} />
-							</mesh>
-						) : (
-							<mesh key={mi} position={[mx, 1.12, 0.4]} rotation={[0.15, 0, 0]}>
-								<sphereGeometry args={[0.18, 6, 5]} />
-								<meshStandardMaterial color={color} flatShading roughness={0.6} />
-							</mesh>
+						return (
+							<group key={mi} position={[mx, 1.12, 0.4]}>
+								<MaskFace variant={s.masks[mi]} color={color} thin={s.thin} />
+							</group>
 						);
 					})}
 				</group>

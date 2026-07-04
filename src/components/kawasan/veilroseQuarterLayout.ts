@@ -1,32 +1,41 @@
 import * as THREE from 'three';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
+import { PERIMETER_BUILDINGS } from './veilroseBuildings';
 import { VEILROSE_PALETTE } from './veilrosePalette';
+import { VEILROSE_QUARTER_BOUNDS } from './veilroseQuarterTerrain';
 
-/** Plaza Veilrose lebih luas daripada pulau Mendari — ruang uji pergerakan Zym,
- * dan cukup besar untuk 5 spot tanpa berasak-asak. */
-export const VEILROSE_ISLAND_RADIUS = 13;
-const LAYOUT_SCALE = VEILROSE_ISLAND_RADIUS / 6.4;
+/** Jejari berjalan kuartir — lebih besar daripada plaza pusat, merangkumi lorong. */
+export const VEILROSE_ISLAND_RADIUS = Math.max(VEILROSE_QUARTER_BOUNDS.halfWidth, VEILROSE_QUARTER_BOUNDS.halfDepth);
+
+const MEMORY_ROOM_CURVE_RADIUS = 4.2;
+const MEMORY_ROOM_HALF_SPAN = 1.35;
+
+function memoryRoomObstaclePoints(facingAngle: number): { dx: number; dz: number; radius: number }[] {
+	const segments = 7;
+	const angles = Array.from({ length: segments }, (_, i) =>
+		THREE.MathUtils.lerp(-MEMORY_ROOM_HALF_SPAN, MEMORY_ROOM_HALF_SPAN, i / (segments - 1)),
+	);
+	const rot = facingAngle + Math.PI;
+	return angles.map((a) => {
+		const lx = MEMORY_ROOM_CURVE_RADIUS * Math.sin(a);
+		const lz = MEMORY_ROOM_CURVE_RADIUS * (Math.cos(a) - 1);
+		return {
+			dx: lx * Math.cos(rot) - lz * Math.sin(rot),
+			dz: lx * Math.sin(rot) + lz * Math.cos(rot),
+			radius: 0.85,
+		};
+	});
+}
 
 /**
- * Susun atur Veilrose Quarter ikut kawasan_deskripsi/spot_utama sebenar —
- * The Applause Steps di tengah pasar (dideskripsikan "di tengah pasar"),
- * spot-spot "hadapan pentas" (Memory Room, Mask Vendor's Row) lebih
- * terbuka, manakala spot "belakang tabir" (Rehearsal Mirrors, Room of
- * Fallen Petals) diletak lebih jauh/tersorok mengikut lore masing-masing.
- * Warna tanah setiap spot diambil daripada VEILROSE_PALETTE supaya saling
- * berkaitan, bukan dipilih berasingan mengikut objek.
- *
- * `obstacleRadius`/`obstaclePoints` menggantikan formula perlanggaran global
- * (lihat resolveCharacterObstacles dalam ZymCharacterController.tsx) untuk
- * spot yang patut boleh dipijak/dilalui (dais tangga) atau yang bentuknya
- * bukan bulatan seragam (barisan gerai panjang). Nilai dx/dz dalam
- * obstaclePoints sudah dalam unit dunia (skala anchor sudah dikira).
+ * Susun atur kartesian Veilrose Quarter — kuartir bandar dengan plaza
+ * tertutup, Memory Room sebagai dinding perimeter, lorong ke spot tersorok.
  */
 const SPOT_LAYOUT: Record<
 	string,
 	{
-		angle: number;
-		radius: number;
+		x: number;
+		z: number;
 		scale: number;
 		groundColor: string;
 		obstacleRadius?: number;
@@ -34,48 +43,23 @@ const SPOT_LAYOUT: Record<
 	}
 > = {
 	'The Applause Steps': {
-		angle: 0,
-		radius: 0,
-		// scale 1 sengaja — geometri dais diambil terus daripada
-		// heartStepRadius/heartStepTierHeight (unit dunia sebenar) supaya
-		// tangga yang kelihatan sepadan tepat dengan permukaan boleh-jalan;
-		// sebarang faktor skala tambahan di sini akan menyebabkannya lari
-		// daripada tanah sebenar semula.
+		x: 0,
+		z: 1,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.cream,
-		// Boleh dipijak/didaki — permukaan tanah (heart-step tiers) sendiri
-		// yang membentuk "dinding", bukan bulatan perlanggaran ini.
 		obstacleRadius: 0.25,
 	},
 	'The Memory Room of Smiling Frames': {
-		angle: 0.95,
-		radius: 4.2 * LAYOUT_SCALE,
-		// scale 1 sengaja — sama sebab dengan Applause Steps: geometri
-		// lengkung galeri (MemoryRoomLandmark) dan obstaclePoints di bawah
-		// dikira terus dalam unit dunia, jadi sebarang skala tambahan di
-		// sini akan menyebabkan perlanggaran lari daripada apa yang
-		// kelihatan.
+		x: -10,
+		z: 2,
 		scale: 1,
 		groundColor: VEILROSE_PALETTE.purple,
-		// Satu titik setiap seksyen lengkung (7 seksyen) — dikira dengan
-		// memutar kedudukan tempatan seksyen (lihat MEMORY_ROOM_CURVE_RADIUS/
-		// MEMORY_ROOM_HALF_SPAN dalam veilroseLandmarks.tsx) mengikut sudut
-		// facingAngle anchor ini (atan2(x,z) + π), supaya bulatan
-		// perlanggaran sepadan tepat dengan lengkung yang kelihatan.
-		obstaclePoints: [
-			{ dx: 5.241, dz: 0.284, radius: 0.85 },
-			{ dx: 3.601, dz: -0.621, radius: 0.85 },
-			{ dx: 1.729, dz: -0.723, radius: 0.85 },
-			{ dx: 0, dz: 0, radius: 0.85 },
-			{ dx: -1.243, dz: 1.403, radius: 0.85 },
-			{ dx: -1.752, dz: 3.206, radius: 0.85 },
-			{ dx: -1.425, dz: 5.052, radius: 0.85 },
-		],
+		obstaclePoints: memoryRoomObstaclePoints(Math.atan2(-10, 2)),
 	},
 	"The Mask Vendor's Row": {
-		angle: -2.15,
-		radius: 4.4 * LAYOUT_SCALE,
-		scale: 1.0,
+		x: -3,
+		z: 7.5,
+		scale: 1,
 		groundColor: VEILROSE_PALETTE.pink,
 		obstaclePoints: [
 			{ dx: -5, dz: 0, radius: 0.64 },
@@ -87,9 +71,9 @@ const SPOT_LAYOUT: Record<
 		],
 	},
 	'The Rehearsal Mirrors': {
-		angle: 2.4,
-		radius: 4.3 * LAYOUT_SCALE,
-		scale: 1.0,
+		x: 9,
+		z: -7.5,
+		scale: 1,
 		groundColor: VEILROSE_PALETTE.purple,
 		obstaclePoints: [
 			{ dx: -0.925, dz: 0.594, radius: 0.48 },
@@ -98,8 +82,8 @@ const SPOT_LAYOUT: Record<
 		],
 	},
 	'The Room of Fallen Petals': {
-		angle: -0.75,
-		radius: 4.5 * LAYOUT_SCALE,
+		x: 1.5,
+		z: -13.5,
 		scale: 0.95,
 		groundColor: VEILROSE_PALETTE.ash,
 		obstaclePoints: [
@@ -109,16 +93,15 @@ const SPOT_LAYOUT: Record<
 	},
 };
 
-/** Watak Zym bermula di (0, 5.5) — hiasan ambien (rumput/pokok) dijana
- * secara prosedur dan tidak sedar akan titik ini atau kedudukan spot, jadi
- * ia mesti ditapis secara eksplisit supaya tiada hiasan tersepit betul-betul
- * di atas titik mula (yang akan buat kamera terasa "terperangkap" dalam
- * objek raksasa pada saat pertama) atau menembusi jejak landmark sedia ada. */
-const SPAWN_POINT: [number, number] = [0, 5.5];
-const SPAWN_KEEPOUT = 1.6;
+/** Titik mula di mulut jalan utara — menghadap plaza. */
+export const VEILROSE_SPAWN: [number, number, number] = [0, 0, 11];
+
+const SPAWN_POINT: [number, number] = [VEILROSE_SPAWN[0], VEILROSE_SPAWN[2]];
+const SPAWN_KEEPOUT = 1.8;
+
 const SPOT_KEEPOUTS: { x: number; z: number; r: number }[] = Object.values(SPOT_LAYOUT).map((cfg) => ({
-	x: Math.cos(cfg.angle) * cfg.radius,
-	z: Math.sin(cfg.angle) * cfg.radius,
+	x: cfg.x,
+	z: cfg.z,
 	r: cfg.scale * 1.8 + 1.3,
 }));
 
@@ -133,11 +116,16 @@ function isClearOfSpotsAndSpawn(x: number, z: number): boolean {
 
 export function layoutVeilroseAnchors(spots: { nama: string }[]): KawasanAnchor[] {
 	return spots.map((spot) => {
-		const cfg = SPOT_LAYOUT[spot.nama] ?? { angle: 0, radius: 4 * LAYOUT_SCALE, scale: 1, groundColor: VEILROSE_PALETTE.gold };
+		const cfg = SPOT_LAYOUT[spot.nama] ?? {
+			x: 0,
+			z: 4,
+			scale: 1,
+			groundColor: VEILROSE_PALETTE.gold,
+		};
 		return {
 			id: spot.nama,
 			nama: spot.nama,
-			position: new THREE.Vector3(Math.cos(cfg.angle) * cfg.radius, 0, Math.sin(cfg.angle) * cfg.radius),
+			position: new THREE.Vector3(cfg.x, 0, cfg.z),
 			groundColor: cfg.groundColor,
 			scale: cfg.scale,
 			obstacleRadius: cfg.obstacleRadius,
@@ -146,57 +134,52 @@ export function layoutVeilroseAnchors(spots: { nama: string }[]): KawasanAnchor[
 	});
 }
 
-/** Kedudukan hiasan gerai bunga mawar rawak di sekeliling plaza — mengisi
- * ruang supaya "pasar terbuka dipenuhi gerai bunga mawar" terasa padat &
- * hidup, bukan sekadar 3 objek terpencil dalam ruang kosong. */
+/** Perlanggaran bangunan perimeter — membentuk dinding tidak boleh ditembusi. */
+export function layoutBuildingColliders(): KawasanAnchor[] {
+	return PERIMETER_BUILDINGS.map((b, i) => ({
+		id: `__building_${i}`,
+		nama: '',
+		position: new THREE.Vector3(b.x, 0, b.z),
+		groundColor: VEILROSE_PALETTE.gold,
+		scale: 1,
+		obstaclePoints: [{ dx: 0, dz: 0, radius: Math.max(b.width, b.depth) * 0.52 }],
+	}));
+}
+
+/** Gerai mawar di lorong & sudut — ganjaran visual sepanjang laluan. */
 export const AMBIENT_ROSE_STALLS: { x: number; z: number; rot: number; scale: number }[] = [
-	{ x: 3.4, z: 2.6, rot: 0.4, scale: 0.85 },
-	{ x: -2.9, z: 3.9, rot: -0.6, scale: 0.7 },
-	{ x: 2.3, z: -4.2, rot: 1.1, scale: 0.9 },
-	{ x: -4.2, z: -1.9, rot: -1.4, scale: 0.75 },
-	{ x: 9.1, z: -0.6, rot: 0.2, scale: 0.8 },
-	{ x: -8.5, z: 1.8, rot: 0.9, scale: 0.72 },
-	{ x: 6.2, z: 5.4, rot: -0.3, scale: 0.78 },
-	{ x: -5.8, z: -5.1, rot: 1.5, scale: 0.82 },
-	{ x: 1.2, z: 7.8, rot: 0.7, scale: 0.74 },
-	{ x: -7.2, z: 4.6, rot: -1.1, scale: 0.8 },
-];
+	{ x: 5.5, z: 5.2, rot: 0.4, scale: 0.82 },
+	{ x: -6.5, z: 5.8, rot: -0.5, scale: 0.75 },
+	{ x: 7.2, z: -2.5, rot: 1.0, scale: 0.78 },
+	{ x: 6.8, z: -9.5, rot: -0.8, scale: 0.72 },
+	{ x: 3.5, z: -11.5, rot: 0.6, scale: 0.8 },
+	{ x: -2.5, z: -10.8, rot: 1.2, scale: 0.74 },
+	{ x: -5.5, z: -13.2, rot: -0.4, scale: 0.7 },
+	{ x: 4.2, z: -14.2, rot: 0.9, scale: 0.76 },
+	{ x: 10.5, z: -4.5, rot: -1.1, scale: 0.68 },
+	{ x: -8.5, z: -5.5, rot: 0.3, scale: 0.72 },
+].filter((s) => isClearOfSpotsAndSpawn(s.x, s.z));
 
-/** Pokok bunga hiasan — beberapa sengaja ditempatkan berhampiran spot
- * "belakang tabir" (Rehearsal Mirrors, Room of Fallen Petals) supaya
- * melindungi pandangan ke situ, selaras dengan lore kedua-dua spot itu
- * ("tersorok", "dibuang jauh dari mata pengunjung"). Selebihnya mengisi
- * ruang kosong di keliling plaza. */
 export const AMBIENT_FLOWERING_TREES: { x: number; z: number; rot: number; scale: number }[] = [
-	{ x: -7.8, z: 4.2, rot: 0.2, scale: 1.0 },
-	{ x: -5.0, z: 7.6, rot: -0.5, scale: 0.85 },
-	{ x: 8.2, z: -4.8, rot: 1.0, scale: 0.95 },
-	{ x: 5.2, z: -8.0, rot: -1.2, scale: 0.9 },
-	{ x: 0.4, z: -9.4, rot: 0.6, scale: 0.8 },
-	{ x: 9.4, z: 2.2, rot: -0.8, scale: 0.9 },
-	{ x: -9.2, z: -2.6, rot: 1.4, scale: 0.85 },
-	{ x: 2.6, z: 9.2, rot: -0.3, scale: 0.95 },
-].filter((tree) => isClearOfSpawn(tree.x, tree.z));
+	{ x: 5.8, z: -5.5, rot: 0.2, scale: 0.88 },
+	{ x: 3.2, z: -12.5, rot: -0.5, scale: 0.82 },
+	{ x: -4.5, z: -12.8, rot: 1.0, scale: 0.78 },
+	{ x: 7.5, z: -11.2, rot: -1.2, scale: 0.85 },
+	{ x: -6.8, z: -8.5, rot: 0.6, scale: 0.8 },
+	{ x: 2.8, z: 9.5, rot: -0.3, scale: 0.9 },
+].filter((t) => isClearOfSpawn(t.x, t.z));
 
-/** Rumput hiasan — taburan padat menggunakan sudut emas supaya organik,
- * bukan grid seragam. Elak zon tengah (Tangga Tepukan/Barisan) dan luar
- * plaza rata supaya tidak bercampur dengan cerun tepi. */
-const GRASS_COUNT = 46;
+const GRASS_COUNT = 38;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-// Jejari min/max dipilih terus (bukan LAYOUT_SCALE) supaya sentiasa kekal di
-// antara jejari Tangga Tepukan (~3.6) dan tepi rata plaza (edgeStart ≈
-// islandRadius*0.74 ≈ 9.6), mengelakkan rumput "terapung" di cerun tepi.
-// Calonnya dijana lebih daripada GRASS_COUNT dan ditapis (isClearOfSpotsAndSpawn)
-// supaya tiada rumput tersepit di titik mula watak atau menembusi landmark.
+
 export const AMBIENT_GRASS_TUFTS: { x: number; z: number; rot: number; scale: number }[] = (() => {
 	const tufts: { x: number; z: number; rot: number; scale: number }[] = [];
 	for (let i = 0; tufts.length < GRASS_COUNT && i < GRASS_COUNT * 3; i++) {
 		const t = i / (GRASS_COUNT * 3);
-		const radius = 4.0 + t * 5.0;
-		const angle = i * GOLDEN_ANGLE * 2.4;
-		const x = Math.cos(angle) * radius;
-		const z = Math.sin(angle) * radius;
+		const x = (t - 0.5) * 22;
+		const z = 6 - t * 24;
 		if (!isClearOfSpotsAndSpawn(x, z)) continue;
+		if (Math.abs(x) > 11 && z > 0) continue;
 		tufts.push({
 			x,
 			z,
@@ -206,3 +189,29 @@ export const AMBIENT_GRASS_TUFTS: { x: number; z: number; rot: number; scale: nu
 	}
 	return tufts;
 })();
+
+/** Bendera rentang lorong — gaya perayaan Mediterranean. */
+export const ALLEY_FLAG_LINES: {
+	from: [number, number, number];
+	to: [number, number, number];
+}[] = [
+	{ from: [-5.5, 2.6, 6.5], to: [5.5, 2.6, 6.5] },
+	{ from: [5.5, 2.4, 2], to: [11.5, 2.4, -4] },
+	{ from: [4, 2.2, -6], to: [11, 2.2, -9] },
+	{ from: [-3, 2.3, -8], to: [3, 2.3, -11] },
+];
+
+/** Hiasan sudut lorong — bangku, pasu, lampu (tiada perlanggaran). */
+export const ALLEY_CORNER_DECOR: {
+	x: number;
+	z: number;
+	rot: number;
+	kind: 'bench' | 'pot' | 'lamp';
+}[] = [
+	{ x: 5.2, z: 4.8, rot: -0.5, kind: 'bench' },
+	{ x: 7.8, z: -3.2, rot: 0.8, kind: 'pot' },
+	{ x: 6.2, z: -8.5, rot: -0.3, kind: 'lamp' },
+	{ x: -5.8, z: -7.5, rot: 1.1, kind: 'bench' },
+	{ x: 2.5, z: -10.5, rot: 0.4, kind: 'pot' },
+	{ x: -3.5, z: -11.8, rot: -0.7, kind: 'lamp' },
+];

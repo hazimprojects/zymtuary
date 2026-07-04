@@ -1,30 +1,38 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { SpotUtama } from '../world/worldGlobeConfig';
-import { buildIslandGeometry } from '../wilayah/wilayahTerrain';
 import {
 	layoutVeilroseAnchors,
+	layoutBuildingColliders,
 	AMBIENT_ROSE_STALLS,
 	AMBIENT_FLOWERING_TREES,
 	AMBIENT_GRASS_TUFTS,
+	ALLEY_FLAG_LINES,
+	ALLEY_CORNER_DECOR,
 	VEILROSE_ISLAND_RADIUS,
+	VEILROSE_SPAWN,
 } from './veilroseQuarterLayout';
+import { buildVeilroseQuarterGeometry } from './veilroseQuarterTerrain';
+import {
+	VeilrosePerimeterBuildings,
+	VeilroseCitySilhouettes,
+	VeilroseStreetMouths,
+} from './veilroseBuildings';
 import { SpotMarker } from './SpotMarker';
 import { RoseStallProp } from './veilroseLandmarks';
-import { VeilroseGrassTuft, VeilroseFloweringTree } from './veilroseDecor';
+import { VeilroseGrassTuft, VeilroseFloweringTree, VeilroseAlleyFlagLine, VeilroseAlleyCornerDecor } from './veilroseDecor';
 import { VEILROSE_PALETTE } from './veilrosePalette';
 import { ZymCharacterController, type ZymJoystickVisual } from './ZymCharacterController';
 
 const BASE_GROUND_COLOR = VEILROSE_PALETTE.gold;
 const ZYM_GLOW_COLOR = '#d4a843';
-/** Plaza rata berakhir di ~0.74 x islandRadius — kekalkan watak dalam kawasan ini. */
-const PLAZA_WALK_RADIUS = VEILROSE_ISLAND_RADIUS * 0.72;
-/** heartStepTierHeight dinaikkan daripada lalai (0.085) supaya Tangga
- * Tepukan terasa macam tangga sebenar yang boleh didaki dan cukup tinggi
- * dari tanah untuk kelihatan sebagai dais, bukan riak yang nyaris tak
- * nampak — lihat ApplauseStepsLandmark dalam veilroseLandmarks.tsx yang
- * membina geometrinya terus daripada nombor yang sama ini. */
-const VEILROSE_TERRAIN = { islandRadius: VEILROSE_ISLAND_RADIUS, heartStepTierHeight: 0.28 } as const;
+const PLAZA_WALK_RADIUS = VEILROSE_ISLAND_RADIUS * 0.95;
+const VEILROSE_TERRAIN = {
+	terrainProfile: 'veilrose-quarter' as const,
+	heartStepTierHeight: 0.28,
+	heartStepRadius: 1.75,
+	islandRadius: VEILROSE_ISLAND_RADIUS,
+};
 
 export function VeilroseQuarterScene({
 	spots,
@@ -43,27 +51,34 @@ export function VeilroseQuarterScene({
 	onNearSpotChange: (id: string | null) => void;
 	onJoystickChange: (joystick: ZymJoystickVisual | null) => void;
 }) {
-	const anchors = useMemo(() => layoutVeilroseAnchors(spots), [spots]);
+	const spotAnchors = useMemo(() => layoutVeilroseAnchors(spots), [spots]);
+	const buildingColliders = useMemo(() => layoutBuildingColliders(), []);
+	const allObstacleAnchors = useMemo(
+		() => [...spotAnchors, ...buildingColliders],
+		[spotAnchors, buildingColliders],
+	);
 	const geometry = useMemo(
-		() => buildIslandGeometry(anchors, BASE_GROUND_COLOR, VEILROSE_TERRAIN),
-		[anchors],
+		() =>
+			buildVeilroseQuarterGeometry(
+				spotAnchors,
+				BASE_GROUND_COLOR,
+				VEILROSE_TERRAIN.heartStepRadius,
+				VEILROSE_TERRAIN.heartStepTierHeight,
+			),
+		[spotAnchors],
 	);
 	const collisionRootRef = useRef<THREE.Group>(null);
 
 	return (
 		<>
-			<fog attach="fog" args={[BASE_GROUND_COLOR, 8, 34]} />
+			<fog attach="fog" args={[BASE_GROUND_COLOR, 10, 42]} />
 			<hemisphereLight args={['#fbe2a8', '#5a3d2a', 0.85]} />
 			<directionalLight position={[-4, 3.5, 2]} intensity={1.3} color="#ffd9a0" />
 			<ambientLight intensity={0.25} color={BASE_GROUND_COLOR} />
 
-			{/* Hiasan ambien (gerai mawar, pokok, rumput) sengaja DI LUAR
-			 * collisionRootRef — ia tiada perlanggaran watak (lihat
-			 * resolveCharacterObstacles, yang hanya guna `anchors`), jadi ia
-			 * tidak patut menyekat pandangan kamera juga (raycast kamera guna
-			 * root yang sama). Tanpa ini, pokok yang lebih tinggi/tebal
-			 * daripada gerai mawar lama akan buat kamera "tersekat" menempel
-			 * padanya semasa watak berjalan lalu berhampiran. */}
+			<VeilroseCitySilhouettes />
+
+			{/* Hiasan ambien tanpa perlanggaran */}
 			<group>
 				{AMBIENT_ROSE_STALLS.map((stall, i) => (
 					<group key={i} position={[stall.x, 0.18, stall.z]} rotation={[0, stall.rot, 0]}>
@@ -82,6 +97,16 @@ export function VeilroseQuarterScene({
 						<VeilroseGrassTuft scale={tuft.scale} swayPhase={i} />
 					</group>
 				))}
+
+				{ALLEY_FLAG_LINES.map((line, i) => (
+					<VeilroseAlleyFlagLine key={i} from={line.from} to={line.to} phase={i} />
+				))}
+
+				{ALLEY_CORNER_DECOR.map((d, i) => (
+					<group key={i} position={[d.x, 0.18, d.z]} rotation={[0, d.rot, 0]}>
+						<VeilroseAlleyCornerDecor kind={d.kind} />
+					</group>
+				))}
 			</group>
 
 			<group ref={collisionRootRef}>
@@ -89,7 +114,10 @@ export function VeilroseQuarterScene({
 					<meshStandardMaterial vertexColors flatShading roughness={0.85} metalness={0.02} />
 				</mesh>
 
-				{anchors.map((anchor, index) => (
+				<VeilrosePerimeterBuildings />
+				<VeilroseStreetMouths />
+
+				{spotAnchors.map((anchor, index) => (
 					<SpotMarker
 						key={anchor.id}
 						anchor={anchor}
@@ -101,9 +129,9 @@ export function VeilroseQuarterScene({
 			</group>
 
 			<ZymCharacterController
-				anchors={anchors}
+				anchors={allObstacleAnchors}
 				plazaRadius={PLAZA_WALK_RADIUS}
-				startPosition={[0, 0, 5.5]}
+				startPosition={VEILROSE_SPAWN}
 				glowColor={ZYM_GLOW_COLOR}
 				isMobile={isMobile}
 				interactionPaused={interactionPaused}
