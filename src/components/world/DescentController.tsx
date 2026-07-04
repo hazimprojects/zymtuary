@@ -38,12 +38,12 @@ type DescentControllerProps = {
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
-const EXIT_MAX_ALTITUDE = ZOOM_THRESHOLDS.atmosphereEnter - GLOBE_RADIUS;
 const ORBIT_RADIUS_MIN = 1.85;
 const ORBIT_RADIUS_MAX = 10;
 const ORBIT_JOYSTICK_SPEED = 1.15;
-const ORBIT_MIN_PHI = 0.15;
-const ORBIT_MAX_PHI = Math.PI - 0.15;
+const ORBIT_MIN_PITCH = -1.45;
+const ORBIT_MAX_PITCH = 1.45;
+const _orbitEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 type JoystickState = {
 	pointerId: number;
@@ -82,7 +82,6 @@ export function DescentController({
 	const joystick = useRef<JoystickState | null>(null);
 	const lastNearPortal = useRef<string | null>(null);
 	const exitGuardUntil = useRef(0);
-	const spherical = useRef(new THREE.Spherical());
 	const onAnchorChangeRef = useRef(onAnchorChange);
 	const onJoystickChangeRef = useRef(onJoystickChange);
 	const onExitDescentRef = useRef(onExitDescent);
@@ -161,15 +160,14 @@ export function DescentController({
 			const dx = clientX - lastPointer.current.x;
 			const dy = clientY - lastPointer.current.y;
 			lastPointer.current = { x: clientX, y: clientY };
-			spherical.current.setFromVector3(camera.position);
-			spherical.current.theta -= dx * rotateSpeed;
-			spherical.current.phi = THREE.MathUtils.clamp(
-				spherical.current.phi - dy * pitchSpeed,
-				ORBIT_MIN_PHI,
-				ORBIT_MAX_PHI,
+			_orbitEuler.setFromQuaternion(camera.quaternion, 'YXZ');
+			_orbitEuler.y -= dx * rotateSpeed;
+			_orbitEuler.x = THREE.MathUtils.clamp(
+				_orbitEuler.x - dy * pitchSpeed,
+				ORBIT_MIN_PITCH,
+				ORBIT_MAX_PITCH,
 			);
-			camera.position.setFromSpherical(spherical.current);
-			camera.lookAt(0, 0, 0);
+			camera.quaternion.setFromEuler(_orbitEuler);
 		};
 
 		const pointerDist = () => {
@@ -187,6 +185,23 @@ export function DescentController({
 				localX < rect.width * JOYSTICK_CONFIG.cornerZoneWidthFrac &&
 				localY > rect.height * (1 - JOYSTICK_CONFIG.cornerZoneHeightFrac)
 			);
+		};
+
+		/** Tengah skrin — cubit dua ibu jari biasanya di sini */
+		const isPinchZone = (clientX: number, clientY: number) => {
+			const rect = el.getBoundingClientRect();
+			const localX = clientX - rect.left;
+			const localY = clientY - rect.top;
+			const cx = rect.width * 0.5;
+			const cy = rect.height * 0.5;
+			const halfW = rect.width * JOYSTICK_CONFIG.pinchZoneWidthFrac * 0.5;
+			const halfH = rect.height * JOYSTICK_CONFIG.pinchZoneHeightFrac * 0.5;
+			return Math.abs(localX - cx) <= halfW && Math.abs(localY - cy) <= halfH;
+		};
+
+		const isCenterPinchGesture = () => {
+			if (pointers.current.size < 2) return false;
+			return [...pointers.current.values()].every((p) => isPinchZone(p.x, p.y));
 		};
 
 		const emitJoystick = () => {
@@ -211,14 +226,9 @@ export function DescentController({
 			emitJoystick();
 		};
 
-		const pinchValue = () =>
-			activeRef.current ? altitude.current : camera.position.length();
+		const pinchValue = () => camera.position.length();
 
 		const startPinchZoom = () => {
-			if (joystick.current) {
-				joystick.current = null;
-				onJoystickChangeRef.current?.(null);
-			}
 			dragging.current = false;
 			pinchStart.current = {
 				dist: Math.max(pointerDist(), 48),
@@ -229,16 +239,7 @@ export function DescentController({
 		const onPointerDown = (e: PointerEvent) => {
 			try { el.setPointerCapture(e.pointerId); } catch { /* pointerId mungkin tidak sah */ }
 
-			const role: 'move' | 'look' = isMoveZone(e.clientX, e.clientY) ? 'move' : 'look';
-			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
-
-			// Dua jari (dua ibu jari) = cubit — batalkan joystick
-			if (pointers.current.size >= 2) {
-				startPinchZoom();
-				return;
-			}
-
-			if (role === 'move') {
+			if (!joystick.current && isMoveZone(e.clientX, e.clientY)) {
 				joystick.current = {
 					pointerId: e.pointerId,
 					originX: e.clientX,
@@ -246,11 +247,29 @@ export function DescentController({
 					dx: 0,
 					dy: 0,
 				};
+				pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'move' });
 				emitJoystick();
 				return;
 			}
 
-			dragging.current = true;
+			const role: 'move' | 'look' = isMoveZone(e.clientX, e.clientY) ? 'move' : 'look';
+			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role });
+
+			if (pointers.current.size >= 2) {
+				if (isCenterPinchGesture()) {
+					if (joystick.current) {
+						joystick.current = null;
+						onJoystickChangeRef.current?.(null);
+					}
+					startPinchZoom();
+				} else if (joystick.current) {
+					dragging.current = true;
+					lastPointer.current = { x: e.clientX, y: e.clientY };
+				}
+				return;
+			}
+
+			dragging.current = role === 'look';
 			lastPointer.current = { x: e.clientX, y: e.clientY };
 		};
 
@@ -268,9 +287,18 @@ export function DescentController({
 
 			if (isOrphan) {
 				if (pointers.current.size >= 2 && !pinchStart.current) {
-					startPinchZoom();
+					if (isCenterPinchGesture()) {
+						if (joystick.current) {
+							joystick.current = null;
+							onJoystickChangeRef.current?.(null);
+						}
+						startPinchZoom();
+					} else if (joystick.current) {
+						dragging.current = true;
+						lastPointer.current = { x: e.clientX, y: e.clientY };
+					}
 				} else if (pointers.current.size === 1) {
-					dragging.current = role === 'look';
+					dragging.current = role === 'look' && !joystick.current;
 					lastPointer.current = { x: e.clientX, y: e.clientY };
 				}
 				return;
@@ -282,28 +310,33 @@ export function DescentController({
 				const rawNext = pinchStart.current.value / scale;
 
 				if (activeRef.current) {
-					altitude.current = THREE.MathUtils.clamp(
-						rawNext,
-						DESCENT_CONFIG.minAltitude,
-						EXIT_MAX_ALTITUDE,
-					);
+					const minDist = GLOBE_RADIUS + DESCENT_CONFIG.minAltitude;
+					const maxDist = ZOOM_THRESHOLDS.atmosphereEnter - 0.04;
+					const nextDist = THREE.MathUtils.clamp(rawNext, minDist, maxDist);
+					altitude.current = nextDist - GLOBE_RADIUS;
 					if (
 						performance.now() >= exitGuardUntil.current &&
-						GLOBE_RADIUS + altitude.current >= ZOOM_THRESHOLDS.atmosphereEnter - 0.04
+						nextDist >= ZOOM_THRESHOLDS.atmosphereEnter - 0.04
 					) {
 						onExitDescentRef.current?.();
+						if (pinchStart.current) {
+							pinchStart.current.value = camera.position.length();
+						}
 					}
 				} else {
 					const nextR = THREE.MathUtils.clamp(rawNext, ORBIT_RADIUS_MIN, ORBIT_RADIUS_MAX);
-					camera.position.normalize().multiplyScalar(nextR);
-					camera.lookAt(0, 0, 0);
+					if (camera.position.lengthSq() > 1e-8) {
+						camera.position.setLength(nextR);
+					}
 				}
 				return;
 			}
 
 			if (!dragging.current) return;
+			if (joystick.current && e.pointerId === joystick.current.pointerId) return;
+
 			const entry = pointers.current.get(e.pointerId);
-			if (!entry || entry.role !== 'look') return;
+			if (!entry || (!joystick.current && entry.role !== 'look')) return;
 
 			if (activeRef.current) applyDescentLookDrag(e.clientX, e.clientY);
 			else applyOrbitLookDrag(e.clientX, e.clientY);

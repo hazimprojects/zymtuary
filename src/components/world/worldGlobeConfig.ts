@@ -194,6 +194,9 @@ export const JOYSTICK_CONFIG = {
 	moveAngularSpeed: 0.42,
 	cornerZoneWidthFrac: 0.35,
 	cornerZoneHeightFrac: 0.45,
+	/** Zon tengah skrin — cubit dua ibu jari biasanya di sini; elak batalkan joystick */
+	pinchZoneWidthFrac: 0.5,
+	pinchZoneHeightFrac: 0.55,
 } as const;
 
 export function getZoomMode(distance: number, descentActive: boolean): ZoomMode {
