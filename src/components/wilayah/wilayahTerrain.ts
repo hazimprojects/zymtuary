@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sampleVeilroseQuarterGroundHeight } from '../kawasan/veilroseQuarterTerrain';
 
 export type KawasanAnchor = {
 	id: string;
@@ -30,6 +31,10 @@ export type IslandTerrainOptions = {
 	 * Veilrose Quarter menaikkan nilai ini supaya Tangga Tepukan terasa macam
 	 * tangga sebenar yang boleh didaki, bukan riak yang nyaris tak nampak. */
 	heartStepTierHeight?: number;
+	/** Jejari heart-step tersendiri (Veilrose guna nilai tetap, bukan diskala). */
+	heartStepRadius?: number;
+	/** Profil tanah — `veilrose-quarter` guna geometri kuartir bandar. */
+	terrainProfile?: 'island' | 'veilrose-quarter';
 };
 
 /** Dieksport supaya geometri landmark (cth. ApplauseStepsLandmark) boleh
@@ -43,7 +48,7 @@ export function terrainParams(options?: IslandTerrainOptions) {
 		islandRadius,
 		edgeStart: islandRadius * 0.74,
 		edgeEnd: islandRadius * 1.12,
-		heartStepRadius: 1.75 * scale,
+		heartStepRadius: options?.heartStepRadius ?? 1.75 * scale,
 		heartStepTierHeight: options?.heartStepTierHeight ?? HEART_STEP_TIER_HEIGHT,
 		anchorBlendRadius: 3 * scale,
 	};
@@ -151,6 +156,10 @@ export function buildIslandGeometry(
 /** Sampel ketinggian permukaan plaza pada (x, z) — sama formula dengan
  * buildIslandGeometry supaya watak "melekat" pada tanah. */
 export function sampleIslandGroundHeight(x: number, z: number, options?: IslandTerrainOptions): number {
+	if (options?.terrainProfile === 'veilrose-quarter') {
+		const { heartStepRadius, heartStepTierHeight } = terrainParams(options);
+		return sampleVeilroseQuarterGroundHeight(x, z, heartStepRadius, heartStepTierHeight);
+	}
 	const { edgeStart, edgeEnd, heartStepRadius, heartStepTierHeight } = terrainParams(options);
 	const distFromCenter = Math.hypot(x, z);
 	let height = PLAZA_HEIGHT;

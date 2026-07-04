@@ -37,10 +37,12 @@ export function SpotMarker({
 	const groupRef = useRef<THREE.Group>(null);
 	const labelRef = useRef<HTMLSpanElement>(null);
 	const labelWorldPos = useRef(new THREE.Vector3());
-	// Sudut arah anchor dari tengah plaza — dipakai oleh spot yang perlu
-	// menghala ke tengah (cth. lengkung galeri The Memory Room); spot lain
-	// abaikan prop ini.
-	const facingAngle = useMemo(() => Math.atan2(anchor.position.x, anchor.position.z), [anchor.position]);
+	// Sudut arah anchor ke pusat plaza — dipakai oleh spot yang perlu
+	// menghala ke tengah (cth. lengkung galeri The Memory Room).
+	const facingAngle = useMemo(
+		() => Math.atan2(-anchor.position.x, 1 - anchor.position.z),
+		[anchor.position],
+	);
 
 	useFrame(({ clock, camera }) => {
 		if (groupRef.current) {

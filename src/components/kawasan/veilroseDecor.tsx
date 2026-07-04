@@ -3,6 +3,113 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { VEILROSE_PALETTE } from './veilrosePalette';
 
+const FLAG_COLORS = [VEILROSE_PALETTE.pink, VEILROSE_PALETTE.purple, VEILROSE_PALETTE.gold];
+
+/** Tali bendera melintasi lorong — perayaan berterusan di seluruh kuartir. */
+export function VeilroseAlleyFlagLine({
+	from,
+	to,
+	phase = 0,
+}: {
+	from: [number, number, number];
+	to: [number, number, number];
+	phase?: number;
+}) {
+	const flagCount = 5;
+	const dx = to[0] - from[0];
+	const dy = to[1] - from[1];
+	const dz = to[2] - from[2];
+	const sag = 0.35;
+
+	return (
+		<group>
+			<mesh position={from}>
+				<cylinderGeometry args={[0.03, 0.035, 0.5, 5]} />
+				<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+			</mesh>
+			<mesh position={to}>
+				<cylinderGeometry args={[0.03, 0.035, 0.5, 5]} />
+				<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+			</mesh>
+			{Array.from({ length: flagCount }, (_, i) => {
+				const t = (i + 0.5) / flagCount;
+				const x = from[0] + dx * t;
+				const y = from[1] + dy * t - sag * Math.sin(t * Math.PI);
+				const z = from[2] + dz * t;
+				const color = FLAG_COLORS[(i + phase) % FLAG_COLORS.length];
+				return (
+					<mesh key={i} position={[x, y - 0.12, z]} rotation={[0, Math.atan2(dx, dz), 0]}>
+						<coneGeometry args={[0.1, 0.18, 3]} />
+						<meshStandardMaterial color={color} flatShading emissive={color} emissiveIntensity={0.18} roughness={0.6} />
+					</mesh>
+				);
+			})}
+		</group>
+	);
+}
+
+/** Hiasan sudut lorong — bangku, pasu bunga, lampu tergantung. */
+export function VeilroseAlleyCornerDecor({
+	kind,
+}: {
+	kind: 'bench' | 'pot' | 'lamp';
+}) {
+	if (kind === 'bench') {
+		return (
+			<group>
+				<mesh position={[-0.35, 0.22, 0]}>
+					<cylinderGeometry args={[0.03, 0.03, 0.44, 5]} />
+					<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+				</mesh>
+				<mesh position={[0.35, 0.22, 0]}>
+					<cylinderGeometry args={[0.03, 0.03, 0.44, 5]} />
+					<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+				</mesh>
+				<mesh position={[0, 0.46, 0]}>
+					<boxGeometry args={[0.9, 0.08, 0.32]} />
+					<meshStandardMaterial color={VEILROSE_PALETTE.purple} flatShading roughness={0.65} />
+				</mesh>
+			</group>
+		);
+	}
+	if (kind === 'pot') {
+		return (
+			<group>
+				<mesh position={[0, 0.18, 0]}>
+					<cylinderGeometry args={[0.22, 0.26, 0.36, 8]} />
+					<meshStandardMaterial color="#8a5a42" flatShading roughness={0.8} />
+				</mesh>
+				<mesh position={[0, 0.42, 0]}>
+					<icosahedronGeometry args={[0.14, 0]} />
+					<meshStandardMaterial color={VEILROSE_PALETTE.pink} flatShading emissive={VEILROSE_PALETTE.pink} emissiveIntensity={0.2} />
+				</mesh>
+			</group>
+		);
+	}
+	return (
+		<group>
+			<mesh position={[0, 1.4, 0]}>
+				<cylinderGeometry args={[0.02, 0.02, 0.08, 5]} />
+				<meshStandardMaterial color="#6b4a3a" flatShading />
+			</mesh>
+			<mesh position={[0, 1.2, 0]}>
+				<sphereGeometry args={[0.12, 8, 6]} />
+				<meshStandardMaterial
+					color={VEILROSE_PALETTE.gold}
+					emissive={VEILROSE_PALETTE.gold}
+					emissiveIntensity={0.45}
+					flatShading
+					roughness={0.4}
+				/>
+			</mesh>
+			<mesh position={[0, 0.65, 0]}>
+				<cylinderGeometry args={[0.025, 0.03, 1.3, 5]} />
+				<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+			</mesh>
+		</group>
+	);
+}
+
 /**
  * Hiasan tambahan tanpa perlanggaran/interaksi (sama falsafah dengan
  * RoseStallProp dalam veilroseLandmarks.tsx) — mengisi plaza dengan rumput

@@ -530,6 +530,7 @@ export function ZymCharacterController({
 			let nearest: string | null = null;
 			let nearestDist = REVEAL_RADIUS;
 			for (const anchor of anchors) {
+				if (anchor.id.startsWith('__')) continue;
 				const d = Math.hypot(characterPos.current.x - anchor.position.x, characterPos.current.z - anchor.position.z);
 				if (d < nearestDist) {
 					nearestDist = d;
