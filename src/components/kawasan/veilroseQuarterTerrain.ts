@@ -1,82 +1,48 @@
 import * as THREE from 'three';
 import type { KawasanAnchor } from '../wilayah/wilayahTerrain';
 import { VEILROSE_PALETTE } from './veilrosePalette';
+import {
+	VEILROSE_QUARTER_BOUNDS,
+	isInsidePlaza,
+	isOnStreet,
+	isInsideBuildingBlock,
+} from './veilroseCityPlan';
 
 const PLAZA_HEIGHT = 0.18;
-const GRID_W = 52;
-const GRID_D = 64;
+const GRID_W = 48;
+const GRID_D = 58;
 
-/** Kuartir diperluas — lebih banyak ruang menjelajah. */
-export const VEILROSE_QUARTER_BOUNDS = {
-	halfWidth: 24,
-	halfDepth: 30,
-	minX: -24,
-	maxX: 24,
-	minZ: -30,
-	maxZ: 26,
-} as const;
+export { VEILROSE_QUARTER_BOUNDS } from './veilroseCityPlan';
 
 const STONE_COLOR = '#B8A878';
-const PAVEMENT_COLOR = '#C4B48A';
 const EARTH_COLOR = VEILROSE_PALETTE.ash;
 
-export type VeilroseGroundZone = 'plaza' | 'alley' | 'pavement' | 'earth';
+export type VeilroseGroundZone = 'plaza' | 'street' | 'earth';
 
-function distToSegment(px: number, pz: number, x1: number, z1: number, x2: number, z2: number): number {
-	const dx = x2 - x1;
-	const dz = z2 - z1;
-	const lenSq = dx * dx + dz * dz;
-	if (lenSq < 1e-6) return Math.hypot(px - x1, pz - z1);
-	const t = THREE.MathUtils.clamp(((px - x1) * dx + (pz - z1) * dz) / lenSq, 0, 1);
-	return Math.hypot(px - (x1 + t * dx), pz - (z1 + t * dz));
-}
-
-/** Laluan pavement & lorong — ikut ALLEY_PAVEMENTS dalam veilroseBuildings. */
-function isOnPavement(x: number, z: number): boolean {
-	const paths: [number, number, number, number, number][] = [
-		[0, 8, 0, 26, 1.15],
-		[-15, -4, -15, 14, 1.0],
-		[15, -16, 15, 10, 1.0],
-		[0, -28, 0, -8, 0.95],
-		[-9, -20, -9, -8, 0.9],
-		[9, -22, 9, -10, 0.85],
-		[-5, 0, -5, 8, 0.95],
-		[5, -12, 5, 0, 0.9],
-		[-12, -12, -12, -4, 0.85],
-		[12, -18, 12, -6, 0.85],
-	];
-	return paths.some(([x1, z1, x2, z2, halfW]) => distToSegment(x, z, x1, z1, x2, z2) < halfW);
-}
-
-/** Zon permukaan — plaza, lorong, pavement, tanah kelopak. */
 export function classifyVeilroseGroundZone(x: number, z: number): VeilroseGroundZone {
-	if (isOnPavement(x, z)) return 'pavement';
-	if (z < -16) return 'earth';
-	if (z < -4 && Math.abs(x) < 14) return 'alley';
-	if (z < 2 && x > 9) return 'alley';
-	if (z < 6 && x < -9) return 'alley';
-	if (z > 10 && Math.abs(x) > 5) return 'alley';
+	if (isInsidePlaza(x, z)) return 'plaza';
+	if (isOnStreet(x, z)) return 'street';
+	if (z < -14) return 'earth';
+	if (isInsideBuildingBlock(x, z)) return 'earth';
 	return 'plaza';
 }
 
 function zoneBaseColor(zone: VeilroseGroundZone, baseColor: string): THREE.Color {
 	switch (zone) {
-		case 'pavement':
-			return new THREE.Color(PAVEMENT_COLOR);
-		case 'alley':
-			return new THREE.Color(baseColor).lerp(new THREE.Color(STONE_COLOR), 0.48);
+		case 'street':
+			return new THREE.Color(baseColor).lerp(new THREE.Color(STONE_COLOR), 0.35);
 		case 'earth':
-			return new THREE.Color(EARTH_COLOR).lerp(new THREE.Color(VEILROSE_PALETTE.driedRose), 0.3);
+			return new THREE.Color(EARTH_COLOR).lerp(new THREE.Color(VEILROSE_PALETTE.driedRose), 0.25);
 		default:
 			return new THREE.Color(baseColor);
 	}
 }
 
 function quarterEdgeFalloff(x: number, z: number): number {
-	const dx = Math.max(0, Math.abs(x) - VEILROSE_QUARTER_BOUNDS.halfWidth + 2.2);
-	const dz = Math.max(0, Math.abs(z + 1) - VEILROSE_QUARTER_BOUNDS.halfDepth + 2.2);
+	const dx = Math.max(0, Math.abs(x) - VEILROSE_QUARTER_BOUNDS.halfWidth + 2);
+	const dz = Math.max(0, Math.abs(z + 1) - VEILROSE_QUARTER_BOUNDS.halfDepth + 2);
 	const edge = Math.max(dx, dz);
-	return THREE.MathUtils.clamp(1 - edge / 3.5, 0, 1);
+	return THREE.MathUtils.clamp(1 - edge / 3.2, 0, 1);
 }
 
 function heartStepHeight(
@@ -107,7 +73,7 @@ export function buildVeilroseQuarterGeometry(
 
 	const position = geometry.attributes.position;
 	const colors: number[] = [];
-	const anchorBlendRadius = 3.8;
+	const anchorBlendRadius = 3.5;
 
 	for (let i = 0; i < position.count; i++) {
 		const x = position.getX(i);
@@ -117,8 +83,8 @@ export function buildVeilroseQuarterGeometry(
 
 		let height = PLAZA_HEIGHT * edge;
 		height += heartStepHeight(x, z, heartStepRadius, heartStepTierHeight) * edge;
-		if (zone === 'earth') height *= 0.9;
-		if (zone === 'pavement') height += 0.025;
+		if (zone === 'earth') height *= 0.92;
+		if (isInsideBuildingBlock(x, z)) height = PLAZA_HEIGHT * 0.85 * edge;
 		position.setY(i, height);
 
 		let nearestIndex = 0;
@@ -133,8 +99,8 @@ export function buildVeilroseQuarterGeometry(
 		});
 		const spotAnchor = anchors.filter((a) => !a.id.startsWith('__'))[nearestIndex];
 		const c = zoneBaseColor(zone, baseColor);
-		if (spotAnchor && zone !== 'pavement') {
-			const blend = THREE.MathUtils.clamp(1 - nearestDist / anchorBlendRadius, 0, 0.32);
+		if (spotAnchor && zone === 'plaza') {
+			const blend = THREE.MathUtils.clamp(1 - nearestDist / anchorBlendRadius, 0, 0.3);
 			c.lerp(new THREE.Color(spotAnchor.groundColor), blend);
 		}
 		colors.push(c.r * edge, c.g * edge, c.b * edge);
@@ -154,6 +120,5 @@ export function sampleVeilroseQuarterGroundHeight(
 	const edge = quarterEdgeFalloff(x, z);
 	let height = PLAZA_HEIGHT * edge;
 	height += heartStepHeight(x, z, heartStepRadius, heartStepTierHeight) * edge;
-	if (classifyVeilroseGroundZone(x, z) === 'pavement') height += 0.025;
 	return height;
 }
