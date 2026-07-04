@@ -77,52 +77,62 @@ float fbm(vec3 p) {
 	return v;
 }
 
-vec3 earthTerrain(vec3 n, float detailBoost) {
-	vec3 p = n * (4.2 + detailBoost * 2.5);
-	float continent = fbm(p);
-	float elevation = fbm(p * 2.4 + vec3(1.7, 2.3, 0.9));
-	float detail = fbm(p * 6.0 + vec3(3.1, 0.4, 2.8));
-
-	float land = smoothstep(0.44, 0.54, continent);
-	float shore = smoothstep(0.0, 0.12, land) * (1.0 - smoothstep(0.12, 0.22, land));
-	float mountain = smoothstep(0.58, 0.76, elevation + detail * 0.25) * land;
-	float forest = smoothstep(0.38, 0.55, elevation) * land * (1.0 - mountain * 0.85);
-	float meadow = land * (1.0 - forest * 0.7) * (1.0 - mountain);
-
-	vec3 deepSea = vec3(0.04, 0.12, 0.22);
-	vec3 shallowSea = vec3(0.08, 0.24, 0.34);
-	vec3 sand = vec3(0.38, 0.34, 0.26);
-	vec3 meadowCol = vec3(0.28, 0.36, 0.22);
-	vec3 forestCol = vec3(0.10, 0.30, 0.18);
-	vec3 peakCol = vec3(0.62, 0.58, 0.52);
-	vec3 snowPeak = vec3(0.82, 0.80, 0.76);
-
-	vec3 col = mix(deepSea, shallowSea, smoothstep(0.0, 0.44, continent));
-	col = mix(col, sand, shore * 0.9);
-	col = mix(col, meadowCol, meadow * 0.75);
-	col = mix(col, forestCol, forest * 0.88);
-	col = mix(col, peakCol, mountain * 0.7);
-	col = mix(col, snowPeak, smoothstep(0.72, 0.88, elevation + detail * 0.3) * mountain);
-
-	return col;
-}
-
-vec3 hemisphereTint(vec3 col, vec3 n) {
+/**
+ * Permukaan Zymtuary bukan planet biasa — tiada benua/lautan sebenar.
+ * Tiga alam (Luminara cahaya, Noctira bayang, Equilara garisan penyatuan)
+ * mengalir sebagai arus warna organik yang saling meresap di sempadan
+ * (rujuk deskripsi Wandari: "dua lukisan cat air belum kering bertindih"),
+ * bukan bentuk tanah/air yang terpisah tajam.
+ */
+vec3 mythicSurface(vec3 n, float detailBoost) {
 	float lat = n.y;
-	col = mix(col, col * uLuminara * 1.55, smoothstep(0.0, 0.7, lat) * 0.22);
-	col = mix(col, col * uNoctira * 1.35, smoothstep(0.0, 0.7, -lat) * 0.22);
-	col = mix(col, col * uEquilara * 1.25, smoothstep(0.28, 0.0, abs(lat)) * 0.12);
+
+	// Arus terwarap (domain warp) — mengelak corak "pulau benua" fbm mentah
+	// supaya rupa tidak terbaca sebagai peta bumi walau pada sudut mana pun.
+	vec3 p = n * (2.1 + detailBoost * 0.9);
+	vec3 warp = vec3(fbm(p + 4.1), fbm(p + 7.7), fbm(p + 1.3)) - 0.5;
+	vec3 pw = p + warp * 1.7;
+
+	float flowBroad = fbm(pw * 1.4);
+	float flowFine = fbm(pw * 3.6 + 9.0);
+	float veins = smoothstep(0.5, 0.86, flowFine * 0.6 + flowBroad * 0.4);
+
+	// Sempadan hemisfera diganggu oleh arus supaya tidak jadi cincin licin —
+	// zon pertindihan gold/violet terasa cair, bukan garis lintang tegar.
+	float drift = (flowBroad - 0.5) * 0.55 + (flowFine - 0.5) * 0.2;
+	float lumMask = smoothstep(-0.08, 0.62, lat + drift);
+	float noctMask = smoothstep(-0.08, 0.62, -lat + drift);
+	float overlap = lumMask * noctMask; // jalur "cat air bertindih" di sekitar Equilara
+
+	vec3 col = uEquilara;
+	col = mix(col, uLuminara, lumMask);
+	col = mix(col, uNoctira, noctMask * (1.0 - lumMask * 0.6));
+	col = mix(col, (uLuminara + uNoctira) * 0.5, overlap * 0.55);
+
+	// Urat cahaya/kristal halus — bukan hutan/gunung, sekadar denyutan dalaman
+	col *= 0.86 + veins * 0.34;
+	col += veins * mix(uLuminara, uNoctira, step(0.0, -lat)) * 0.06;
+
 	return col;
 }
 
-float cloudLayer(vec3 n, float proximity) {
-	vec3 drift = vec3(uTime * 0.035, uTime * 0.008, uTime * 0.028);
-	float c1 = fbm(n * 5.5 + drift);
-	float c2 = fbm(n * 8.0 + drift * 1.3 + vec3(2.0, 0.0, 1.0)) * 0.55;
-	float c = c1 + c2;
-	float density = smoothstep(0.46, 0.72, c);
-	float fade = mix(0.06, 0.2, proximity);
-	return density * fade;
+/** Kabus setiap alam — hangat keemasan di Luminara, sejuk berkabus di
+ * Noctira, dan berpadu lembut sepanjang garisan Equilara — bukan awan
+ * putih generik yang membaca seperti litupan awan bumi sebenar. */
+vec3 hazeLayer(vec3 n, float proximity, out float density) {
+	float lat = n.y;
+	vec3 drift = vec3(uTime * 0.03, uTime * 0.006, uTime * 0.024);
+	float h1 = fbm(n * 3.2 + drift);
+	float h2 = fbm(n * 6.0 + drift * 1.25 + vec3(2.0, 0.0, 1.0)) * 0.5;
+	float h = h1 + h2;
+	density = smoothstep(0.5, 0.74, h) * mix(0.05, 0.16, proximity);
+
+	float lum = smoothstep(0.0, 0.6, lat);
+	float noct = smoothstep(0.0, 0.6, -lat);
+	vec3 hazeCol = uEquilara * 1.1;
+	hazeCol = mix(hazeCol, uLuminara * 1.3, lum);
+	hazeCol = mix(hazeCol, uNoctira * 1.15, noct);
+	return hazeCol;
 }
 
 vec3 innerResonance(vec3 n, float frontMask) {
@@ -149,8 +159,7 @@ void main() {
 	float frontMask = smoothstep(0.08, 0.35, dot(n, normalize(vViewDir)));
 	float detailBoost = uProximity;
 
-	vec3 col = earthTerrain(n, detailBoost);
-	col = hemisphereTint(col, n);
+	vec3 col = mythicSurface(n, detailBoost);
 
 	vec3 lightDir = normalize(vec3(0.35, 0.55, 0.75));
 	float diffuse = 0.55 + 0.45 * max(dot(n, lightDir), 0.0);
@@ -160,8 +169,9 @@ void main() {
 	vec3 resonance = innerResonance(n, frontMask);
 	col += resonance * mix(0.32, 0.18, uProximity);
 
-	float clouds = cloudLayer(n, uProximity);
-	col = mix(col, vec3(0.78, 0.76, 0.72), clouds);
+	float hazeDensity;
+	vec3 haze = hazeLayer(n, uProximity, hazeDensity);
+	col = mix(col, haze, hazeDensity);
 
 	float breathe = 0.94 + 0.03 * sin(uTime * 0.7);
 	col *= breathe;
