@@ -73,6 +73,14 @@ export function DescentController({
 	const pointers = useRef(new Map<number, { x: number; y: number; role: 'move' | 'look' }>());
 	const joystick = useRef<JoystickState | null>(null);
 	const lastNearPortal = useRef<string | null>(null);
+	/** Elak cubit orbit yang masih aktif semasa kemasukan terus picu keluar descent. */
+	const exitGuardUntil = useRef(0);
+	const onRequestExitRef = useRef(onRequestExit);
+	const onAnchorChangeRef = useRef(onAnchorChange);
+	const onJoystickChangeRef = useRef(onJoystickChange);
+	onRequestExitRef.current = onRequestExit;
+	onAnchorChangeRef.current = onAnchorChange;
+	onJoystickChangeRef.current = onJoystickChange;
 
 	// camera.up semasa masuk descent — lerp halus, bukan snap sekali-gus
 	const cameraUpStart = useRef(new THREE.Vector3(0, 1, 0));
@@ -128,13 +136,26 @@ export function DescentController({
 		transition.current = 0;
 	}, [camera]);
 
+	const resetPointerState = useCallback(() => {
+		pointers.current.clear();
+		pinchStart.current = null;
+		dragging.current = false;
+		if (joystick.current) {
+			joystick.current = null;
+			onJoystickChangeRef.current?.(null);
+		}
+	}, []);
+
 	useEffect(() => {
-		if (active) initFromCamera();
-		else if (lastNearPortal.current !== null) {
+		if (active) {
+			initFromCamera();
+			resetPointerState();
+			exitGuardUntil.current = performance.now() + 480;
+		} else if (lastNearPortal.current !== null) {
 			lastNearPortal.current = null;
 			onPortalNear?.(null);
 		}
-	}, [active, initFromCamera, onPortalNear]);
+	}, [active, initFromCamera, onPortalNear, resetPointerState]);
 
 	useEffect(() => {
 		if (!active || interactionPaused) return;
@@ -155,14 +176,16 @@ export function DescentController({
 		};
 
 		const emitJoystick = () => {
-			if (!joystick.current) { onJoystickChange?.(null); return; }
-			onJoystickChange?.({
+			if (!joystick.current) { onJoystickChangeRef.current?.(null); return; }
+			onJoystickChangeRef.current?.({
 				originX: joystick.current.originX,
 				originY: joystick.current.originY,
 				dx: joystick.current.dx,
 				dy: joystick.current.dy,
 			});
 		};
+
+		const canExitDescent = () => performance.now() >= exitGuardUntil.current;
 
 		const updateJoystickOffset = (clientX: number, clientY: number) => {
 			if (!joystick.current) return;
@@ -179,10 +202,11 @@ export function DescentController({
 		const startPinchZoom = () => {
 			if (joystick.current) {
 				joystick.current = null;
-				onJoystickChange?.(null);
+				onJoystickChangeRef.current?.(null);
 			}
 			dragging.current = false;
-			pinchStart.current = { dist: pointerDist(), alt: altitude.current };
+			const dist = Math.max(pointerDist(), 48);
+			pinchStart.current = { dist, alt: altitude.current };
 		};
 
 		const onPointerDown = (e: PointerEvent) => {
@@ -231,8 +255,8 @@ export function DescentController({
 			}
 
 			if (pointers.current.size === 2 && pinchStart.current) {
-				const dist = pointerDist();
-				const scale = dist / Math.max(pinchStart.current.dist, 1);
+				const dist = Math.max(pointerDist(), 1);
+				const scale = dist / pinchStart.current.dist;
 				// Buka jari (scale > 1) = zoom masuk = altitude KURANG (rapat ke permukaan)
 				// Cubit (scale < 1) = zoom keluar = altitude NAIK (menjauh dari permukaan)
 				const next = THREE.MathUtils.clamp(
@@ -241,8 +265,10 @@ export function DescentController({
 					DESCENT_CONFIG.maxAltitude + 0.08,
 				);
 				altitude.current = next;
-				// Cubit dengan kuat (scale < 0.74) = zoom keluar ketara → keluar descent
-				if (next >= DESCENT_CONFIG.maxAltitude * 0.92) onRequestExit();
+				// Keluar hanya pada cubit keluar yang jelas — bukan sisa gerakan masuk dari orbit
+				if (canExitDescent() && scale < 0.78 && next >= DESCENT_CONFIG.maxAltitude * 0.9) {
+					onRequestExitRef.current();
+				}
 				return;
 			}
 
@@ -265,8 +291,8 @@ export function DescentController({
 		const onPointerUp = (e: PointerEvent) => {
 			if (joystick.current && e.pointerId === joystick.current.pointerId) {
 				joystick.current = null;
-				onJoystickChange?.(null);
-				onAnchorChange?.(anchorRef.current.clone());
+				onJoystickChangeRef.current?.(null);
+				onAnchorChangeRef.current?.(anchorRef.current.clone());
 				pointers.current.delete(e.pointerId);
 				const remaining = [...pointers.current.entries()].find(([, p]) => p.role === 'look');
 				if (remaining) {
@@ -299,7 +325,9 @@ export function DescentController({
 			);
 			altitude.current = next;
 			// Skrol naik (deltaY < 0) = zoom keluar = altitude naik → keluar descent
-			if (next >= DESCENT_CONFIG.maxAltitude * 0.92 && e.deltaY < 0) onRequestExit();
+			if (canExitDescent() && next >= DESCENT_CONFIG.maxAltitude * 0.9 && e.deltaY < 0) {
+				onRequestExitRef.current();
+			}
 		};
 
 		el.addEventListener('pointerdown', onPointerDown);
@@ -314,9 +342,9 @@ export function DescentController({
 			el.removeEventListener('pointerup', onPointerUp);
 			el.removeEventListener('pointercancel', onPointerUp);
 			el.removeEventListener('wheel', onWheel);
-			if (joystick.current) { joystick.current = null; onJoystickChange?.(null); }
+			if (joystick.current) { joystick.current = null; onJoystickChangeRef.current?.(null); }
 		};
-	}, [active, interactionPaused, isMobile, gl, onRequestExit, onAnchorChange, onJoystickChange]);
+	}, [active, interactionPaused, isMobile, gl]);
 
 	useFrame((_, delta) => {
 		if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;

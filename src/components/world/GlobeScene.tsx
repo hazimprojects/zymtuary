@@ -74,10 +74,15 @@ export function GlobeScene({
 		onZoomModeChange?.(zoomMode);
 	}, [onZoomModeChange, zoomMode]);
 
+	const descentAnchorRef = useRef(descentAnchor);
+	descentAnchorRef.current = descentAnchor;
+	const exitingDescentRef = useRef(exitingDescent);
+	exitingDescentRef.current = exitingDescent;
+
 	const beginExitDescent = useCallback(() => {
-		if (exitingDescent) return;
+		if (exitingDescentRef.current) return;
 		exitFrom.current.copy(camera.position);
-		exitTo.current.copy(descentAnchor).normalize().multiplyScalar(DESCENT_CONFIG.orbitExitDistance);
+		exitTo.current.copy(descentAnchorRef.current).normalize().multiplyScalar(DESCENT_CONFIG.orbitExitDistance);
 		// Kekalkan sudut pandang semasa sebagai titik mula putaran, bukan terus
 		// "snap" ke lookAt(0,0,0) — dieselang perlahan ke sudut sasaran sepanjang
 		// transisi supaya keluar dari descent terasa lancar (padanan dengan
@@ -88,7 +93,7 @@ export function GlobeScene({
 		exitProgress.current = 0;
 		setExitingDescent(true);
 		setDescentActive(false);
-	}, [camera, descentAnchor, exitingDescent]);
+	}, [camera]);
 
 	useFrame((_, delta) => {
 		if (exitingDescent && camera instanceof THREE.PerspectiveCamera) {
