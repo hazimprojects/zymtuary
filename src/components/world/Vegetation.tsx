@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
 	GLOBE_RADIUS,
@@ -10,6 +11,12 @@ import {
 	type LandmarkFeature,
 } from './worldGlobeConfig';
 
+type VegetationProps = {
+	/** Pokok hanya kelihatan sepenuhnya dalam atmosfera — dari orbit jauh
+	 * dunia kelihatan tapi tanpa perincian, kaya hanya bila didekati. */
+	atmosphereBlendRef: React.MutableRefObject<number>;
+};
+
 type TreeSpot = {
 	position: THREE.Vector3;
 	quaternion: THREE.Quaternion;
@@ -19,12 +26,11 @@ type TreeSpot = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Kawasan yang layak ditanami pokok — hijau/Heartbloom (lebat) dan lereng
- * gunung (jarang, "banjaran gunung dengan pokok"). */
+/** Kawasan yang layak ditanami pokok — hijau/Heartbloom sahaja. TIADA pokok
+ * di gunung berapi/obsidian — lereng itu tandus batu-batu dan rekahan. */
 function densityFor(feature: LandmarkFeature): number {
-	if (feature.type === 'tree') return 16;
-	if (feature.type === 'green') return 12;
-	if (feature.type === 'mountain') return 7;
+	if (feature.type === 'tree') return 26;
+	if (feature.type === 'green') return 20;
 	return 0;
 }
 
@@ -43,19 +49,22 @@ function buildTreeSpots(): TreeSpot[] {
 		for (let i = 0; i < count; i++) {
 			// Taburan cakera seragam (bukan segi empat) — punca akar sqrt elak
 			// pekat di tengah.
-			const r = Math.sqrt(rng()) * feature.radius * (feature.type === 'mountain' ? 0.85 : 0.95);
+			const r = Math.sqrt(rng()) * feature.radius * 0.95;
 			const angle = rng() * Math.PI * 2;
 			const lu = Math.cos(angle) * r;
 			const lv = Math.sin(angle) * r;
 			const dir = localToDir(center, u, v, lu, lv);
 			const dirVec = new THREE.Vector3(...dir);
-			const surfaceOffset = feature.type === 'mountain' ? 0.09 : 0.02;
-			const position = dirVec.clone().multiplyScalar(GLOBE_RADIUS + surfaceOffset);
+			// Nipis — pokok kecil, jadi lekapan permukaan mesti rapat supaya
+			// tidak kelihatan terapung di atas tanah.
+			const position = dirVec.clone().multiplyScalar(GLOBE_RADIUS + 0.006);
 
 			const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dirVec);
 			quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
 
-			const scale = 0.65 + rng() * 0.7;
+			// Pokok kecil & padat — hutan sebenar, bukan beberapa pokok besar
+			// terserak jarang.
+			const scale = 0.4 + rng() * 0.4;
 			spots.push({ position, quaternion, scale, warm });
 		}
 	}
@@ -64,33 +73,46 @@ function buildTreeSpots(): TreeSpot[] {
 }
 
 function buildTreeGeometry() {
-	const trunk = new THREE.CylinderGeometry(0.006, 0.009, 0.05, 5);
-	trunk.translate(0, 0.025, 0);
-	const canopy = new THREE.ConeGeometry(0.032, 0.075, 6);
-	canopy.translate(0, 0.06, 0);
+	const trunk = new THREE.CylinderGeometry(0.005, 0.008, 0.045, 5);
+	trunk.translate(0, 0.0225, 0);
+	const canopy = new THREE.ConeGeometry(0.026, 0.062, 6);
+	canopy.translate(0, 0.05, 0);
 	return { trunk, canopy };
 }
 
 /** Pokok rendah-poligon (trunk + canopy kon) diserak sebagai InstancedMesh
- * pada kawasan hijau/Heartbloom (lebat) dan lereng gunung (jarang) —
- * "hutan Vorynth Wood berkabus...banyak pokok lebat" dan "banjaran gunung
- * dengan pokok". */
-export default function Vegetation() {
+ * pada kawasan hijau/Heartbloom sahaja — kecil & padat macam hutan
+ * sebenar, bukan beberapa pokok besar jarang. */
+export default function Vegetation({ atmosphereBlendRef }: VegetationProps) {
 	const spots = useMemo(() => buildTreeSpots(), []);
 	const { trunk, canopy } = useMemo(() => buildTreeGeometry(), []);
 
 	const trunkMaterial = useMemo(
-		() => new THREE.MeshStandardMaterial({ color: '#6b4a2e', flatShading: true, roughness: 0.85 }),
+		() => new THREE.MeshStandardMaterial({ color: '#6b4a2e', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
 		[],
 	);
 	const canopyWarmMaterial = useMemo(
-		() => new THREE.MeshStandardMaterial({ color: '#a3b854', flatShading: true, roughness: 0.75 }),
+		() => new THREE.MeshStandardMaterial({ color: '#a3b854', flatShading: true, roughness: 0.75, transparent: true, opacity: 0 }),
 		[],
 	);
 	const canopyColdMaterial = useMemo(
-		() => new THREE.MeshStandardMaterial({ color: '#4a7a5e', flatShading: true, roughness: 0.75 }),
+		() => new THREE.MeshStandardMaterial({ color: '#4a7a5e', flatShading: true, roughness: 0.75, transparent: true, opacity: 0 }),
 		[],
 	);
+
+	const materials = useMemo(
+		() => [trunkMaterial, canopyWarmMaterial, canopyColdMaterial],
+		[trunkMaterial, canopyWarmMaterial, canopyColdMaterial],
+	);
+
+	useFrame(() => {
+		const blend = atmosphereBlendRef.current;
+		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
+		for (const mat of materials) {
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.06);
+			mat.visible = mat.opacity > 0.01;
+		}
+	});
 
 	const warmSpots = useMemo(() => spots.filter((s) => s.warm), [spots]);
 	const coldSpots = useMemo(() => spots.filter((s) => !s.warm), [spots]);

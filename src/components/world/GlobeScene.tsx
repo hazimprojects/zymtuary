@@ -190,8 +190,8 @@ export function GlobeScene({
 					segments={segments}
 					proximityOverride={globeProximity}
 				/>
-				<Vegetation />
-				<FeatureParticles />
+				<Vegetation atmosphereBlendRef={atmosphereBlend} />
+				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
 
 			<AethirionIsland atmosphereBlendRef={atmosphereBlend} />
