@@ -44,8 +44,13 @@ function easeOutCubic(t: number): number {
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-const CAM_DIST_BACK = 2.0;
-const CAM_HEIGHT = 0.55;
+// Globe radius = 1.55 unit. Avatar perlu sangat kecil supaya nampak seperti
+// insan di permukaan planet, bukan gergasi yang menutup seluruh globe.
+// AVATAR_SCALE 0.055 → tinggi ~0.066 unit ≈ 4% jejari globe.
+// CAM_DIST_BACK 0.45 → avatar ambil ~24% FOV — nampak jelas tapi globe kekal terbuka.
+const AVATAR_SCALE = 0.055;
+const CAM_DIST_BACK = 0.45;
+const CAM_HEIGHT = 0.18;
 const ZYM_GLOW = '#d4a843';
 
 type JoystickState = {
@@ -70,8 +75,10 @@ export function DescentController({
 	const { camera, gl } = useThree();
 	const yaw = useRef(0);
 	const pitch = useRef(0.05);
-	// altitude masih digunakan untuk pinch/wheel exit (kawal jarak dari permukaan)
 	const altitude = useRef(0.25);
+	// Pre-allocated untuk orientasi avatar — elak GC pressure dalam useFrame
+	const _avatarRight = new THREE.Vector3();
+	const _avatarMatrix = new THREE.Matrix4();
 	const transition = useRef(1);
 	const anchorRef = useRef(new THREE.Vector3());
 	const dragging = useRef(false);
@@ -394,11 +401,13 @@ export function DescentController({
 		);
 
 		// Kemaskini kedudukan & orientasi avatar Zym
+		// Quaternion betul untuk permukaan glob: atas = surface normal, hadapan = avatarForward
 		if (avatarGroupRef.current) {
 			avatarGroupRef.current.position.copy(avatarPos);
-			// Hadap arah gerak (yaw dalam surface frame)
-			const facingYaw = Math.atan2(-avatarForward.x, -avatarForward.z);
-			avatarGroupRef.current.rotation.set(0, facingYaw, 0);
+			_avatarRight.crossVectors(avatarForward, frame.up).normalize();
+			// Three.js basis: X=kanan, Y=atas, Z=-hadapan
+			_avatarMatrix.makeBasis(_avatarRight, frame.up, avatarForward.clone().negate());
+			avatarGroupRef.current.quaternion.setFromRotationMatrix(_avatarMatrix);
 		}
 
 		if (onPortalNear) {
@@ -416,7 +425,7 @@ export function DescentController({
 		<>
 			<InteriorAtmosphere active={active} isMobile={isMobile} />
 			{active ? (
-				<group ref={avatarGroupRef}>
+				<group ref={avatarGroupRef} scale={AVATAR_SCALE}>
 					<ZymAvatar glowColor={ZYM_GLOW} motionRef={motionState} />
 				</group>
 			) : null}
