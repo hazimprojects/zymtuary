@@ -13,12 +13,9 @@ import {
 	anglesFromDirection,
 	buildSurfaceFrame,
 	lookDirectionFromAngles,
-	applyThirdPersonGlobePose,
-	type SurfaceFrame,
+	applyDescentPose,
 } from './surfaceFrame';
 import { InteriorAtmosphere } from './InteriorAtmosphere';
-import { ZymAvatar } from '../kawasan/ZymAvatar';
-import { type ZymMotionState } from '../kawasan/ZymAvatar';
 
 export type JoystickVisual = {
 	originX: number;
@@ -45,13 +42,6 @@ function easeOutCubic(t: number): number {
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-// Globe radius = 1.55 unit. AVATAR_SCALE dikira supaya Zym kelihatan seperti
-// insan di permukaan planet — ~7% jejari globe. applyThirdPersonGlobePose
-// menggunakan formula Veilrose (pivot bahu + camPitch 0.36) supaya rasa kamera
-// sama macam di Veilrose Quarter.
-const AVATAR_SCALE = 0.07;
-const ZYM_GLOW = '#d4a843';
-
 type JoystickState = {
 	pointerId: number;
 	originX: number;
@@ -73,11 +63,8 @@ export function DescentController({
 }: DescentControllerProps) {
 	const { camera, gl } = useThree();
 	const yaw = useRef(0);
-	const pitch = useRef(0.05);
+	const pitch = useRef(0);
 	const altitude = useRef(0.25);
-	// Pre-allocated — elak pembinaan objek Three.js dalam setiap bingkai
-	const _avatarRight = useRef(new THREE.Vector3());
-	const _avatarMatrix = useRef(new THREE.Matrix4());
 	const transition = useRef(1);
 	const anchorRef = useRef(new THREE.Vector3());
 	const dragging = useRef(false);
@@ -87,14 +74,16 @@ export function DescentController({
 	const joystick = useRef<JoystickState | null>(null);
 	const lastNearPortal = useRef<string | null>(null);
 
-	// camera.up semasa masuk descent — untuk lerp halus, bukannya snap sekali gus
+	// camera.up semasa masuk descent — lerp halus, bukan snap sekali-gus
 	const cameraUpStart = useRef(new THREE.Vector3(0, 1, 0));
-	// kuaternion kamera semasa masuk — untuk lerp kuaternion sepanjang transition
-	const cameraQuatStart = useRef(new THREE.Quaternion());
 
-	// Ref avatar Zym — kemas kini setiap frame tanpa re-render
-	const avatarGroupRef = useRef<THREE.Group>(null);
-	const motionState = useRef<ZymMotionState>({ speed: 0, running: 0, flying: 1, pitchInput: 0 });
+	const pitchStart = useRef(0);
+	const pitchTarget = useRef(0);
+	const altitudeStart = useRef(0);
+	const altitudeTarget = useRef(0);
+
+	const anchorPropRef = useRef(anchor);
+	anchorPropRef.current = anchor;
 
 	const portals = useMemo(
 		() =>
@@ -105,26 +94,19 @@ export function DescentController({
 		[],
 	);
 
-	const pitchStart = useRef(0);
-	const pitchTarget = useRef(0);
-	const altitudeStart = useRef(0);
-	const altitudeTarget = useRef(0);
-
-	const anchorPropRef = useRef(anchor);
-	anchorPropRef.current = anchor;
-
 	const initFromCamera = useCallback(() => {
 		anchorRef.current.copy(anchorPropRef.current).normalize();
 		const frame = buildSurfaceFrame(anchorRef.current);
 
-		// Pandang dari kamera ke pusat globe — ini arah pandang OrbitControls
+		// Pandang dari kamera ke pusat globe — arah pandang OrbitControls semasa ini
 		const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), camera.position).normalize();
 		const angles = anglesFromDirection(toCenter, frame);
 		yaw.current = angles.yaw;
 
-		// Kekalkan pitch semasa — jangan beransur ke ufuk (itu yang menyebabkan lonjakan)
+		// KEKAL pada sudut kemasukan — camera tidak bergeser ke ufuk.
+		// "Menghadap ke globe" bermakna pitch negatif (pandang ke bawah ke permukaan),
+		// bukan pitch = 0.08 (ufuk). Pengguna bebas seret untuk ubah sudut.
 		pitchStart.current = THREE.MathUtils.clamp(angles.pitch, DESCENT_CONFIG.minPitch, DESCENT_CONFIG.maxPitch);
-		// pitchTarget sama dengan pitchStart — tiada perubahan pitch semasa transition
 		pitchTarget.current = pitchStart.current;
 		pitch.current = pitchStart.current;
 
@@ -140,11 +122,8 @@ export function DescentController({
 		);
 		altitude.current = altitudeStart.current;
 
-		// Simpan up & quaternion kamera semasa untuk lerp halus — inilah fix utama:
-		// `applyThirdPersonGlobePose` akan set camera.up = frame.up secara mengejut
-		// pada bingkai pertama kecuali kita lerp secara manual sepanjang transition.
+		// Simpan camera.up untuk lerp halus → elak guling mendadak
 		cameraUpStart.current.copy(camera.up);
-		cameraQuatStart.current.copy(camera.quaternion);
 
 		transition.current = 0;
 	}, [camera]);
@@ -169,7 +148,7 @@ export function DescentController({
 			return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
 		};
 
-		/** Separuh kiri skrin = zon joystick (sama macam Veilrose Quarter) */
+		// Separuh kiri skrin = zon joystick (floating, sama macam Veilrose Quarter)
 		const isMoveZone = (clientX: number) => {
 			const rect = el.getBoundingClientRect();
 			return clientX - rect.left < rect.width * 0.5;
@@ -198,10 +177,9 @@ export function DescentController({
 		};
 
 		const onPointerDown = (e: PointerEvent) => {
-			try { el.setPointerCapture(e.pointerId); } catch { /* pointerId tidak sah */ }
+			try { el.setPointerCapture(e.pointerId); } catch { /* pointerId mungkin tidak sah */ }
 
 			if (!joystick.current && isMoveZone(e.clientX)) {
-				// Joystick floating — muncul di mana jari menyentuh (sama macam Veilrose)
 				joystick.current = { pointerId: e.pointerId, originX: e.clientX, originY: e.clientY, dx: 0, dy: 0 };
 				pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'move' });
 				emitJoystick();
@@ -210,7 +188,6 @@ export function DescentController({
 
 			pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, role: 'look' });
 			if (joystick.current) {
-				// Joystick aktif + jari baru = seret kamera serentak (ala Sky)
 				dragging.current = true;
 				lastPointer.current = { x: e.clientX, y: e.clientY };
 			} else if (pointers.current.size === 1) {
@@ -340,6 +317,8 @@ export function DescentController({
 			camera.fov = THREE.MathUtils.lerp(48, DESCENT_CONFIG.fov, t);
 			camera.near = 0.015;
 			camera.updateProjectionMatrix();
+			// Hanya altitude yang berubah semasa transition — pitch dan yaw KEKAL tetap
+			// supaya kamera sentiasa kekal menghala ke globe pada saat masuk.
 			if (!dragging.current && !pinchStart.current) {
 				altitude.current = THREE.MathUtils.lerp(altitudeStart.current, altitudeTarget.current, t);
 			}
@@ -352,9 +331,9 @@ export function DescentController({
 			if (mag > JOYSTICK_CONFIG.deadzone && rawMag > 0) {
 				const ndx = dx / rawMag;
 				const ndy = dy / rawMag;
-				const moveFrame = buildSurfaceFrame(anchorRef.current);
-				const forwardWorld = lookDirectionFromAngles(yaw.current, 0, moveFrame);
-				const rightWorld = lookDirectionFromAngles(yaw.current + Math.PI / 2, 0, moveFrame);
+				const frame = buildSurfaceFrame(anchorRef.current);
+				const forwardWorld = lookDirectionFromAngles(yaw.current, 0, frame);
+				const rightWorld = lookDirectionFromAngles(yaw.current + Math.PI / 2, 0, frame);
 				const moveWorld = new THREE.Vector3()
 					.addScaledVector(forwardWorld, -ndy)
 					.addScaledVector(rightWorld, ndx);
@@ -370,45 +349,27 @@ export function DescentController({
 						anchorRef.current.copy(nextAnchor);
 					}
 				}
-				// Kemas kini state gerak avatar
-				motionState.current.speed = mag;
-			} else {
-				motionState.current.speed = 0;
 			}
-		} else {
-			motionState.current.speed = 0;
 		}
 
-		// Lerp camera.up dari up asal → surface frame.up sepanjang transition
-		// untuk elak "guling" mendadak semasa masuk descent dari orbit.
-		const frameForUp = buildSurfaceFrame(anchorRef.current);
+		// Lerp camera.up dari world-up → surface normal sepanjang transition
+		// untuk elak guling mendadak semasa masuk descent dari orbit
+		const frame = buildSurfaceFrame(anchorRef.current);
 		const blendedUp =
 			transition.current < 1
-				? cameraUpStart.current.clone().lerp(frameForUp.up, easeOutCubic(transition.current))
-				: frameForUp.up;
+				? cameraUpStart.current.clone().lerp(frame.up, easeOutCubic(transition.current))
+				: frame.up;
 
-		// Kamera third-person ala Veilrose — applyThirdPersonGlobePose mengembalikan
-		// frame supaya kita boleh guna semula untuk orientasi avatar tanpa kira ulang.
-		const { avatarPos, avatarForward, frame: avatarFrame } = applyThirdPersonGlobePose(
+		// First-person: kamera di atas permukaan, pandang mengikut yaw+pitch semasa
+		applyDescentPose(
 			camera,
 			anchorRef.current,
 			yaw.current,
+			pitch.current,
+			altitude.current,
 			GLOBE_RADIUS,
-			AVATAR_SCALE,
 			blendedUp,
 		);
-
-		// Orientasi avatar: atas = surface normal, hadapan = avatarForward
-		if (avatarGroupRef.current) {
-			avatarGroupRef.current.position.copy(avatarPos);
-			_avatarRight.current.crossVectors(avatarForward, avatarFrame.up).normalize();
-			_avatarMatrix.current.makeBasis(
-				_avatarRight.current,
-				avatarFrame.up,
-				avatarForward.clone().negate(),
-			);
-			avatarGroupRef.current.quaternion.setFromRotationMatrix(_avatarMatrix.current);
-		}
 
 		if (onPortalNear) {
 			const groupY = groupRotationRef?.current ?? 0;
@@ -421,14 +382,5 @@ export function DescentController({
 		}
 	});
 
-	return (
-		<>
-			<InteriorAtmosphere active={active} isMobile={isMobile} />
-			{active ? (
-				<group ref={avatarGroupRef} scale={AVATAR_SCALE}>
-					<ZymAvatar glowColor={ZYM_GLOW} motionRef={motionState} />
-				</group>
-			) : null}
-		</>
-	);
+	return <InteriorAtmosphere active={active} isMobile={isMobile} />;
 }
