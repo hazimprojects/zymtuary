@@ -1,9 +1,15 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import WorldGlobe from '../components/world/WorldGlobe';
-import zipModel from '../data/zip-model.json';
 ---
 
 <Layout title="Zymtuary" immersive>
-	<WorldGlobe client:load entities={zipModel.entities} />
+	<main class="flex min-h-dvh flex-col items-center justify-center gap-4 px-8 text-center">
+		<p class="font-body text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/45">Zymtuary</p>
+		<p class="font-display max-w-sm text-lg font-light leading-relaxed text-[#f5f0e8]/70">
+			Peta dunia sedang dibina semula dalam bentuk baharu.
+		</p>
+		<a href="/" class="pointer-events-auto mt-4 font-body text-[0.6rem] uppercase tracking-[0.3em] text-[#f5f0e8]/55 transition-colors active:text-[#f5f0e8]/85">
+			← Kembali
+		</a>
+	</main>
 </Layout>

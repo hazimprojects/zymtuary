@@ -1,14 +1,19 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import WilayahWorld from '../../components/wilayah/WilayahWorld';
 import zipModel from '../../data/zip-model.json';
 
 const wilayah = zipModel.wilayah.find((w) => w.id === 'mendari');
 if (!wilayah) throw new Error('Wilayah "mendari" tidak dijumpai dalam zip-model.json');
-
-const entities = zipModel.entities.filter((e) => e.wilayah === 'mendari');
 ---
 
 <Layout title={`${wilayah.nama} · Zymtuary`} immersive>
-	<WilayahWorld client:load wilayah={wilayah} entities={entities} />
+	<main class="flex min-h-dvh flex-col items-center justify-center gap-4 px-8 text-center">
+		<p class="font-body text-[0.65rem] uppercase tracking-[0.32em] text-[#f5f0e8]/45">{wilayah.nama}</p>
+		<p class="font-display max-w-sm text-lg font-light leading-relaxed text-[#f5f0e8]/70">
+			Peta wilayah ini sedang dibina semula dalam bentuk baharu.
+		</p>
+		<a href="/" class="pointer-events-auto mt-4 font-body text-[0.6rem] uppercase tracking-[0.3em] text-[#f5f0e8]/55 transition-colors active:text-[#f5f0e8]/85">
+			← Kembali
+		</a>
+	</main>
 </Layout>
