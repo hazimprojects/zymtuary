@@ -50,6 +50,7 @@ export function GlobeScene({
 	// mod orbit, jadi DescentController perlu tahu sudut putaran semasa untuk
 	// padankan kedua-dua ruang koordinat itu bila menyemak kedekatan portal.
 	const groupRotationRef = useRef(0);
+	const blockDescentEntry = useRef(false);
 	const { camera } = useThree();
 	const segments = isMobile ? 48 : 64;
 
@@ -64,25 +65,35 @@ export function GlobeScene({
 	}, [onZoomModeChange, zoomMode]);
 
 	const endDescentInstant = useCallback(() => {
+		blockDescentEntry.current = true;
 		setDescentActive(false);
-		requestAnimationFrame(() => controlsRef.current?.update());
+		requestAnimationFrame(() => {
+			const controls = controlsRef.current;
+			if (!controls) return;
+			controls.target.set(0, 0, 0);
+			controls.update();
+		});
 	}, []);
 
 	useFrame((_, delta) => {
-		if (!descentActive && !interactionPaused) {
-			const dist = camera.position.length();
+		const dist = camera.position.length();
+
+		if (blockDescentEntry.current && dist > ZOOM_THRESHOLDS.atmosphereEnter + 0.05) {
+			blockDescentEntry.current = false;
+		}
+
+		if (!descentActive && !interactionPaused && !blockDescentEntry.current) {
 			if (dist <= ZOOM_THRESHOLDS.descentEnter) {
 				setDescentAnchor(camera.position.clone().normalize());
 				setDescentActive(true);
 			}
 		}
 
-		const proximity = getProximity(camera.position.length(), descentActive);
+		const proximity = getProximity(dist, descentActive);
 		setAtmosphereIntensity(0.03 + proximity * 0.14);
 
 		if (groupRef.current) groupRotationRef.current = groupRef.current.rotation.y;
 
-		const dist = camera.position.length();
 		const freezeGlobeSpin =
 			dragging ||
 			interactionPaused ||
@@ -168,7 +179,10 @@ export function GlobeScene({
 					TWO: THREE.TOUCH.DOLLY_ROTATE,
 				}}
 				onStart={() => setDragging(true)}
-				onEnd={() => setDragging(false)}
+				onEnd={() => {
+					setDragging(false);
+					blockDescentEntry.current = false;
+				}}
 			/>
 		</>
 	);

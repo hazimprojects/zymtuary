@@ -8,6 +8,7 @@ import {
 	PORTAL_ENTER_COS,
 	WILAYAH_PORTALS,
 	portalDirection,
+	ZOOM_THRESHOLDS,
 } from './worldGlobeConfig';
 import {
 	anglesFromDirection,
@@ -38,6 +39,8 @@ type DescentControllerProps = {
 };
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
+/** Altitud maks semasa cubit keluar — sehingga keluar zon atmosfera */
+const EXIT_MAX_ALTITUDE = ZOOM_THRESHOLDS.atmosphereEnter - GLOBE_RADIUS;
 
 type JoystickState = {
 	pointerId: number;
@@ -69,6 +72,7 @@ export function DescentController({
 	const pointers = useRef(new Map<number, { x: number; y: number; role: 'move' | 'look' }>());
 	const joystick = useRef<JoystickState | null>(null);
 	const lastNearPortal = useRef<string | null>(null);
+	const exitGuardUntil = useRef(0);
 	const onAnchorChangeRef = useRef(onAnchorChange);
 	const onJoystickChangeRef = useRef(onJoystickChange);
 	const onExitDescentRef = useRef(onExitDescent);
@@ -119,6 +123,7 @@ export function DescentController({
 		if (active) {
 			initFromCamera();
 			resetPointerState();
+			exitGuardUntil.current = performance.now() + 450;
 		} else if (lastNearPortal.current !== null) {
 			lastNearPortal.current = null;
 			onPortalNear?.(null);
@@ -243,16 +248,18 @@ export function DescentController({
 				const dist = Math.max(pointerDist(), 1);
 				const scale = dist / pinchStart.current.dist;
 				const rawNext = pinchStart.current.alt / scale;
-				if (rawNext > DESCENT_CONFIG.maxAltitude && scale < 0.82) {
-					altitude.current = DESCENT_CONFIG.maxAltitude;
-					onExitDescentRef.current?.();
-					return;
-				}
 				altitude.current = THREE.MathUtils.clamp(
 					rawNext,
 					DESCENT_CONFIG.minAltitude,
-					DESCENT_CONFIG.maxAltitude,
+					EXIT_MAX_ALTITUDE,
 				);
+				// Keluar descent hanya selepas cubit keluar melepasi zon atmosfera — kekal dikawal jari
+				if (
+					performance.now() >= exitGuardUntil.current &&
+					GLOBE_RADIUS + altitude.current >= ZOOM_THRESHOLDS.atmosphereEnter - 0.04
+				) {
+					onExitDescentRef.current?.();
+				}
 				return;
 			}
 
