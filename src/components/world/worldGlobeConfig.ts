@@ -173,6 +173,8 @@ export const DESCENT_CONFIG = {
 	lookYawSpeedDesktop: 0.0032,
 	lookPitchSpeedMobile: 0.0032,
 	lookPitchSpeedDesktop: 0.0026,
+	/** Kelajuan pembetulan sudut ke arah globe semasa zoom out */
+	zoomOutAlignSpeed: 4.2,
 } as const;
 
 /** Ambang jarak kamera → mod zoom immersive */
@@ -194,9 +196,6 @@ export const JOYSTICK_CONFIG = {
 	moveAngularSpeed: 0.42,
 	cornerZoneWidthFrac: 0.35,
 	cornerZoneHeightFrac: 0.45,
-	/** Zon tengah skrin — cubit dua ibu jari biasanya di sini; elak batalkan joystick */
-	pinchZoneWidthFrac: 0.5,
-	pinchZoneHeightFrac: 0.55,
 } as const;
 
 export function getZoomMode(distance: number, descentActive: boolean): ZoomMode {

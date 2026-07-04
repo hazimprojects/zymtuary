@@ -87,13 +87,14 @@ export function GlobeScene({
 	const endDescentInstant = useCallback(() => {
 		blockDescentEntry.current = true;
 		setDescentActive(false);
+		camera.lookAt(0, 0, 0);
 		requestAnimationFrame(() => {
 			const controls = controlsRef.current;
 			if (!controls) return;
 			controls.target.set(0, 0, 0);
 			controls.update();
 		});
-	}, []);
+	}, [camera]);
 
 	useFrame((_, delta) => {
 		const dist = camera.position.length();
