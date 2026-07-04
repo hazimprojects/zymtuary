@@ -7,7 +7,6 @@ import { createGlobeMaterial } from './globeShader';
 
 type GlobeSurfaceProps = {
 	segments: number;
-	interactionPaused: boolean;
 	/** Override proximity shader — ikut blend atmosfera berterusan */
 	proximityOverride?: number;
 };
@@ -37,8 +36,12 @@ export const GlobeSurface = forwardRef<GlobeSurfaceHandle, GlobeSurfaceProps>(
 
 		return (
 			<group>
+				{/* Sfera sandaran gelap jauh lebih kecil daripada sebelum ini — permukaan
+				    utama kini beranjak sehingga -0.05 unit (rekahan) melalui vertex
+				    shader, jadi jurang lama (GLOBE_RADIUS vs *1.001) terlalu nipis dan
+				    tertebuk (ujian depth membocorkan sfera hitam ini pada rekahan). */}
 				<mesh renderOrder={0}>
-					<sphereGeometry args={[GLOBE_RADIUS, segments, segments]} />
+					<sphereGeometry args={[GLOBE_RADIUS * 0.85, segments, segments]} />
 					<meshBasicMaterial color="#061018" depthWrite depthTest />
 				</mesh>
 
