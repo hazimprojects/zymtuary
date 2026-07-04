@@ -149,166 +149,157 @@ function ApplauseStepsLandmark({ terrainOptions }: { terrainOptions?: IslandTerr
 	);
 }
 
+const MEMORY_ROOM_CURVE_RADIUS = 4.2;
+const MEMORY_ROOM_HALF_SPAN = 1.35;
+const MEMORY_ROOM_SEGMENT_HEIGHTS = [1.85, 2.05, 2.2, 2.3, 2.2, 2.05, 1.85];
+
 /** The Memory Room of Smiling Frames — "bangunan rendah berdinding kaca
- * legap... beribu bingkai gambar" — bangunan kaca legap dengan grid bingkai
- * bercahaya lembut di fasadnya, kini lebih besar dengan portico depan supaya
- * watak boleh berjalan di sepanjang fasadnya, dan sebahagian bingkai
- * melimpah ke muka sisi supaya "beribu bingkai" terasa lebih padat. */
-function MemoryRoomLandmark() {
-	const frameRows = 5;
-	const frameCols = 7;
-	const frontFrames: { x: number; y: number }[] = [];
-	for (let r = 0; r < frameRows; r++) {
-		for (let c = 0; c < frameCols; c++) {
-			frontFrames.push({ x: (c - (frameCols - 1) / 2) * 0.44, y: 0.42 + r * 0.3 });
-		}
-	}
-	const sideFrames: { z: number; y: number }[] = [];
-	for (let r = 0; r < 3; r++) {
-		for (let c = 0; c < 4; c++) {
-			sideFrames.push({ z: (c - 1.5) * 0.42, y: 0.55 + r * 0.32 });
-		}
-	}
+ * legap... beribu bingkai gambar" — bukan lagi satu kotak rata, tetapi
+ * "galeri" dinding kaca yang melengkung panjang (7 seksyen mengikut lengkung
+ * ~separuh plaza), setiap seksyen berbeza tinggi sedikit untuk siluet yang
+ * lebih organik, dipenuhi grid bingkai bercahaya supaya "beribu bingkai"
+ * terasa jauh lebih padat. `facingAngle` (dari SpotMarker, arah anchor dari
+ * tengah plaza) memutar keseluruhan lengkung supaya fasadnya menghala ke
+ * tengah plaza tidak kira di mana spot ini diletakkan. */
+function MemoryRoomLandmark({ facingAngle = 0 }: { facingAngle?: number }) {
+	const segments = MEMORY_ROOM_SEGMENT_HEIGHTS.length;
+	const angles = Array.from({ length: segments }, (_, i) =>
+		THREE.MathUtils.lerp(-MEMORY_ROOM_HALF_SPAN, MEMORY_ROOM_HALF_SPAN, i / (segments - 1)),
+	);
 
 	return (
-		<group>
-			<mesh position={[0, 1.08, 0]}>
-				<boxGeometry args={[3.6, 2.1, 2.8]} />
-				{/* emissive ditambah supaya ungu kekal kelihatan ungu — cahaya
-				 * hangat/oren scene ini (rendah komponen biru) menenggelamkan warna
-				 * ungu jadi coklat/terakota kalau bergantung sepenuhnya pada
-				 * pencahayaan luar untuk warnanya. */}
-				<meshStandardMaterial
-					color={VEILROSE_PALETTE.purple}
-					emissive={VEILROSE_PALETTE.purple}
-					emissiveIntensity={0.4}
-					flatShading
-					roughness={0.3}
-					metalness={0.1}
-					transparent
-					opacity={0.82}
-				/>
-			</mesh>
-			<mesh position={[0, 2.24, 0]}>
-				<boxGeometry args={[3.78, 0.18, 2.98]} />
-				<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
-			</mesh>
+		<group rotation={[0, facingAngle + Math.PI, 0]}>
+			{angles.map((a, i) => {
+				const h = MEMORY_ROOM_SEGMENT_HEIGHTS[i];
+				const lx = MEMORY_ROOM_CURVE_RADIUS * Math.sin(a);
+				const lz = MEMORY_ROOM_CURVE_RADIUS * (Math.cos(a) - 1);
+				const frameCols = 2;
+				const frameRows = 4;
+				const frames: { fx: number; fy: number }[] = [];
+				for (let r = 0; r < frameRows; r++) {
+					for (let c = 0; c < frameCols; c++) {
+						frames.push({ fx: (c - (frameCols - 1) / 2) * 0.4, fy: 0.4 + r * 0.35 });
+					}
+				}
+				return (
+					<group key={i} position={[lx, 0, lz]} rotation={[0, a, 0]}>
+						<mesh position={[0, h / 2, 0]}>
+							<boxGeometry args={[1.3, h, 0.22]} />
+							{/* emissive ditambah supaya ungu kekal kelihatan ungu — cahaya
+							 * hangat/oren scene ini (rendah komponen biru) menenggelamkan
+							 * warna ungu jadi coklat/terakota kalau bergantung sepenuhnya
+							 * pada pencahayaan luar untuk warnanya. */}
+							<meshStandardMaterial
+								color={VEILROSE_PALETTE.purple}
+								emissive={VEILROSE_PALETTE.purple}
+								emissiveIntensity={0.4}
+								flatShading
+								roughness={0.3}
+								metalness={0.1}
+								transparent
+								opacity={0.82}
+							/>
+						</mesh>
+						{/* Kornis kecil di atas tiap seksyen — gantian portico lurus
+						 * lama, kini mengikuti lengkung */}
+						<mesh position={[0, h + 0.09, 0]}>
+							<boxGeometry args={[1.44, 0.14, 0.36]} />
+							<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
+						</mesh>
+						{frames.map((f, fi) => (
+							<mesh key={fi} position={[f.fx, f.fy, 0.13]}>
+								<boxGeometry args={[0.18, 0.24, 0.03]} />
+								<meshStandardMaterial
+									color={VEILROSE_PALETTE.gold}
+									emissive={VEILROSE_PALETTE.gold}
+									emissiveIntensity={0.4}
+									roughness={0.5}
+								/>
+							</mesh>
+						))}
+					</group>
+				);
+			})}
 
-			{/* Portico hadapan — bumbung cetek + tiang supaya watak boleh
-			 * berjalan menyusuri fasad tanpa "masuk", selaras lore bangunan
-			 * yang kekal legap/tertutup */}
-			<mesh position={[0, 1.98, 1.62]}>
-				<boxGeometry args={[3.9, 0.1, 0.85]} />
-				<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.7} />
-			</mesh>
-			{[-1.7, -0.57, 0.57, 1.7].map((px, i) => (
-				<mesh key={i} position={[px, 1.0, 1.95]}>
-					<cylinderGeometry args={[0.07, 0.08, 1.96, 8]} />
-					<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.6} />
-				</mesh>
-			))}
+			{/* Tiang penghubung antara tiap seksyen — sama formula lengkung
+			 * seperti seksyen itu sendiri, pada sudut pertengahan */}
+			{angles.slice(0, -1).map((a, i) => {
+				const midA = (a + angles[i + 1]) / 2;
+				const lx = MEMORY_ROOM_CURVE_RADIUS * Math.sin(midA);
+				const lz = MEMORY_ROOM_CURVE_RADIUS * (Math.cos(midA) - 1);
+				const h = (MEMORY_ROOM_SEGMENT_HEIGHTS[i] + MEMORY_ROOM_SEGMENT_HEIGHTS[i + 1]) / 2 + 0.15;
+				return (
+					<mesh key={i} position={[lx, h / 2, lz]} rotation={[0, midA, 0]}>
+						<cylinderGeometry args={[0.06, 0.07, h, 8]} />
+						<meshStandardMaterial color={VEILROSE_PALETTE.cream} flatShading roughness={0.6} />
+					</mesh>
+				);
+			})}
 
-			{frontFrames.map((f, i) => (
-				<mesh key={`front-${i}`} position={[f.x, f.y, 1.41]}>
-					<boxGeometry args={[0.19, 0.25, 0.03]} />
-					<meshStandardMaterial
-						color={VEILROSE_PALETTE.gold}
-						emissive={VEILROSE_PALETTE.gold}
-						emissiveIntensity={0.4}
-						roughness={0.5}
-					/>
-				</mesh>
-			))}
-			{sideFrames.map((f, i) => (
-				<mesh key={`side-${i}`} position={[1.81, f.y, f.z]} rotation={[0, Math.PI / 2, 0]}>
-					<boxGeometry args={[0.17, 0.22, 0.03]} />
-					<meshStandardMaterial
-						color={VEILROSE_PALETTE.gold}
-						emissive={VEILROSE_PALETTE.gold}
-						emissiveIntensity={0.35}
-						roughness={0.5}
-					/>
-				</mesh>
-			))}
-
-			<pointLight position={[0, 1.6, 2.6]} intensity={0.45} color={VEILROSE_PALETTE.cream} distance={4.5} />
+			<pointLight position={[0, 1.6, 1.1]} intensity={0.5} color={VEILROSE_PALETTE.cream} distance={5} />
 		</group>
 	);
 }
 
 /** The Mask Vendor's Row — "gerai-gerai yang menjual topeng senyuman...
- * dari yang paling nipis dan lutsinar sehingga yang tebal" — barisan gerai
- * kayu yang kini lebih panjang & lebih tinggi, dengan khemah penghubung dan
- * rak topeng tergantung supaya barisan terasa bersambung, bukan gerai
- * berselerak. Ketebalan topeng dibezakan secara literal: nipis = cakera
- * legap-lutsinar, tebal = sfera pejal penuh. */
+ * dari yang paling nipis dan lutsinar sehingga yang tebal" — enam gerai kini
+ * jelas lebih besar berbanding avatar Zym (bumbung menjulang jauh melebihi
+ * kepala), dengan tiga bentuk bumbung berbeza (kon, kubah, bendul condong)
+ * bersilih ganti supaya barisan terasa pelbagai, bukan gerai seragam
+ * disalin berulang. Ketebalan topeng dibezakan secara literal: nipis =
+ * cakera legap-lutsinar, tebal = sfera pejal penuh. */
 function MaskVendorRowLandmark() {
-	const stalls = [
-		{ x: -3, scale: 0.9, thin: true },
-		{ x: -1.5, scale: 1.0, thin: false },
-		{ x: 0, scale: 1.1, thin: true },
-		{ x: 1.5, scale: 1.0, thin: false },
-		{ x: 3, scale: 0.95, thin: true },
+	const stalls: { x: number; scale: number; kind: 'cone' | 'dome' | 'awning'; wood: string; roof: string; thin: boolean }[] = [
+		{ x: -5, scale: 0.85, kind: 'cone', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true },
+		{ x: -3, scale: 1.15, kind: 'dome', wood: '#7a5236', roof: VEILROSE_PALETTE.purple, thin: false },
+		{ x: -1, scale: 1.35, kind: 'awning', wood: '#8a6a4a', roof: VEILROSE_PALETTE.gold, thin: true },
+		{ x: 1, scale: 1.0, kind: 'cone', wood: '#5a4030', roof: VEILROSE_PALETTE.purple, thin: false },
+		{ x: 3, scale: 1.2, kind: 'dome', wood: '#6b4a3a', roof: VEILROSE_PALETTE.pink, thin: true },
+		{ x: 5, scale: 0.95, kind: 'awning', wood: '#7a5236', roof: VEILROSE_PALETTE.gold, thin: false },
 	];
 
 	return (
 		<group>
 			{stalls.map((s, i) => (
 				<group key={i} position={[s.x, 0, 0]} scale={s.scale}>
-					<mesh position={[0, 0.4, 0]}>
-						<boxGeometry args={[0.9, 0.8, 0.62]} />
-						<meshStandardMaterial color="#6b4a3a" flatShading roughness={0.8} />
+					<mesh position={[0, 0.5, 0]}>
+						<boxGeometry args={[1.1, 1.0, 0.75]} />
+						<meshStandardMaterial color={s.wood} flatShading roughness={0.8} />
 					</mesh>
-					<mesh position={[0, 0.92, 0]} rotation={[0, Math.PI / 4, 0]}>
-						<coneGeometry args={[0.78, 0.5, 4]} />
-						<meshStandardMaterial color="#8a5a42" flatShading roughness={0.75} />
-					</mesh>
-					{[-0.24, 0, 0.24].map((mx, mi) => {
+
+					{s.kind === 'cone' ? (
+						<mesh position={[0, 1.35, 0]} rotation={[0, Math.PI / 4, 0]}>
+							<coneGeometry args={[0.95, 0.9, 4]} />
+							<meshStandardMaterial color="#8a5a42" flatShading roughness={0.75} />
+						</mesh>
+					) : null}
+					{s.kind === 'dome' ? (
+						<mesh position={[0, 1.02, 0]} scale={[1, 0.6, 1]}>
+							<icosahedronGeometry args={[0.85, 1]} />
+							<meshStandardMaterial color={s.roof} flatShading roughness={0.55} emissive={s.roof} emissiveIntensity={0.12} />
+						</mesh>
+					) : null}
+					{s.kind === 'awning' ? (
+						<mesh position={[0, 1.3, 0.42]} rotation={[0.32, 0, 0]}>
+							<boxGeometry args={[1.35, 0.07, 0.95]} />
+							<meshStandardMaterial color={s.roof} flatShading roughness={0.7} side={THREE.DoubleSide} />
+						</mesh>
+					) : null}
+
+					{[-0.28, 0, 0.28].map((mx, mi) => {
 						const color = mi === 1 ? VEILROSE_PALETTE.purple : VEILROSE_PALETTE.pink;
 						return s.thin ? (
-							<mesh key={mi} position={[mx, 0.98, 0.34]} rotation={[0.15, 0, 0]}>
-								<cylinderGeometry args={[0.15, 0.15, 0.035, 8]} />
+							<mesh key={mi} position={[mx, 1.12, 0.4]} rotation={[0.15, 0, 0]}>
+								<cylinderGeometry args={[0.17, 0.17, 0.04, 8]} />
 								<meshStandardMaterial color={color} flatShading roughness={0.5} transparent opacity={0.45} />
 							</mesh>
 						) : (
-							<mesh key={mi} position={[mx, 0.98, 0.34]} rotation={[0.15, 0, 0]}>
-								<sphereGeometry args={[0.16, 6, 5]} />
+							<mesh key={mi} position={[mx, 1.12, 0.4]} rotation={[0.15, 0, 0]}>
+								<sphereGeometry args={[0.18, 6, 5]} />
 								<meshStandardMaterial color={color} flatShading roughness={0.6} />
 							</mesh>
 						);
 					})}
-				</group>
-			))}
-
-			{/* Khemah penghubung merentasi barisan */}
-			<mesh position={[0, 1.42, 0.34]} rotation={[0.18, 0, 0]}>
-				<boxGeometry args={[7.4, 0.06, 0.55]} />
-				<meshStandardMaterial color={VEILROSE_PALETTE.pink} flatShading roughness={0.7} side={THREE.DoubleSide} />
-			</mesh>
-
-			{/* Rak topeng tergantung antara gerai */}
-			{[-2.25, 2.25].map((rx, i) => (
-				<group key={i} position={[rx, 0, 0]}>
-					<mesh position={[0, 1.15, 0.2]} rotation={[0, 0, Math.PI / 2]}>
-						<cylinderGeometry args={[0.02, 0.02, 1.1, 6]} />
-						<meshStandardMaterial color="#4a3226" flatShading roughness={0.8} />
-					</mesh>
-					{[-0.3, 0.3].map((dx, di) => (
-						<group key={di} position={[dx, 0, 0.2]}>
-							<mesh position={[0, 1.05, 0]}>
-								<cylinderGeometry args={[0.004, 0.004, 0.14, 4]} />
-								<meshStandardMaterial color="#4a3226" flatShading roughness={0.8} />
-							</mesh>
-							<mesh position={[0, 0.94, 0]}>
-								<sphereGeometry args={[0.1, 6, 5]} />
-								<meshStandardMaterial
-									color={di === 0 ? VEILROSE_PALETTE.purple : VEILROSE_PALETTE.gold}
-									flatShading
-									roughness={0.55}
-								/>
-							</mesh>
-						</group>
-					))}
 				</group>
 			))}
 		</group>
@@ -476,15 +467,17 @@ function RoomOfFallenPetalsLandmark() {
 export function VeilroseSpotLandmark({
 	id,
 	terrainOptions,
+	facingAngle,
 }: {
 	id: string;
 	terrainOptions?: IslandTerrainOptions;
+	facingAngle?: number;
 }) {
 	switch (id) {
 		case 'The Applause Steps':
 			return <ApplauseStepsLandmark terrainOptions={terrainOptions} />;
 		case 'The Memory Room of Smiling Frames':
-			return <MemoryRoomLandmark />;
+			return <MemoryRoomLandmark facingAngle={facingAngle} />;
 		case "The Mask Vendor's Row":
 			return <MaskVendorRowLandmark />;
 		case 'The Rehearsal Mirrors':

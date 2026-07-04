@@ -50,12 +50,27 @@ const SPOT_LAYOUT: Record<
 	'The Memory Room of Smiling Frames': {
 		angle: 0.95,
 		radius: 4.2 * LAYOUT_SCALE,
-		scale: 1.15,
+		// scale 1 sengaja — sama sebab dengan Applause Steps: geometri
+		// lengkung galeri (MemoryRoomLandmark) dan obstaclePoints di bawah
+		// dikira terus dalam unit dunia, jadi sebarang skala tambahan di
+		// sini akan menyebabkan perlanggaran lari daripada apa yang
+		// kelihatan.
+		scale: 1,
 		groundColor: VEILROSE_PALETTE.purple,
-		// Meliputi sudut terjauh kotak (3.6x2.8 pada scale 1.15) supaya watak
-		// tidak menembusi bucu bangunan yang terlepas pandang oleh bulatan
-		// yang lebih kecil.
-		obstacleRadius: 2.65,
+		// Satu titik setiap seksyen lengkung (7 seksyen) — dikira dengan
+		// memutar kedudukan tempatan seksyen (lihat MEMORY_ROOM_CURVE_RADIUS/
+		// MEMORY_ROOM_HALF_SPAN dalam veilroseLandmarks.tsx) mengikut sudut
+		// facingAngle anchor ini (atan2(x,z) + π), supaya bulatan
+		// perlanggaran sepadan tepat dengan lengkung yang kelihatan.
+		obstaclePoints: [
+			{ dx: 5.241, dz: 0.284, radius: 0.85 },
+			{ dx: 3.601, dz: -0.621, radius: 0.85 },
+			{ dx: 1.729, dz: -0.723, radius: 0.85 },
+			{ dx: 0, dz: 0, radius: 0.85 },
+			{ dx: -1.243, dz: 1.403, radius: 0.85 },
+			{ dx: -1.752, dz: 3.206, radius: 0.85 },
+			{ dx: -1.425, dz: 5.052, radius: 0.85 },
+		],
 	},
 	"The Mask Vendor's Row": {
 		angle: -2.15,
@@ -63,11 +78,12 @@ const SPOT_LAYOUT: Record<
 		scale: 1.0,
 		groundColor: VEILROSE_PALETTE.pink,
 		obstaclePoints: [
-			{ dx: -3, dz: 0, radius: 0.75 },
-			{ dx: -1.5, dz: 0, radius: 0.75 },
-			{ dx: 0, dz: 0, radius: 0.75 },
-			{ dx: 1.5, dz: 0, radius: 0.75 },
-			{ dx: 3, dz: 0, radius: 0.75 },
+			{ dx: -5, dz: 0, radius: 0.64 },
+			{ dx: -3, dz: 0, radius: 0.86 },
+			{ dx: -1, dz: 0, radius: 1.01 },
+			{ dx: 1, dz: 0, radius: 0.75 },
+			{ dx: 3, dz: 0, radius: 0.9 },
+			{ dx: 5, dz: 0, radius: 0.71 },
 		],
 	},
 	'The Rehearsal Mirrors': {
