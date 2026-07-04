@@ -1,9 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import WorldGlobe from '../components/world/WorldGlobe';
-import zipModel from '../data/zip-model.json';
 ---
 
 <Layout title="Zymtuary" immersive>
-	<WorldGlobe client:load entities={zipModel.entities} />
+	<WorldGlobe client:load />
 </Layout>

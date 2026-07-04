@@ -6,9 +6,7 @@ import * as THREE from 'three';
 import {
 	getOrbitControlsForMode,
 	getZoomMode,
-	layoutResonancePoints,
 	ZOOM_THRESHOLDS,
-	type EntityEntry,
 	type ZoomMode,
 } from './worldGlobeConfig';
 import {
@@ -32,9 +30,6 @@ const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
 
 type GlobeSceneProps = {
-	entities: EntityEntry[];
-	onHover: (entity: EntityEntry | null) => void;
-	hoveredEntity: EntityEntry | null;
 	isMobile: boolean;
 	interactionPaused: boolean;
 	onZoomModeChange?: (mode: ZoomMode) => void;
@@ -44,9 +39,6 @@ type GlobeSceneProps = {
 };
 
 export function GlobeScene({
-	entities,
-	onHover,
-	hoveredEntity,
 	isMobile,
 	interactionPaused,
 	onZoomModeChange,
@@ -75,7 +67,6 @@ export function GlobeScene({
 	const { camera, scene } = useThree();
 	const segments = isMobile ? 48 : 64;
 
-	const placements = useMemo(() => layoutResonancePoints(entities), [entities]);
 	const distance = camera.position.length();
 	const zoomMode = getZoomMode(distance, descentActive);
 	const orbitConfig = useMemo(() => getOrbitControlsForMode(zoomMode, isMobile), [zoomMode, isMobile]);
@@ -194,10 +185,6 @@ export function GlobeScene({
 				<GlobeSurface
 					ref={globeRef}
 					segments={segments}
-					placements={placements}
-					onHover={onHover}
-					hoveredEntity={hoveredEntity}
-					interactionPaused={interactionPaused || descentActive}
 					proximityOverride={globeProximity}
 				/>
 			</group>
