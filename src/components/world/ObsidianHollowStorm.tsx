@@ -15,75 +15,132 @@ const UP = new THREE.Vector3(0, 1, 0);
 const PEAK_BUMP = 0.1 * 6;
 
 type Puff = { offset: THREE.Vector3; phase: number };
+type CloudClump = { center: THREE.Vector3; puffs: Puff[] };
 
-/** Gegelang awan MENGELILINGI puncak (bukan bertindan/terapung di atasnya)
- * — sebaran mendatar (r) melangkaui jejari puncak, anjakan menegak (y)
- * kecil sahaja di sekitar altitud puncak sendiri. */
-function buildPuffs(): Puff[] {
+/** Beberapa KELOMPOK awan berasingan mengelilingi puncak (sama teknik dgn
+ * kelompok awan gunung/pokok dlm TerrainProps.tsx) — bukan satu gegelang
+ * berterusan. Lebih banyak kelompok drpd rujukan awan biasa sebab puncak
+ * PALING TINGGI di Noctira patut kelihatan paling berawan/ribut. */
+function buildCloudClumps(): CloudClump[] {
 	const rng = seededRng(9911);
-	return Array.from({ length: 36 }, () => {
+	const clumpCount = 9;
+	const clumps: CloudClump[] = [];
+	for (let c = 0; c < clumpCount; c++) {
 		const angle = rng() * Math.PI * 2;
-		const r = 0.16 + rng() * 0.24;
-		const y = -0.06 + rng() * 0.12;
-		const offset = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
-		return { offset, phase: rng() };
-	});
+		const r = 0.14 + rng() * 0.3;
+		const y = -0.05 + rng() * 0.11;
+		const center = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+		const puffCount = 5 + Math.floor(rng() * 6);
+		const puffs: Puff[] = [];
+		for (let i = 0; i < puffCount; i++) {
+			const pr = rng() * 0.06;
+			const pAngle = rng() * Math.PI * 2;
+			const offset = new THREE.Vector3(
+				center.x + Math.cos(pAngle) * pr,
+				center.y + (rng() - 0.5) * 0.04,
+				center.z + Math.sin(pAngle) * pr,
+			);
+			puffs.push({ offset, phase: rng() });
+		}
+		clumps.push({ center, puffs });
+	}
+	return clumps;
 }
 
-/** Bolt kilat zigzag — segmen silinder nipis bersambung dijana SEKALI
- * (bentuk statik); hanya keterlihatannya yang berdenyut (useFrame), bukan
- * bentuknya, supaya murah dari segi prestasi. */
-function buildBoltGeometry(): THREE.BufferGeometry {
-	const rng = seededRng(4471);
+/** Bolt kilat zigzag DGN cabang sisi (1-2 dahan pendek bercabang dari titik
+ * rawak sepanjang bolt utama) — kilat sebenar jarang naik lurus tanpa
+ * cabang. Segmen silinder nipis bersambung dijana SEKALI per varian
+ * (bentuk statik); hanya keterlihatan/kedudukan yang berdenyut (useFrame). */
+function buildBoltGeometry(seed: number): THREE.BufferGeometry {
+	const rng = seededRng(seed);
 	const points: THREE.Vector3[] = [new THREE.Vector3(0, 0.18, 0)];
-	const steps = 5;
+	const steps = 5 + Math.floor(rng() * 2);
 	for (let i = 0; i < steps; i++) {
 		const cur = points[points.length - 1];
-		points.push(new THREE.Vector3(cur.x + (rng() - 0.5) * 0.04, cur.y - 0.18 / steps, cur.z + (rng() - 0.5) * 0.04));
+		points.push(new THREE.Vector3(cur.x + (rng() - 0.5) * 0.045, cur.y - 0.19 / steps, cur.z + (rng() - 0.5) * 0.045));
 	}
 
 	const segments: THREE.BufferGeometry[] = [];
-	for (let i = 0; i < points.length - 1; i++) {
-		const a = points[i];
-		const b = points[i + 1];
+	const addSegment = (a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number) => {
 		const dir = b.clone().sub(a);
 		const len = dir.length();
-		const geo = new THREE.CylinderGeometry(0.0028, 0.0042, len, 4);
+		if (len < 1e-5) return;
+		const geo = new THREE.CylinderGeometry(r0, r1, len, 4);
 		geo.translate(0, len / 2, 0);
 		geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize()));
 		geo.translate(a.x, a.y, a.z);
 		segments.push(geo);
+	};
+
+	for (let i = 0; i < points.length - 1; i++) addSegment(points[i], points[i + 1], 0.0028, 0.0042);
+
+	const branchCount = 1 + Math.floor(rng() * 2);
+	for (let b = 0; b < branchCount; b++) {
+		const startIdx = 1 + Math.floor(rng() * (points.length - 2));
+		let cur = points[startIdx].clone();
+		const branchSteps = 2 + Math.floor(rng() * 2);
+		for (let i = 0; i < branchSteps; i++) {
+			const next = new THREE.Vector3(
+				cur.x + (rng() - 0.5) * 0.05,
+				cur.y - 0.045 - rng() * 0.03,
+				cur.z + (rng() - 0.5) * 0.05,
+			);
+			addSegment(cur, next, 0.0016, 0.0026);
+			cur = next;
+		}
 	}
+
 	const merged = mergeBufferGeometries(segments, false) ?? segments[0];
 	for (const s of segments) s.dispose();
 	return merged;
 }
 
-// Jadual kilat DITENTUKAN oleh masa berlalu sahaja (bukan mesin keadaan
-// mutable) — elak sebarang risiko "tersekat" dalam satu keadaan (cth. kekal
-// menyala macam tongkat statik). Sesuatu masa sentiasa sama ada terang atau
-// gelap, dikira semula setiap bingkai drpd clock.elapsedTime % CYCLE.
-const CYCLE = 8;
-const FLASH_WINDOWS: [number, number][] = [
-	[0, 0.06],
-	[0.12, 0.17],
-	[0.24, 0.32],
-];
+const BOLT_VARIANT_COUNT = 4;
+// Garis masa kilat DITENTUKAN oleh masa berlalu sahaja (bukan mesin keadaan
+// mutable) — elak sebarang risiko "tersekat" dlm satu keadaan. Dijana SEKALI
+// (seeded) merangkumi julat masa TIMELINE, kemudian berulang — kekerapan &
+// bentuk bervariasi (kadang tunggal, kadang beberapa denyar pantas
+// berturutan/"kluster kilat", jarak antara kluster juga rawak).
+const TIMELINE = 42;
 
-function isBoltVisible(elapsed: number): boolean {
-	const t = elapsed % CYCLE;
-	for (const [start, end] of FLASH_WINDOWS) {
-		if (t >= start && t < end) return true;
+type FlashEvent = { start: number; end: number; boltIndex: number; clumpIndex: number };
+
+function buildFlashTimeline(clumpCount: number): FlashEvent[] {
+	const rng = seededRng(7731);
+	const events: FlashEvent[] = [];
+	let t = rng() * 2;
+	while (t < TIMELINE) {
+		const burstSize = rng() < 0.4 ? 2 + Math.floor(rng() * 2) : 1;
+		for (let i = 0; i < burstSize && t < TIMELINE; i++) {
+			const dur = 0.05 + rng() * 0.1;
+			events.push({
+				start: t,
+				end: t + dur,
+				boltIndex: Math.floor(rng() * BOLT_VARIANT_COUNT),
+				clumpIndex: Math.floor(rng() * clumpCount),
+			});
+			t += dur + 0.05 + rng() * 0.14;
+		}
+		t += 1.4 + rng() * 4.8;
 	}
-	return false;
+	return events;
+}
+
+function activeFlash(elapsed: number, timeline: FlashEvent[]): FlashEvent | null {
+	const t = elapsed % TIMELINE;
+	for (const e of timeline) {
+		if (t >= e.start && t < e.end) return e;
+	}
+	return null;
 }
 
 /**
- * Ribut di puncak Obsidian Hollow — kepulan awan gelap terapung (teknik
- * sprite sama dgn TerrainProps) + kilat zigzag yang sabung-menyabung
- * sekali sekala (kluster denyar pantas setiap ~8 saat, bukan menyala
- * berterusan), gema "berawan gelap dan petir" utk puncak gunung PALING
- * TINGGI di Noctira.
+ * Ribut di puncak Obsidian Hollow — beberapa KELOMPOK awan gelap terapung
+ * berasingan (bukan satu gegelang/lapisan penuh, sama teknik dgn kelompok
+ * awan gunung/pokok) + kilat zigzag BERCABANG dgn bentuk & kekerapan
+ * bervariasi (kadang tunggal, kadang beberapa denyar pantas berturutan,
+ * dari kelompok awan berlainan), gema "berawan gelap dan petir" utk puncak
+ * gunung PALING TINGGI di Noctira.
  */
 export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHollowStormProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('obsidian-hollow')), []);
@@ -91,13 +148,17 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 	const cloudCenter = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + PEAK_BUMP), [dir]);
 
 	const texture = useMemo(() => buildSpriteTexture(), []);
-	const puffs = useMemo(() => buildPuffs(), []);
+	const clumps = useMemo(() => buildCloudClumps(), []);
+	const puffs = useMemo(() => clumps.flatMap((c) => c.puffs), [clumps]);
 	const positions = useMemo(() => new Float32Array(puffs.length * 3), [puffs.length]);
 	const geomRef = useRef<THREE.BufferGeometry>(null);
 	const cloudMatRef = useRef<THREE.PointsMaterial>(null);
 
-	const boltGeo = useMemo(() => buildBoltGeometry(), []);
+	const boltVariants = useMemo(() => Array.from({ length: BOLT_VARIANT_COUNT }, (_, i) => buildBoltGeometry(4471 + i * 97)), []);
+	const flashTimeline = useMemo(() => buildFlashTimeline(clumps.length), [clumps.length]);
 	const boltMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#cfe8ff', transparent: true, opacity: 0 }), []);
+	const boltMeshRef = useRef<THREE.Mesh>(null);
+	const boltGroupRef = useRef<THREE.Group>(null);
 	const boltLightRef = useRef<THREE.PointLight>(null);
 
 	const _world = useMemo(() => new THREE.Vector3(), []);
@@ -134,9 +195,14 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 			cloudMatRef.current.visible = cloudMatRef.current.opacity > 0.01;
 		}
 
-		const visible = target > 0.1 && isBoltVisible(clock.elapsedTime);
+		const flash = activeFlash(clock.elapsedTime, flashTimeline);
+		const visible = target > 0.1 && flash !== null;
 		boltMat.opacity = visible ? 1 : 0;
 		boltMat.visible = visible;
+		if (visible && flash) {
+			if (boltMeshRef.current) boltMeshRef.current.geometry = boltVariants[flash.boltIndex];
+			if (boltGroupRef.current) boltGroupRef.current.position.copy(clumps[flash.clumpIndex].center);
+		}
 		if (boltLightRef.current) boltLightRef.current.intensity = visible ? 3.5 : 0;
 	});
 
@@ -159,8 +225,10 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 				/>
 			</points>
 			<group position={cloudCenter} quaternion={quaternion}>
-				<mesh geometry={boltGeo} material={boltMat} />
-				<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, 0.09, 0]} />
+				<group ref={boltGroupRef}>
+					<mesh ref={boltMeshRef} geometry={boltVariants[0]} material={boltMat} />
+					<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, 0.09, 0]} />
+				</group>
 			</group>
 		</group>
 	);

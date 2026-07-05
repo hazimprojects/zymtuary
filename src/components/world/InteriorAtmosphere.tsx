@@ -1,9 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLOBE_RADIUS } from './worldGlobeConfig';
-import { createInteriorCloudMaterial } from './interiorAtmosphereShader';
 
 const SUN_DIR = new THREE.Vector3(0.35, 0.55, 0.75).normalize();
 
@@ -12,7 +11,14 @@ type InteriorAtmosphereProps = {
 	isMobile?: boolean;
 };
 
-export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: InteriorAtmosphereProps) {
+/**
+ * Matahari + halo + haze langit sahaja — TIADA lagi lapisan awan sfera
+ * penuh (dulu di sini) sebab ia menyelubungi SELURUH langit & menghalang
+ * pandangan dari atas tidak kira arah. Awan kini kelompok-kelompok tempatan
+ * sahaja (lihat TerrainProps.tsx CloudLayer & ObsidianHollowStorm.tsx),
+ * sama macam kelompok awan di gunung/pokok — bukan lapisan sejagat.
+ */
+export function InteriorAtmosphere({ interiorBlendRef }: InteriorAtmosphereProps) {
 	const sunRef = useRef<THREE.Group>(null);
 	const haloRef = useRef<THREE.Mesh>(null);
 	const skyHazeRef = useRef<THREE.Mesh>(null);
@@ -20,41 +26,12 @@ export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: Inter
 	const haloMatRef = useRef<THREE.MeshBasicMaterial>(null);
 	const { camera } = useThree();
 
-	const baseOpacities = useMemo(
-		() => (isMobile ? [0.5, 0.3] : [0.55, 0.38, 0.22]),
-		[isMobile],
-	);
-
-	const cloudMaterials = useMemo(
-		() => baseOpacities.map((o) => createInteriorCloudMaterial(o)),
-		[baseOpacities],
-	);
-
-	// Awan kekal pada beberapa tingkat rendah — atmosfera (skyHaze di bawah)
-	// diletak JAUH lebih tinggi drpd tingkat awan tertinggi, supaya ada ruang
-	// udara lapang antara awan & tepi atmosfera, bukan berhimpit rapat.
-	const shellRadii = useMemo(
-		() =>
-			isMobile
-				? [GLOBE_RADIUS + 0.2, GLOBE_RADIUS + 0.5]
-				: [GLOBE_RADIUS + 0.15, GLOBE_RADIUS + 0.35, GLOBE_RADIUS + 0.6],
-		[isMobile],
-	);
-
-	const shellSegments = isMobile ? 22 : 48;
-
-	useFrame(({ clock }) => {
+	useFrame(() => {
 		const blend = interiorBlendRef.current;
 		if (blend <= 0.001) return;
 
 		if (sunRef.current) {
 			sunRef.current.position.copy(camera.position).addScaledVector(SUN_DIR, 38);
-		}
-
-		for (let i = 0; i < cloudMaterials.length; i++) {
-			const mat = cloudMaterials[i];
-			mat.uniforms.uTime.value = clock.elapsedTime;
-			mat.uniforms.uOpacity.value = baseOpacities[i] * blend;
 		}
 
 		if (sunMatRef.current) sunMatRef.current.opacity = 0.95 * blend;
@@ -66,13 +43,6 @@ export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: Inter
 
 	return (
 		<group>
-			{shellRadii.map((radius, i) => (
-				<mesh key={radius} renderOrder={10 + i}>
-					<sphereGeometry args={[radius, shellSegments, shellSegments]} />
-					<primitive object={cloudMaterials[i]} attach="material" />
-				</mesh>
-			))}
-
 			<group ref={sunRef} renderOrder={20}>
 				<mesh>
 					<sphereGeometry args={[1.8, 24, 24]} />
