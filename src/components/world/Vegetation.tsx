@@ -154,11 +154,12 @@ function buildOrganicPatch(rng: () => number, count: number, baseRadius: number,
 
 /** Kawasan yang layak ditanami pokok — hijau/Heartbloom sahaja. TIADA pokok
  * di gunung berapi/obsidian — lereng itu tandus batu-batu dan rekahan.
- * Kiraan 5x drpd asal supaya hutan rapat/padat macam hutan sebenar, bukan
- * pokok terselerak jarang. */
+ * Kiraan diturunkan sikit drpd 6000/4500 asal supaya jarak tanaman
+ * longgar sesuai dgn pokok yg kini ~1.6x lebih besar (lihat placeTree
+ * scale di bawah) — elak canopy terlalu bertindih/blobby. */
 function densityFor(feature: LandmarkFeature): number {
-	if (feature.type === 'tree') return 6000;
-	if (feature.type === 'green') return 4500;
+	if (feature.type === 'tree') return 4800;
+	if (feature.type === 'green') return 3600;
 	return 0;
 }
 
@@ -179,7 +180,10 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 
 		for (const p of patch) {
 			const dir = localToDir(center, u, v, p.u, p.v);
-			spots.push(placeTree(new THREE.Vector3(...dir), 0.1, 0.19, rng, warm, variantCount));
+			// Skala dibesarkan ~1.6x drpd asal (0.1-0.19) supaya sepadan dgn
+			// saiz pokok Aethirion/Velvet Alcove (Mendari) — sblm ini hutan am
+			// jauh lebih kecil (~2-3x) drpd pokok "hero" di kawasan lain.
+			spots.push(placeTree(new THREE.Vector3(...dir), 0.16, 0.3, rng, warm, variantCount));
 		}
 	}
 
@@ -208,7 +212,10 @@ function buildRiverbankTreeSpots(): TreeSpot[] {
 		for (const seg of segments) {
 			const a = new THREE.Vector3(...seg.a);
 			const b = new THREE.Vector3(...seg.b);
-			const perTreesTarget = 500;
+			// Diturunkan drpd 500 asal — pokok tebing kini ~1.6x lebih besar
+			// (lihat placeTree di bawah), jadi kiraan lebih rendah kekalkan
+			// jarak longgar yg sepadan.
+			const perTreesTarget = 400;
 			const segSeed = rng() * 9999;
 
 			// Kepekatan sepanjang tebing ikut bunyi fbm 1D (bukan titik jangkar
@@ -240,7 +247,9 @@ function buildRiverbankTreeSpots(): TreeSpot[] {
 				const crossed = new THREE.Vector3().crossVectors(along, u);
 				const perp = crossed.length() > 0.001 ? crossed : v.clone();
 				const dir = along.clone().addScaledVector(perp.normalize(), bankDist).normalize();
-				spots.push(placeTree(dir, 0.08, 0.15, rng, warm, variantCount));
+				// Skala dibesarkan ~1.6x drpd asal (0.08-0.15) — sepadan dgn
+				// pembesaran hutan am di buildFeatureTreeSpots.
+				spots.push(placeTree(dir, 0.13, 0.24, rng, warm, variantCount));
 			}
 		}
 	}
