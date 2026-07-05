@@ -257,11 +257,15 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		raggedness: 0.55,
 	},
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
-	// Mendari — kota-taman Wilayah Lumiborne (Codex 5.2). theta/y MESTI sama
+	// Mendari — kota-taman Wilayah Lumiborne (Codex 5.2), kini merangkumi 5
+	// kawasan bernama (Veilrose Quarter, Faceless Bazaar, Idlewick, Harlequin's
+	// Corner, Velvet Alcove — lihat MendariTownscape.tsx). theta/y MESTI sama
 	// dengan WILAYAH_PORTALS.mendari supaya lokasi terrain & titik portal
-	// padan tepat. Struktur 3D (rumah + carousel) dilayan dalam
-	// MendariTownscape.tsx.
-	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.13 },
+	// padan tepat. Jejari 0.13→0.22 (~1.7x) sepadan dgn kota yg dibesarkan —
+	// MESTI sepadan dgn MENDARI_RADIUS dlm MendariTownscape.tsx supaya warna
+	// tanah (jalan emas + speckle bougainvillea) meliputi kawasan sebenar
+	// bangunan, bukan tertinggal kecil drpd footprint 3D.
+	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
