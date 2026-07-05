@@ -231,26 +231,37 @@ export default function AscendariTower({ atmosphereBlendRef }: AscendariTowerPro
 	);
 	const beaconLightRef = useRef<THREE.PointLight>(null);
 
-	const materials = useMemo(
-		() => [darkStoneMat, paleStoneMat, domeMat, ivyMat, rockMat],
-		[darkStoneMat, paleStoneMat, domeMat, ivyMat, rockMat],
-	);
+	// Sama seperti pokok Heartbloom & pulau Aethirion — Menara Ascendari
+	// "menjulang lebih tinggi drpd mana-mana struktur lain di Luminara"
+	// (Codex 5.2), jadi siluetnya (batu gelap/pucat/kubah) patut kelihatan sbg
+	// mercu tanda walau dari orbit jauh, bukan hilang terus. Perincian tanah
+	// (lumut/batu) kekal lantai 0 — hanya kelihatan bila rapat.
+	const landmarkMats = useMemo(() => [darkStoneMat, paleStoneMat, domeMat], [darkStoneMat, paleStoneMat, domeMat]);
+	const groundMats = useMemo(() => [ivyMat, rockMat], [ivyMat, rockMat]);
 
 	useFrame(({ clock }) => {
 		const blend = atmosphereBlendRef.current;
-		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
-		for (const mat of materials) {
-			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
+		const near = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
+		const landmarkTarget = THREE.MathUtils.lerp(0.55, 1, near);
+
+		for (const mat of landmarkMats) {
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, landmarkTarget, 0.05);
+			mat.visible = mat.opacity > 0.01;
+		}
+		for (const mat of groundMats) {
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, near, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 
 		// Mercu cahaya teal berdenyar lembut — sama teknik dgn cahaya berdenyar
 		// lain dlm codebase (bolt kilat, urat kristal), bukan legap statik.
+		// Turut ada lantai (spt siluet menara) supaya beacon kelihatan dari
+		// angkasa — gema "mercu cahaya menara kelihatan jauh" dlm rujukan.
 		const pulse = 0.75 + 0.25 * Math.sin(clock.elapsedTime * 0.9);
-		const beaconTarget = target * pulse;
+		const beaconTarget = landmarkTarget * pulse;
 		beaconMat.opacity = THREE.MathUtils.lerp(beaconMat.opacity, beaconTarget * 0.8, 0.05);
 		beaconMat.visible = beaconMat.opacity > 0.01;
-		if (beaconLightRef.current) beaconLightRef.current.intensity = target * pulse * 1.4;
+		if (beaconLightRef.current) beaconLightRef.current.intensity = landmarkTarget * pulse * 1.4;
 	});
 
 	return (
