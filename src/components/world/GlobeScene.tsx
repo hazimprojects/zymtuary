@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import {
@@ -21,6 +21,7 @@ import {
 } from './atmosphereTransition';
 import { AtmosphereSky } from './AtmosphereSky';
 import { AtmosphereVeil } from './AtmosphereVeil';
+import { CosmicBackdrop } from './CosmicBackdrop';
 import { InteriorAtmosphere } from './InteriorAtmosphere';
 import { DescentController, type JoystickVisual } from './DescentController';
 import { GlobeSurface, type GlobeSurfaceHandle } from './GlobeSurface';
@@ -172,6 +173,7 @@ export function GlobeScene({
 		<>
 			<fog attach="fog" args={[fogColor.current, 8, 24]} />
 			<AtmosphereSky blendRef={atmosphereBlend} />
+			<CosmicBackdrop atmosphereBlendRef={atmosphereBlend} />
 			<ResponsiveCamera isMobile={isMobile} disabled={descentActive} />
 
 			<ambientLight ref={ambLightRef} intensity={0.38} color="#8aa0b0" />
@@ -179,17 +181,9 @@ export function GlobeScene({
 			<pointLight position={[2, 4, 5]} intensity={0.45} color="#c4a86a" distance={14} />
 			<pointLight position={[-3, -2, -4]} intensity={0.28} color="#6a5898" distance={14} />
 
-			{showStars ? (
-				<Stars
-					radius={90}
-					depth={50}
-					count={isMobile ? 600 : 1400}
-					factor={2}
-					saturation={0}
-					fade
-					speed={0.15}
-				/>
-			) : null}
+			{/* Bintang kini sebahagian drpd nebula CosmicBackdrop (bukan lagi
+			    drei <Stars> — bintang kotak besar itu bertindih hodoh dgn
+			    nebula). CosmicBackdrop menyediakan bintang + nebula sekali. */}
 
 			<group ref={groupRef} scale={isMobile ? 0.92 : 1}>
 				<AtmosphereVeil intensity={veilIntensity} />

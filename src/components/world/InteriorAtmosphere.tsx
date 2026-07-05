@@ -67,9 +67,14 @@ float fbm(vec3 p) {
 
 void main() {
 	vec3 drift = vec3(uTime * 0.04, uTime * 0.01, uTime * 0.03);
-	float density = fbm(normalize(vWorldPos) * 4.5 + drift);
-	density += fbm(normalize(vWorldPos) * 7.5 + drift * 1.4) * 0.45;
-	float alpha = smoothstep(0.42, 0.72, density) * uOpacity;
+	// Kepingan awan JARANG & besar (bukan overcast rata) — ambang smoothstep
+	// TINGGI supaya hanya kawasan paling pekat jadi awan, meninggalkan
+	// jurang langit terang yg luas antara kepingan. Ini kekalkan "rasa
+	// langit" tapi TIDAK menyelubungi/menelan pandangan (cth. puncak
+	// Obsidian sentiasa kelihatan melalui jurang).
+	float density = fbm(normalize(vWorldPos) * 3.0 + drift);
+	density += fbm(normalize(vWorldPos) * 5.8 + drift * 1.4) * 0.4;
+	float alpha = smoothstep(0.6, 0.88, density) * uOpacity;
 	gl_FragColor = vec4(uCloudColor, alpha);
 }
 `;
