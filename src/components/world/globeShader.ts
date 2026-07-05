@@ -127,10 +127,13 @@ float terrainHeight(vec3 n) {
 			h += falloff * 0.1;
 		} else if (t < 2.5) {
 			h -= falloff * 0.03;
-		} else if (t > 5.5) {
+		} else if (t < 5.5) {
+			h += falloff * 0.014;
+		} else if (t < 6.5) {
 			h += falloff * 0.075;
 		} else {
-			h += falloff * 0.014;
+			// Selat Equilara — lembangan cetek sama macam air biasa.
+			h -= falloff * 0.03;
 		}
 	}
 
@@ -285,7 +288,12 @@ vec3 featureColor(float t, float lat) {
 	if (t < 3.5) return mix(vec3(0.08, 0.2, 0.13), vec3(0.42, 0.48, 0.16), warm); // hijau
 	if (t < 4.5) return vec3(0.5, 0.42, 0.28); // padang pasir
 	if (t < 5.5) return vec3(0.85, 0.42, 0.08); // teres air panas
-	return vec3(0.3, 0.42, 0.15); // pokok Heartbloom
+	if (t < 6.5) return vec3(0.3, 0.42, 0.15); // pokok Heartbloom
+	// Selat Equilara — aqua tersendiri, beralih lancar merentasi khatulistiwa
+	// (bukan langkah tajam step() macam air biasa) sebab satu selat ini
+	// sebenarnya merentasi Luminara-Equilara-Noctira dalam satu rantaian.
+	float bridgeWarm = smoothstep(-0.2, 0.2, lat);
+	return mix(vec3(0.08, 0.4, 0.56), vec3(0.16, 0.56, 0.5), bridgeWarm);
 }
 
 /** Mercu tanda liar (gunung/air/hijau/gurun/teres/pokok) — rekahan diasingkan
@@ -307,7 +315,7 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 		float epsilon = max(radius * 0.4, 0.03);
 		float mask = smoothstep(cosR - epsilon, cosR + epsilon, align);
 
-		if (t > 1.5 && t < 2.5) {
+		if ((t > 1.5 && t < 2.5) || (t > 6.5 && t < 7.5)) {
 			vec3 upRef = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
 			vec3 tu = normalize(cross(upRef, dir));
 			vec3 tv = cross(dir, tu);
@@ -376,10 +384,16 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float steam = smoothstep(0.4, 0.52, abs(sin(acos(clamp(align, -1.0, 1.0)) * 34.0)) ) * 0.3;
 			col = mix(col, terraceColor, mask * 0.82);
 			col += vec3(0.9, 0.95, 0.9) * steam * mask * 0.25;
-		} else {
+		} else if (t < 6.5) {
 			float core = smoothstep(cosR + epsilon * 0.6, 1.0, align);
 			col = mix(col, fc, mask * 0.75);
 			col += fc * core * 0.5;
+		} else {
+			// Selat Equilara — kilauan air lembut sahaja, TANPA jurang Thalyssan
+			// (jurang itu khusus Tasik Gelap, bukan selat penghubung ini).
+			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
+			col = mix(col, fc, mask * 0.78);
+			col += sparkle * mask * 0.06;
 		}
 	}
 	return col;
