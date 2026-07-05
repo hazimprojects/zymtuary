@@ -100,21 +100,35 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 	const boltMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#cfe8ff', transparent: true, opacity: 0 }), []);
 	const boltLightRef = useRef<THREE.PointLight>(null);
 
-	useFrame(({ clock }) => {
+	const _world = useMemo(() => new THREE.Vector3(), []);
+
+	useFrame(({ clock, camera }) => {
+		let nearestDistSq = Infinity;
 		for (let i = 0; i < puffs.length; i++) {
 			const p = puffs[i];
 			const bob = Math.sin(clock.elapsedTime * 0.2 + p.phase * Math.PI * 2) * 0.006;
-			const world = p.offset.clone();
-			world.y += bob;
-			world.applyQuaternion(quaternion).add(cloudCenter);
-			positions[i * 3] = world.x;
-			positions[i * 3 + 1] = world.y;
-			positions[i * 3 + 2] = world.z;
+			_world.copy(p.offset);
+			_world.y += bob;
+			_world.applyQuaternion(quaternion).add(cloudCenter);
+			positions[i * 3] = _world.x;
+			positions[i * 3 + 1] = _world.y;
+			positions[i * 3 + 2] = _world.z;
+			const distSq = camera.position.distanceToSquared(_world);
+			if (distSq < nearestDistSq) nearestDistSq = distSq;
 		}
 		if (geomRef.current) geomRef.current.attributes.position.needsUpdate = true;
 
+		// Sprite billboard sizeAttenuation MEMBESAR tanpa had bila jarak kamera
+		// -> 0 — jika kamera terbang terlalu hampir dgn satu kepulan (terutama
+		// bila pandang sedikit ke atas), satu sprite boleh memenuhi SELURUH
+		// skrin & "menelan" puncak gunung sepenuhnya. Pudarkan keseluruhan
+		// kluster awan bila kepulan TERDEKAT terlalu rapat, supaya puncak
+		// sentiasa kelihatan tidak kira sudut kamera.
+		const nearestDist = Math.sqrt(nearestDistSq);
+		const proximityFade = THREE.MathUtils.smoothstep(nearestDist, 0.08, 0.2);
+
 		const blend = atmosphereBlendRef.current;
-		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.85;
+		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.85 * proximityFade;
 		if (cloudMatRef.current) {
 			cloudMatRef.current.opacity = THREE.MathUtils.lerp(cloudMatRef.current.opacity, target, 0.05);
 			cloudMatRef.current.visible = cloudMatRef.current.opacity > 0.01;
