@@ -100,21 +100,36 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 	}, []);
 
 	const tier1Clumps = useMemo(() => buildCanopyClumps(5, 0.17, TRUNK_H + 0.09, [0.11, 0.15], 5501), []);
-	const tier2Clumps = useMemo(() => buildCanopyClumps(3, 0.08, TRUNK_H + 0.27, [0.06, 0.08], 5502), []);
+	// Tingkat-atas dinaikkan supaya jelas TERPISAH drpd puncak tertinggi
+	// tingkat-bawah (~TRUNK_H + 0.44 dgn jitter+saiz maksimum) — tunjang
+	// kelihatan (di bawah) mengisi jurang itu, bukan tersembunyi di dalam
+	// jasad tingkat-bawah macam sebelum ini (sebab tu ia nampak terapung).
+	const tier2Clumps = useMemo(() => buildCanopyClumps(3, 0.08, TRUNK_H + 0.39, [0.06, 0.08], 5502), []);
 
 	const tier1Geo = useMemo(() => mergeClumps(tier1Clumps), [tier1Clumps]);
 	const tier2Geo = useMemo(() => mergeClumps(tier2Clumps), [tier2Clumps]);
-	// Dahan tingkat-bawah dari puncak batang, DAN satu "tunjang dalaman"
-	// naik menerusi rumpun tingkat-bawah terus ke dahan tingkat-atas — supaya
-	// kanopi atas kekal tersambung/disokong secara visual, bukan terapung
-	// berasingan tanpa apa-apa menyambungkannya ke pokok.
+
+	// Tunjang KELIHATAN menyambung tingkat-bawah ke tingkat-atas — mesti
+	// bermula DI ATAS titik tertinggi jasad tingkat-bawah supaya kelihatan
+	// dari luar (bukan tersembunyi di dalamnya).
+	const stalkBottom = new THREE.Vector3(0, TRUNK_H + 0.22, 0);
+	const stalkTop = new THREE.Vector3(0, TRUNK_H + 0.36, 0);
+	const stalkGeo = useMemo(() => {
+		const dirV = stalkTop.clone().sub(stalkBottom);
+		const len = dirV.length();
+		const g = new THREE.CylinderGeometry(0.014, 0.022, len, 6);
+		g.translate(0, len / 2, 0);
+		g.translate(stalkBottom.x, stalkBottom.y, stalkBottom.z);
+		return g;
+	}, []);
+
+	// Dahan tingkat-bawah dari puncak batang, DAN dahan dari hujung tunjang
+	// kelihatan ke setiap rumpun tingkat-atas.
 	const branchGeo = useMemo(() => {
 		const trunkTop = new THREE.Vector3(0, TRUNK_H + 0.03, 0);
-		const tier2StalkTop = new THREE.Vector3(0, TRUNK_H + 0.19, 0);
 		const pairs: [THREE.Vector3, THREE.Vector3][] = [
-			[trunkTop, tier2StalkTop],
 			...tier1Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [trunkTop, c.position.clone().multiplyScalar(0.72)]),
-			...tier2Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [tier2StalkTop, c.position.clone().multiplyScalar(0.7)]),
+			...tier2Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [stalkTop, c.position.clone().multiplyScalar(0.7)]),
 		];
 		return mergeBranchPairs(pairs);
 	}, [tier1Clumps, tier2Clumps]);
@@ -141,7 +156,11 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 
 	useFrame(() => {
 		const blend = atmosphereBlendRef.current;
-		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
+		// Tidak macam pokok/objek lain — pokok Heartbloom GERGASI dan sepatutnya
+		// kelihatan sbg mercu tanda walau dari orbit jauh (pelawat sepatutnya
+		// nampak siluetnya, bukan hilang terus), jadi opacity ada lantai
+		// minimum (0.55) drpd 0 — kekayaan penuh (1.0) tetap hanya dlm atmosfera.
+		const target = THREE.MathUtils.lerp(0.55, 1, THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1));
 		for (const mat of materials) {
 			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
 			mat.visible = mat.opacity > 0.01;
@@ -152,6 +171,7 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 		<group position={position} quaternion={quaternion}>
 			<mesh geometry={rootFlareGeo} material={trunkMat} />
 			<mesh geometry={trunkGeo} material={trunkMat} />
+			<mesh geometry={stalkGeo} material={trunkMat} />
 			<mesh geometry={branchGeo} material={trunkMat} />
 			<mesh geometry={tier1Geo} material={canopyMat} />
 			<mesh geometry={tier2Geo} material={canopyMat} />

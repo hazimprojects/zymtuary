@@ -198,10 +198,12 @@ export type LandmarkFeature = {
 	ringMode?: boolean;
 	/** Lebar (radian) jalur gegelang di sekitar `radius`, hanya relevan jika ringMode. */
 	ringWidth?: number;
-	/** <1 = puncak lebih tirus/runcing (bukan kubah bulat); 1 = lalai. */
+	/** >1 = puncak lebih tirus/runcing (bukan kubah bulat); <1 = lebih rata; 1 = lalai. */
 	peakSharpness?: number;
-	/** Jika benar, hujung puncak (align hampir 1) diwarna putih-biru salji. */
+	/** Jika benar, hujung puncak (slopeT kecil) diwarna putih-biru salji. */
 	snowCap?: boolean;
+	/** Jika benar, urat kristal ungu-biru berdenyar dilukis menuruni cerun drpd puncak. */
+	crystalVein?: boolean;
 };
 
 export function deg(d: number): number {
@@ -256,27 +258,27 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
 	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
-	// Gunung obsidian PALING TINGGI di Noctira (heightScale), puncak TIRUS
-	// (peakSharpness < 1, bukan kubah/bukit) berpuncak ais (snowCap —
-	// diwarna terus dlm shader, bukan objek kon berasingan), dikelilingi
-	// banjaran lebih rendah berbentuk GEGELANG (ringMode). Kedudukan
-	// bertentangan dengan Heartbloom Isle merentasi globe (theta 180°
-	// berbeza, y disongsangkan) — sama semangat dgn Ignisara/Nivira yang
-	// bertentangan, tapi TIDAK berkongsi lokasi sebenar dgn mana-mana rekahan.
+	// Gema rujukan: menara batu TIRUS/nipis (bukan gunung lebar) dgn urat
+	// kristal ungu-biru berdenyar menuruni cerun drpd puncak berais.
+	// radius KECIL (bukan macam gunung biasa 0.19-0.24) supaya nisbah
+	// tinggi:lebar jadi menara/jarum, bukan bukit gemuk. heightScale amat
+	// besar supaya puncak melepasi altitud biasa descent (0.05-0.55) —
+	// "melebihi lapisan langit". Kedudukan bertentangan dgn Heartbloom Isle
+	// merentasi globe (theta 180° berbeza, y disongsangkan) — sama semangat
+	// dgn Ignisara/Nivira yang bertentangan, tapi TIDAK berkongsi lokasi
+	// sebenar dgn mana-mana rekahan. Banjaran lebih rendah mengelilingi:
+	// 'obsidian-hollow-banjaran' (ringMode) di bawah.
 	{
 		id: 'obsidian-hollow',
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
 		y: -0.78,
-		radius: 0.24,
-		// heightScale amat besar drpd gunung biasa (0.1 lalai) supaya puncak
-		// melepasi altitud biasa descent (0.05-0.55) dan kelihatan "melebihi
-		// lapisan langit". peakSharpness > 1 tekan nilai tengah jejari turun
-		// jauh drpd hujung, tukar bukit lebar jadi kon TIRUS sebenar.
-		heightScale: 4.2,
-		peakSharpness: 4,
+		radius: 0.09,
+		heightScale: 5.5,
+		peakSharpness: 1.6,
 		snowCap: true,
+		crystalVein: true,
 	},
 	{
 		id: 'obsidian-hollow-banjaran',
@@ -284,8 +286,11 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		type: 'mountain',
 		theta: deg(280),
 		y: -0.78,
-		radius: 0.34,
-		ringWidth: 0.06,
+		// Lebih dekat drpd sebelum ini (0.34) sebab radius puncak utama kini
+		// jauh lebih kecil (0.09, bukan 0.24) — banjaran perlu kekal rapat
+		// dgn menara supaya nampak "mengelilingi", bukan terapung jauh.
+		radius: 0.2,
+		ringWidth: 0.055,
 		ringMode: true,
 		heightScale: 0.5,
 	},
@@ -323,6 +328,7 @@ export function buildFeatureUniformArrays(): {
 	ringWidths: number[];
 	peakSharpnesses: number[];
 	snowCaps: number[];
+	crystalVeins: number[];
 	count: number;
 } {
 	return {
@@ -334,6 +340,7 @@ export function buildFeatureUniformArrays(): {
 		ringWidths: LANDMARK_FEATURES.map((f) => f.ringWidth ?? 0.05),
 		peakSharpnesses: LANDMARK_FEATURES.map((f) => f.peakSharpness ?? 1),
 		snowCaps: LANDMARK_FEATURES.map((f) => (f.snowCap ? 1 : 0)),
+		crystalVeins: LANDMARK_FEATURES.map((f) => (f.crystalVein ? 1 : 0)),
 		count: LANDMARK_FEATURES.length,
 	};
 }
