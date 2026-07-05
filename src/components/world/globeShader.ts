@@ -37,6 +37,7 @@ uniform float uFeatureRingMode[MAX_FEATURES];
 uniform float uFeatureRingWidth[MAX_FEATURES];
 uniform float uFeaturePeakSharpness[MAX_FEATURES];
 uniform float uFeatureSnowCap[MAX_FEATURES];
+uniform float uFeatureCrystalVein[MAX_FEATURES];
 uniform vec3 uCrackA[MAX_CRACK_SEGMENTS];
 uniform vec3 uCrackB[MAX_CRACK_SEGMENTS];
 uniform float uCrackWidth[MAX_CRACK_SEGMENTS];
@@ -132,18 +133,17 @@ float terrainHeight(vec3 n) {
 			float angDist = acos(clamp(align, -1.0, 1.0));
 			falloff = 1.0 - smoothstep(0.0, ringWidth, abs(angDist - radius));
 		} else {
-			float cosR = cos(radius);
-			// Peralihan merentasi SELURUH jejari (pusat ke tepi), bukan jalur
-			// sempit dekat tepi — kubah/lembangan jadi cerun cerun landai yang
-			// berubah beransur dari verteks ke verteks. Jalur sempit pada sfera
-			// rendah-poligon menghasilkan corak cincin/tangga kelihatan sebab
-			// nilai melompat terlalu pantas antara verteks berdekatan.
-			float domeFalloff = smoothstep(cosR, 1.0, align);
-			// peakSharpness > 1 menajamkan puncak jadi tirus/runcing (nilai
-			// tengah jejari ditekan turun jauh lebih drpd hujung pusat, jadi
-			// bukit lebar+rata bertukar jadi kon tajam); < 1 sebaliknya
-			// melebarkan jadi lebih rata. pow() tidak mengecilkan lebar jalur
-			// peralihan sedia ada, jadi selamat drpd artifak cincin/tangga.
+			// Jarak SUDUT sebenar (bukan align/cos yg pekat berhampiran pusat —
+			// cos() kekal hampir 1 sepanjang sebahagian besar jejari lalu jatuh
+			// mendadak dekat tepi, punca bentuk "gemuk"/mesa rata berdinding
+			// tegak walaupun dgn peakSharpness). Guna t linear ikut jarak sudut
+			// supaya cerun sekata merentasi KESELURUHAN jejari (masih peralihan
+			// LEBAR, elak artifak cincin/tangga sfera rendah-poligon).
+			float angDist = acos(clamp(align, -1.0, 1.0));
+			float t2 = clamp(angDist / radius, 0.0, 1.0);
+			float domeFalloff = 1.0 - smoothstep(0.0, 1.0, t2);
+			// peakSharpness > 1 menajamkan lagi puncak jadi tirus/runcing; < 1
+			// melebarkan jadi lebih rata.
 			falloff = pow(domeFalloff, uFeaturePeakSharpness[i]);
 		}
 
@@ -351,11 +351,19 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 		float cosR = cos(radius * (1.0 + edgeNoise * 0.45));
 		float epsilon = max(radius * 0.4, 0.03);
 		float mask;
+		// Jarak sudut relatif (0 = puncak/pusat, 1 = tepi) — dikongsi dgn
+		// snow-cap/vein di bawah supaya kedudukannya ikut jejari SEBENAR
+		// ciri ini (bukan nilai align mutlak, yg jadi salah bila radius kecil).
+		float slopeT = 0.0;
 		if (ringMode) {
 			float angDist = acos(clamp(align, -1.0, 1.0));
 			mask = 1.0 - smoothstep(0.0, ringWidth, abs(angDist - radius));
 		} else {
-			mask = smoothstep(cosR - epsilon, cosR + epsilon, align);
+			float angDist = acos(clamp(align, -1.0, 1.0));
+			float effRadius = radius * (1.0 + edgeNoise * 0.45);
+			slopeT = clamp(angDist / effRadius, 0.0, 1.0);
+			float domeFalloff = 1.0 - smoothstep(0.0, 1.0, slopeT);
+			mask = pow(domeFalloff, uFeaturePeakSharpness[i]);
 		}
 
 		if (!ringMode && ((t > 1.5 && t < 2.5) || (t > 6.5 && t < 7.5))) {
@@ -383,9 +391,32 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col = mix(col, fc * ridge, mask * 0.8);
 			col = mix(col, fc * 0.35, mask * groundCrack * 0.6);
 			if (uFeatureSnowCap[i] > 0.5) {
-				float snow = smoothstep(0.8, 0.95, align);
+				// slopeT (bukan align mutlak) — kekal betul walau berapa kecil
+				// jejari puncak (align mutlak nyaris tak berubah utk puncak
+				// tirus sempit, sebab tu dulu seluruh gunung jadi putih semua).
+				float snow = 1.0 - smoothstep(0.22, 0.42, slopeT);
 				vec3 snowColor = mix(vec3(0.72, 0.84, 0.95), vec3(0.96, 0.99, 1.0), fbm2(n * 25.0 + dir * 5.0));
 				col = mix(col, snowColor, snow * mask);
+			}
+			if (uFeatureCrystalVein[i] > 0.5) {
+				// Urat kristal ungu-biru berdenyar menuruni cerun dari puncak —
+				// gema rujukan (gunung tirus dgn cahaya kristal mengalir turun).
+				vec3 upRefV = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+				vec3 tuV = normalize(cross(upRefV, dir));
+				vec3 tvV = cross(dir, tuV);
+				vec2 pV = vec2(dot(n, tuV), dot(n, tvV));
+				vec2 veinDir = normalize(vec2(0.18, -1.0));
+				float alongVein = dot(pV, veinDir);
+				vec2 perpV = pV - veinDir * alongVein;
+				float distFromVein = length(perpV);
+				float jag = (fbm2(n * 22.0 + dir * 6.0) - 0.5) * radius * 0.18;
+				float veinWidth = radius * 0.05;
+				float veinLine = smoothstep(veinWidth + jag, veinWidth * 0.15 + jag, distFromVein);
+				veinLine *= smoothstep(-radius * 0.06, 0.0, alongVein) * (1.0 - smoothstep(radius * 0.82, radius * 1.02, alongVein));
+				float veinPulse = 0.75 + 0.25 * sin(uTime * 1.1 + alongVein * 18.0);
+				vec3 veinColor = vec3(0.55, 0.4, 0.98);
+				col = mix(col, veinColor, veinLine * mask * 0.75);
+				col += veinColor * veinLine * mask * veinPulse * 0.6;
 			}
 		} else if (t < 2.5) {
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
@@ -559,7 +590,7 @@ void main() {
 export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.ShaderMaterial {
 	const glow = entityUniforms ?? createEntityGlowUniforms();
 
-	const { dirs, types, radii, heightScales, ringModes, ringWidths, peakSharpnesses, snowCaps, count } =
+	const { dirs, types, radii, heightScales, ringModes, ringWidths, peakSharpnesses, snowCaps, crystalVeins, count } =
 		buildFeatureUniformArrays();
 	const featureDirs = Array.from({ length: MAX_FEATURES }, (_, i) =>
 		dirs[i] ? new THREE.Vector3(...dirs[i]) : new THREE.Vector3(0, 1, 0),
@@ -571,6 +602,7 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 	const featureRingWidths = Array.from({ length: MAX_FEATURES }, (_, i) => ringWidths[i] ?? 0.05);
 	const featurePeakSharpnesses = Array.from({ length: MAX_FEATURES }, (_, i) => peakSharpnesses[i] ?? 1);
 	const featureSnowCaps = Array.from({ length: MAX_FEATURES }, (_, i) => snowCaps[i] ?? 0);
+	const featureCrystalVeins = Array.from({ length: MAX_FEATURES }, (_, i) => crystalVeins[i] ?? 0);
 
 	const cracks = buildCrackUniformArrays();
 	const crackA = Array.from({ length: MAX_CRACK_SEGMENTS }, (_, i) => new THREE.Vector3(...cracks.a[i]));
@@ -605,6 +637,7 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 			uFeatureRingWidth: { value: featureRingWidths },
 			uFeaturePeakSharpness: { value: featurePeakSharpnesses },
 			uFeatureSnowCap: { value: featureSnowCaps },
+			uFeatureCrystalVein: { value: featureCrystalVeins },
 			uCrackA: { value: crackA },
 			uCrackB: { value: crackB },
 			uCrackWidth: { value: crackWidth },

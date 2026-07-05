@@ -10,10 +10,10 @@ type ObsidianHollowStormProps = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-// MESTI sepadan dgn heightScale 'obsidian-hollow' (4.2) di worldGlobeConfig.ts
+// MESTI sepadan dgn heightScale 'obsidian-hollow' (5.5) di worldGlobeConfig.ts
 // — awan gelap terapung di atas puncak yg dinaikkan drastik, bukan pada
 // GLOBE_RADIUS asas.
-const PEAK_BUMP = 0.1 * 4.2;
+const PEAK_BUMP = 0.1 * 5.5;
 
 type Puff = { offset: THREE.Vector3; phase: number };
 
