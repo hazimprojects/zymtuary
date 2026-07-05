@@ -192,8 +192,12 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 		// skrin & "menelan" puncak gunung sepenuhnya. Pudarkan keseluruhan
 		// kluster awan bila kepulan TERDEKAT terlalu rapat, supaya puncak
 		// sentiasa kelihatan tidak kira sudut kamera.
+		// Pudar lebih AWAL & lebih jauh (0.14-0.4 berbanding 0.08-0.2) — supaya
+		// bila kamera menghampiri puncak, awan ribut tidak "menelan" puncak
+		// (gunung Obsidian hilang) sebelum kamera betul-betul berada di dalam
+		// kepulan.
 		const nearestDist = Math.sqrt(nearestDistSq);
-		const proximityFade = THREE.MathUtils.smoothstep(nearestDist, 0.08, 0.2);
+		const proximityFade = THREE.MathUtils.smoothstep(nearestDist, 0.14, 0.4);
 
 		const blend = atmosphereBlendRef.current;
 		const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.85 * proximityFade;
@@ -226,7 +230,7 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 				</bufferGeometry>
 				<pointsMaterial
 					ref={cloudMatRef}
-					size={0.1}
+					size={0.085}
 					map={texture}
 					color="#242429"
 					transparent
