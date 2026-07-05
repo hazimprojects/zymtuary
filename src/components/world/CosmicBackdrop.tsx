@@ -2,11 +2,14 @@ import { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
+import { getNebulaAtmosphereVisibility } from './atmosphereTransition';
 
 type CosmicBackdropProps = {
 	/** 0 di angkasa jauh, 1 dalam atmosfera — nebula "Aethernals" penuh di
 	 * angkasa, pudar bila masuk atmosfera (langit ambil alih). */
 	atmosphereBlendRef: RefObject<number>;
+	/** 0 malam, 1 siang — keterlihatan nebula & aurora ikut masa. */
+	dayNightRef: RefObject<number>;
 };
 
 const backdropVertex = /* glsl */ `
@@ -30,6 +33,8 @@ uniform float uFade;
 uniform vec3 uLuminara;
 uniform vec3 uNoctira;
 uniform vec3 uEquilara;
+uniform float uAurora;
+uniform vec3 uAuroraColor;
 
 varying vec3 vDir;
 
@@ -121,15 +126,30 @@ void main() {
 	float twinkle = 0.7 + 0.3 * sin(uTime * 1.5 + dir.x * 40.0 + dir.z * 33.0);
 	col += vec3(0.85, 0.9, 1.0) * (starsFar + starsNear * twinkle);
 
-	// Alpha = uFade: legap penuh (nebula) di angkasa, lut sinar habis dlm
-	// atmosfera supaya warna langit scene.background kelihatan menembusinya.
-	gl_FragColor = vec4(col, uFade);
+	// Aurora — tirai cahaya menari dlm satu pita langit tengah (bukan zenit/
+	// ufuk penuh), ombak fbm bergerak perlahan. Warna & kekuatan ditetapkan
+	// JS ikut alam & masa (Aurora Auryalis hijau-emas Luminara malam;
+	// jalur teal-emas lembut Equilara). uAurora=0 → tiada (cth. Luminara siang).
+	float hBand = smoothstep(-0.05, 0.35, dir.y) * (1.0 - smoothstep(0.45, 0.95, dir.y));
+	float auroraWave = fbm(vec3(dir.x * 3.2, dir.y * 1.4, dir.z * 3.2) + vec3(uTime * 0.05, 0.0, uTime * 0.032));
+	float ribbon = smoothstep(0.42, 0.72, auroraWave);
+	float aurora = hBand * ribbon * uAurora;
+	col += uAuroraColor * aurora * 1.5;
+
+	// Alpha = uFade (nebula) ATAU aurora — supaya tirai aurora menembusi walau
+	// nebula pudar (cth. Luminara malam: nebula halus, aurora jelas).
+	float alpha = max(uFade, aurora * 0.85);
+	gl_FragColor = vec4(col, alpha);
 }
 `;
 
-export function CosmicBackdrop({ atmosphereBlendRef }: CosmicBackdropProps) {
+const AURORA_GREEN_GOLD = new THREE.Vector3(0.55, 0.85, 0.42); // Aurora Auryalis (Luminara)
+const AURORA_TEAL_GOLD = new THREE.Vector3(0.35, 0.72, 0.66); // jalur lembut Equilara
+
+export function CosmicBackdrop({ atmosphereBlendRef, dayNightRef }: CosmicBackdropProps) {
 	const matRef = useRef<THREE.ShaderMaterial>(null);
 	const { camera } = useThree();
+	const auroraColor = useMemo(() => new THREE.Vector3(), []);
 
 	const material = useMemo(
 		() =>
@@ -144,6 +164,8 @@ export function CosmicBackdrop({ atmosphereBlendRef }: CosmicBackdropProps) {
 					uLuminara: { value: new THREE.Vector3(0.95, 0.72, 0.32) },
 					uNoctira: { value: new THREE.Vector3(0.55, 0.28, 0.72) },
 					uEquilara: { value: new THREE.Vector3(0.25, 0.68, 0.7) },
+					uAurora: { value: 0 },
+					uAuroraColor: { value: new THREE.Vector3(0.5, 0.8, 0.5) },
 				},
 				side: THREE.BackSide,
 				transparent: true,
@@ -158,29 +180,36 @@ export function CosmicBackdrop({ atmosphereBlendRef }: CosmicBackdropProps) {
 	);
 
 	useFrame(({ clock }) => {
-		material.uniforms.uTime.value = clock.elapsedTime;
+		const t = clock.elapsedTime;
+		material.uniforms.uTime.value = t;
 		const blend = atmosphereBlendRef.current ?? 0;
+		const dayFactor = dayNightRef.current ?? 0.7;
 
 		// atmosFade: penuh di angkasa (blend 0), pudar habis apabila masuk
-		// atmosfera. NOTA: THREE.MathUtils.smoothstep ialah (x, min, max) — dulu
-		// argumennya tersalah susun (0.05, 0.5, blend) menyebabkan ia sentiasa
-		// pulangkan 0 → nebula TAK PERNAH pudar (langit sama di semua Spheral).
+		// atmosfera. NOTA: THREE.MathUtils.smoothstep ialah (x, min, max).
 		const atmosFade = 1 - THREE.MathUtils.smoothstep(blend, 0.05, 0.5);
 
-		// hemiVis: KEKALKAN nebula dlm atmosfera mengikut hemisfera — identiti
-		// tiga alam abadi. Noctira (y<0) = malam abadi → cakerawala Aethernals
-		// kelihatan dari tanah; Luminara (y>0) = siang abadi → langit emas
-		// terang menyembunyikannya; Equilara (y~0) = senja → separa (aurora
-		// dekat ufuk). hemisphereY = arah-y kamera dinormalkan (sama spt
-		// AtmosphereSky) — stabil walau kumpulan globe berputar (putaran paksi-Y
-		// tak ubah latitud).
+		// Keterlihatan nebula dlm atmosfera ikut ALAM + MASA (getNebulaAtmosphere-
+		// Visibility): Luminara siang sembunyi/malam halus; Noctira siang jelas
+		// (Void Tempest)/malam penuh (Ashen Gale); Equilara separa sentiasa.
 		const hemisphereY = camera.position.y / (camera.position.length() || 1);
-		const hemiVis = 1 - THREE.MathUtils.smoothstep(hemisphereY, -0.5, 0.25);
+		const nebVis = getNebulaAtmosphereVisibility(hemisphereY, dayFactor);
+		material.uniforms.uFade.value = Math.max(atmosFade, nebVis);
 
-		// Di angkasa atmosFade=1 → nebula penuh di semua hemisfera. Dlm
-		// atmosfera atmosFade=0 → hemiVis menentukan (Noctira kekal, Luminara
-		// hilang, Equilara separa).
-		material.uniforms.uFade.value = Math.max(atmosFade, hemiVis);
+		// Aurora: berat hemisfera × masa × jadual.
+		const lumW = THREE.MathUtils.smoothstep(hemisphereY, 0.1, 0.6); // Luminara
+		const equW = THREE.MathUtils.clamp(1 - Math.abs(hemisphereY) / 0.35, 0, 1); // Equilara dekat khatulistiwa
+		// Aurora Auryalis (Luminara malam) — jarang: bengkak berkala.
+		const auroraPulse = THREE.MathUtils.smoothstep(0.5 + 0.5 * Math.sin(t * 0.16), 0.55, 0.9);
+		const auroraLum = lumW * (1 - dayFactor) * auroraPulse;
+		// Jalur teal-emas lembut Equilara — sentiasa (siang & malam), tenang.
+		const auroraEqu = equW * 0.4;
+		const auroraStrength = THREE.MathUtils.clamp(auroraLum + auroraEqu, 0, 1);
+		material.uniforms.uAurora.value = auroraStrength;
+		// Warna campur ikut sumbangan mana lebih dominan.
+		const lumShare = auroraStrength > 1e-4 ? auroraLum / (auroraLum + auroraEqu + 1e-4) : 0;
+		auroraColor.copy(AURORA_TEAL_GOLD).lerp(AURORA_GREEN_GOLD, lumShare);
+		material.uniforms.uAuroraColor.value.copy(auroraColor);
 	});
 
 	return (

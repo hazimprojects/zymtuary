@@ -12,6 +12,8 @@ import {
 import {
 	getAtmosphereBlend,
 	getCameraFov,
+	getDayFactor,
+	getDaylight,
 	getExteriorVeilIntensity,
 	getFogColor,
 	getFogRange,
@@ -71,6 +73,7 @@ export function GlobeScene({
 	const blockDescentEntry = useRef(false);
 	const atmosphereBlend = useRef(0);
 	const interiorBlend = useRef(0);
+	const dayNight = useRef(0.7);
 	const fogColor = useRef(new THREE.Color('#0a1420'));
 	const ambColor = useRef(new THREE.Color('#8aa0b0'));
 	const { camera, scene } = useThree();
@@ -96,11 +99,12 @@ export function GlobeScene({
 		});
 	}, [camera]);
 
-	useFrame((_, delta) => {
+	useFrame((state, delta) => {
 		const dist = camera.position.length();
 		const targetBlend = getAtmosphereBlend(dist);
 		atmosphereBlend.current = smoothDamp(atmosphereBlend.current, targetBlend, delta, 4.2);
 		interiorBlend.current = getInteriorBlend(atmosphereBlend.current);
+		dayNight.current = getDayFactor(state.clock.elapsedTime);
 
 		onAtmosphereBlendChange?.(atmosphereBlend.current);
 
@@ -142,23 +146,24 @@ export function GlobeScene({
 
 		const fog = getFogRange(blend);
 		const hemisphereY = camera.position.y / (camera.position.length() || 1);
-		fogColor.current = getFogColor(blend, hemisphereY);
+		fogColor.current = getFogColor(blend, hemisphereY, dayNight.current);
 		if (scene.fog instanceof THREE.Fog) {
 			scene.fog.color.copy(fogColor.current);
 			scene.fog.near = fog.near;
 			scene.fog.far = fog.far;
 		}
 
+		// Cahaya permukaan diredupkan waktu malam (Stellar Drift dsb) tapi tidak
+		// gelap gulita — hanya diguna dlm atmosfera (blend) supaya orbit/angkasa
+		// tak terjejas. Void Tempest Noctira tetap dramatik krn skynya sendiri.
+		const daylight = THREE.MathUtils.lerp(1, getDaylight(dayNight.current), blend);
 		ambColor.current.copy(SPACE_AMB).lerp(INNER_AMB, blend);
 		if (ambLightRef.current) {
-			// Ambien lebih terang dalam atmosfera (bukan 0.55) — pokok/objek 3D
-			// lain kelihatan gelap/hilang berbanding tanah Luminara yang lebih
-			// gelap pada sisi terlindung cahaya tanpa ini.
-			ambLightRef.current.intensity = THREE.MathUtils.lerp(0.38, 0.85, blend);
+			ambLightRef.current.intensity = THREE.MathUtils.lerp(0.38, 0.85, blend) * daylight;
 			ambLightRef.current.color.copy(ambColor.current);
 		}
 		if (dirLightRef.current) {
-			dirLightRef.current.intensity = THREE.MathUtils.lerp(0.85, 1.25, blend);
+			dirLightRef.current.intensity = THREE.MathUtils.lerp(0.85, 1.25, blend) * daylight;
 		}
 
 		if (camera instanceof THREE.PerspectiveCamera) {
@@ -172,8 +177,8 @@ export function GlobeScene({
 	return (
 		<>
 			<fog attach="fog" args={[fogColor.current, 8, 24]} />
-			<AtmosphereSky blendRef={atmosphereBlend} />
-			<CosmicBackdrop atmosphereBlendRef={atmosphereBlend} />
+			<AtmosphereSky blendRef={atmosphereBlend} dayNightRef={dayNight} />
+			<CosmicBackdrop atmosphereBlendRef={atmosphereBlend} dayNightRef={dayNight} />
 			<ResponsiveCamera isMobile={isMobile} disabled={descentActive} />
 
 			<ambientLight ref={ambLightRef} intensity={0.38} color="#8aa0b0" />
