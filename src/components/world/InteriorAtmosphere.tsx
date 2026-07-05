@@ -166,8 +166,15 @@ export function InteriorAtmosphere({ interiorBlendRef }: InteriorAtmosphereProps
 				/>
 			</mesh>
 
+			{/* MESTI jauh lebih tinggi drpd DESCENT_CONFIG.maxAltitude (0.95) —
+			    sebelum ini +0.6 duduk TEPAT dlm julat altitud terbang biasa
+			    (0.05-0.95), jadi kamera kerap terbang TEPAT pada/dekat
+			    permukaan sfera ini, menjadikan tekstur awan memenuhi SELURUH
+			    skrin (gunung "hilang" ditelan kabus) — bukan cuma isu dekat
+			    puncak Obsidian Hollow, tapi mana-mana penerbangan pada altitud
+			    ~0.6. */}
 			<mesh renderOrder={4}>
-				<sphereGeometry args={[GLOBE_RADIUS + 0.6, 40, 40]} />
+				<sphereGeometry args={[GLOBE_RADIUS + 1.15, 40, 40]} />
 				<primitive object={ceilingMat} attach="material" />
 			</mesh>
 		</group>
