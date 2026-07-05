@@ -208,13 +208,14 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
 	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2 },
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
-	// Heartbloom Isle — pulau pokok gergasi Heartbloom, bersebelahan Pulau
-	// Ascendari, kedua-duanya dilingkari Selat Equilara (lihat rantaian
+	// Heartbloom Isle — pulau pokok gergasi Heartbloom. Cukup jauh (~60°)
+	// drpd Pulau Ascendari supaya kedua-dua pulau tidak bertindih jadi satu
+	// bongkah tanah — dipisahkan oleh Selat Equilara (lihat rantaian
 	// 'selat-*' di bawah) yang menghubungkan Luminara terus ke Noctira.
 	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'tree', theta: deg(100), y: 0.5, radius: 0.15 },
 	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
-	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(125), y: 0.5, radius: 0.15 },
+	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
 	// Noctira — gunung obsidian, tasik gelap (gema Thalyssan Depths), hutan
 	// senja (gema Vorynth Wood), padang pasir (gema Gorrathic Badlands).
 	{ id: 'gunung-obsidian', nama: 'Gunung Obsidian', type: 'mountain', theta: deg(80), y: -0.72, radius: 0.19 },
@@ -225,10 +226,20 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Ascendari (Luminara) merentasi khatulistiwa Equilara terus ke Tasik
 	// Gelap (Noctira), warna aqua tersendiri (bukan keemasan/gelap seperti
 	// laut lain) mewakili pertemuan kedua-dua spheral.
-	{ id: 'selat-equilara-utara', nama: 'Selat Equilara (Utara)', type: 'selat', theta: deg(112), y: 0.32, radius: 0.22 },
-	{ id: 'selat-equilara-tengah', nama: 'Selat Equilara (Tengah)', type: 'selat', theta: deg(112), y: 0.0, radius: 0.24 },
-	{ id: 'selat-equilara-selatan', nama: 'Selat Equilara (Selatan)', type: 'selat', theta: deg(125), y: -0.32, radius: 0.24 },
+	{ id: 'selat-equilara-utara', nama: 'Selat Equilara (Utara)', type: 'selat', theta: deg(130), y: 0.32, radius: 0.22 },
+	{ id: 'selat-equilara-tengah', nama: 'Selat Equilara (Tengah)', type: 'selat', theta: deg(130), y: 0.0, radius: 0.24 },
+	{ id: 'selat-equilara-selatan', nama: 'Selat Equilara (Selatan)', type: 'selat', theta: deg(145), y: -0.32, radius: 0.24 },
 ];
+
+/** Cari arah 3D satu ciri (guna id) — supaya komponen 3D berasingan
+ * (menara, pokok gergasi) sentiasa padan dgn kedudukan sebenar dlm
+ * LANDMARK_FEATURES tanpa perlu menyalin theta/y secara berasingan
+ * (elak risiko dua tempat jadi tidak segerak apabila kedudukan diubah). */
+export function findLandmarkDirection(id: string): [number, number, number] {
+	const feature = LANDMARK_FEATURES.find((f) => f.id === id);
+	if (!feature) throw new Error(`Landmark not found: ${id}`);
+	return directionFromThetaY(feature.theta, feature.y);
+}
 
 export const MAX_FEATURES = 16;
 

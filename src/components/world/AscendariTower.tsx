@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS, deg, directionFromThetaY } from './worldGlobeConfig';
+import { GLOBE_RADIUS, findLandmarkDirection } from './worldGlobeConfig';
 
 type AscendariTowerProps = {
 	/** Sama seperti Vegetation/Aethirion — menara hanya kelihatan sepenuhnya
@@ -9,47 +9,72 @@ type AscendariTowerProps = {
 	atmosphereBlendRef: React.MutableRefObject<number>;
 };
 
-const ASCENDARI_THETA = deg(125);
-const ASCENDARI_Y = 0.5;
-
 const UP = new THREE.Vector3(0, 1, 0);
 
-const BASE_H = 0.045;
-const SHAFT_H = 0.17;
-const SPIRE_H = 0.075;
+const TIER1_H = 0.05;
+const TIER2_H = 0.055;
+const TIER3_H = 0.06;
+const TIER4_H = 0.045;
+const SPIRE_H = 0.09;
+const SPIRE_BASE_Y = TIER1_H + TIER2_H + TIER3_H + TIER4_H;
 
 /**
- * Menara tunggal Ascendari — "menjulang lebih tinggi daripada mana-mana
- * struktur lain di Luminara" (Codex 5.2). Dibina drpd tiga tingkat
- * bertindih (asas granit gelap, batang batu pasir keemasan, kemuncak
- * tirus) + loceng gangsa kecil dekat puncak (gema Silent Bell Tower),
- * berdiri tegak sebagai landmark tetap di Pulau Ascendari — bukan
- * hanyut macam Aethirion.
+ * Menara Ascendari — "menjulang lebih tinggi daripada mana-mana struktur
+ * lain di Luminara" (Codex 5.2). Silhouette rekaan gah/hebat (banyak
+ * tingkat menirus + menara sudut kecil) tapi setiap bahagian kekal
+ * geometri ringkas (silinder/kon rendah-poli) — kegahan datang drpd
+ * susunan/skala, bukan perincian ukiran.
  */
 export default function AscendariTower({ atmosphereBlendRef }: AscendariTowerProps) {
-	const dir = useMemo(() => new THREE.Vector3(...directionFromThetaY(ASCENDARI_THETA, ASCENDARI_Y)), []);
+	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('ascendari-pulau')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.006), [dir]);
 
-	const baseGeo = useMemo(() => {
-		const g = new THREE.CylinderGeometry(0.05, 0.06, BASE_H, 8);
-		g.translate(0, BASE_H / 2, 0);
+	const tier1Geo = useMemo(() => {
+		const g = new THREE.CylinderGeometry(0.07, 0.085, TIER1_H, 9);
+		g.translate(0, TIER1_H / 2, 0);
 		return g;
 	}, []);
-	const shaftGeo = useMemo(() => {
-		const g = new THREE.CylinderGeometry(0.02, 0.046, SHAFT_H, 8);
-		g.translate(0, BASE_H + SHAFT_H / 2, 0);
+	const tier2Geo = useMemo(() => {
+		const g = new THREE.CylinderGeometry(0.055, 0.068, TIER2_H, 9);
+		g.translate(0, TIER1_H + TIER2_H / 2, 0);
+		return g;
+	}, []);
+	const tier3Geo = useMemo(() => {
+		const g = new THREE.CylinderGeometry(0.038, 0.05, TIER3_H, 8);
+		g.translate(0, TIER1_H + TIER2_H + TIER3_H / 2, 0);
+		return g;
+	}, []);
+	const tier4Geo = useMemo(() => {
+		const g = new THREE.CylinderGeometry(0.026, 0.036, TIER4_H, 8);
+		g.translate(0, TIER1_H + TIER2_H + TIER3_H + TIER4_H / 2, 0);
 		return g;
 	}, []);
 	const spireGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.02, SPIRE_H, 8);
-		g.translate(0, BASE_H + SHAFT_H + SPIRE_H / 2, 0);
+		const g = new THREE.ConeGeometry(0.022, SPIRE_H, 8);
+		g.translate(0, SPIRE_BASE_Y + SPIRE_H / 2, 0);
 		return g;
 	}, []);
 	const bellGeo = useMemo(() => {
-		const g = new THREE.SphereGeometry(0.013, 8, 6);
-		g.translate(0, BASE_H + SHAFT_H - 0.015, 0);
+		const g = new THREE.SphereGeometry(0.014, 8, 6);
+		g.translate(0, SPIRE_BASE_Y - 0.012, 0);
 		return g;
+	}, []);
+
+	// Menara sudut kecil di pangkal tier2 — beri profil "kubu gah" tanpa
+	// menambah perincian ukiran, cuma 4 kon kecil pada sudut kompas.
+	const cornerSpireGeo = useMemo(() => {
+		const g = new THREE.ConeGeometry(0.014, 0.06, 6);
+		g.translate(0, 0.03, 0);
+		return g;
+	}, []);
+	const cornerSpirePositions = useMemo(() => {
+		const r = 0.06;
+		const y = TIER1_H;
+		return [0, 1, 2, 3].map((i) => {
+			const a = (i / 4) * Math.PI * 2;
+			return new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r);
+		});
 	}, []);
 
 	const graniteMat = useMemo(
@@ -87,8 +112,13 @@ export default function AscendariTower({ atmosphereBlendRef }: AscendariTowerPro
 
 	return (
 		<group position={position} quaternion={quaternion}>
-			<mesh geometry={baseGeo} material={graniteMat} />
-			<mesh geometry={shaftGeo} material={sandstoneMat} />
+			<mesh geometry={tier1Geo} material={graniteMat} />
+			<mesh geometry={tier2Geo} material={sandstoneMat} />
+			{cornerSpirePositions.map((pos, i) => (
+				<mesh key={i} geometry={cornerSpireGeo} material={sandstoneMat} position={pos} />
+			))}
+			<mesh geometry={tier3Geo} material={sandstoneMat} />
+			<mesh geometry={tier4Geo} material={graniteMat} />
 			<mesh geometry={spireGeo} material={sandstoneMat} />
 			<mesh geometry={bellGeo} material={bellMat} />
 		</group>
