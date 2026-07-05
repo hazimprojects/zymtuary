@@ -336,26 +336,29 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
 
-			// Jurang parit laut dalam (Thalyssan Depths) — garis panjang jelas
-			// merentasi lobus air secara pepenjuru (bukan tompok noise kabur),
-			// tepi jengkel sedikit supaya organik, bukan garis lurus tepat.
-			vec3 upRefW = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-			vec3 tuW = normalize(cross(upRefW, dir));
-			vec3 tvW = cross(dir, tuW);
-			// dir sentiasa unjur ke (0,0) dalam asas tangen ini (tuW/tvW
-			// berserenjang dengan dir secara binaan) — jadi garis parit terus
-			// bermula/berakhir relatif kepada pusat lobus tanpa ofset lagi.
-			vec2 pW = vec2(dot(n, tuW), dot(n, tvW));
-			vec2 laW = vec2(-radius * 0.85, -radius * 0.22);
-			vec2 lbW = vec2(radius * 0.85, radius * 0.28);
-			vec2 baW = lbW - laW;
-			vec2 paW = pW - laW;
-			float tSeg = clamp(dot(paW, baW) / max(dot(baW, baW), 1e-5), 0.0, 1.0);
-			float distW = length(paW - baW * tSeg);
-			float jag = (fbm2(n * 16.0 + dir * 6.0) - 0.5) * radius * 0.1;
-			float trenchWidth = radius * 0.11;
-			float trench = smoothstep(trenchWidth + jag, trenchWidth * 0.25 + jag, distW);
-			col = mix(col, fc * 0.22, mask * trench * 0.75);
+			// Jurang parit laut dalam (Thalyssan Depths) — khusus laut Noctira
+			// sahaja (dir.y < 0), bukan Laut Keemasan di Luminara. Garis panjang
+			// jelas merentasi lobus air secara pepenjuru (bukan tompok noise
+			// kabur), tepi jengkel sedikit supaya organik, bukan garis lurus tepat.
+			if (dir.y < 0.0) {
+				vec3 upRefW = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+				vec3 tuW = normalize(cross(upRefW, dir));
+				vec3 tvW = cross(dir, tuW);
+				// dir sentiasa unjur ke (0,0) dalam asas tangen ini (tuW/tvW
+				// berserenjang dengan dir secara binaan) — jadi garis parit terus
+				// bermula/berakhir relatif kepada pusat lobus tanpa ofset lagi.
+				vec2 pW = vec2(dot(n, tuW), dot(n, tvW));
+				vec2 laW = vec2(-radius * 0.85, -radius * 0.22);
+				vec2 lbW = vec2(radius * 0.85, radius * 0.28);
+				vec2 baW = lbW - laW;
+				vec2 paW = pW - laW;
+				float tSeg = clamp(dot(paW, baW) / max(dot(baW, baW), 1e-5), 0.0, 1.0);
+				float distW = length(paW - baW * tSeg);
+				float jag = (fbm2(n * 16.0 + dir * 6.0) - 0.5) * radius * 0.1;
+				float trenchWidth = radius * 0.11;
+				float trench = smoothstep(trenchWidth + jag, trenchWidth * 0.25 + jag, distW);
+				col = mix(col, fc * 0.22, mask * trench * 0.75);
+			}
 		} else if (t < 3.5) {
 			float speckle = smoothstep(0.7, 0.88, fbm2(n * 26.0 + dir * 6.0));
 			col = mix(col, fc, mask * 0.78);
