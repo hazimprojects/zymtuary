@@ -626,7 +626,9 @@ export type ZoomMode = 'orbit' | 'atmosphere' | 'descent';
 
 export const DESCENT_CONFIG = {
 	minAltitude: 0.05,
-	maxAltitude: 0.55,
+	// Ruang udara descent lebih luas (bukan sekadar 0.55) — beri rasa langit
+	// lebih lapang macam atmosfera bumi sebenar, bukan sempit/dekat permukaan.
+	maxAltitude: 0.95,
 	// hampir julat penuh menegak (termasuk lurus ke bawah) supaya bumi di bawah
 	// boleh dipandang terus dan kemasukan descent tidak perlu klip pitch mentah
 	minPitch: -1.5,
@@ -645,7 +647,9 @@ export const DESCENT_CONFIG = {
 
 /** Ambang jarak kamera → mod zoom immersive */
 export const ZOOM_THRESHOLDS = {
-	atmosphereEnter: 4.2,
+	// Diluaskan sepadan dgn maxAltitude yg lebih tinggi — jejari atmosfera
+	// keseluruhan lebih luas drpd permukaan globe.
+	atmosphereEnter: 5.0,
 	// Sepadan tepat dengan maxAltitude supaya masuk descent tidak melonjak
 	// kedudukan kamera — pada jarak ini altitud sudah dalam julat descent.
 	descentEnter: GLOBE_RADIUS + DESCENT_CONFIG.maxAltitude,
