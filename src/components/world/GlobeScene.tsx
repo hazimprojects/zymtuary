@@ -28,6 +28,7 @@ import { ResponsiveCamera } from './ResponsiveCamera';
 import AethirionIsland from './AethirionIsland';
 import Vegetation from './Vegetation';
 import FeatureParticles from './FeatureParticles';
+import TerrainProps from './TerrainProps';
 
 const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
@@ -194,6 +195,7 @@ export function GlobeScene({
 					proximityOverride={globeProximity}
 				/>
 				<Vegetation atmosphereBlendRef={atmosphereBlend} />
+				<TerrainProps atmosphereBlendRef={atmosphereBlend} />
 				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
 

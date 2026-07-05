@@ -315,7 +315,7 @@ export const MAX_CRACK_SEGMENTS = 26;
  * dari satu pusat dalam arah berlainan, setiap satu jengkel (jagged) dan
  * kadangkala bercabang ke retakan kecil, mengecil (tirus) ke hujung.
  */
-function generateCrackNetwork(center: [number, number, number], radius: number, seed: number, maxSegments: number): Segment[] {
+export function generateCrackNetwork(center: [number, number, number], radius: number, seed: number, maxSegments: number): Segment[] {
 	const { u, v } = tangentBasis(center);
 	const rng = seededRng(seed);
 	const segments: Segment[] = [];
