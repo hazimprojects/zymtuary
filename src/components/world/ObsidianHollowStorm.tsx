@@ -10,19 +10,22 @@ type ObsidianHollowStormProps = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-// MESTI sepadan dgn heightScale 'obsidian-hollow' (7.5) di worldGlobeConfig.ts
-// — awan gelap terapung di atas puncak yg dinaikkan drastik, bukan pada
-// GLOBE_RADIUS asas.
-const PEAK_BUMP = 0.1 * 7.5;
+// MESTI sepadan dgn heightScale 'obsidian-hollow' (6) di worldGlobeConfig.ts
+// — kluster awan berpusat di altitud puncak, bukan pada GLOBE_RADIUS asas.
+const PEAK_BUMP = 0.1 * 6;
 
 type Puff = { offset: THREE.Vector3; phase: number };
 
+/** Gegelang awan MENGELILINGI puncak (bukan bertindan/terapung di atasnya)
+ * — sebaran mendatar (r) melangkaui jejari puncak, anjakan menegak (y)
+ * kecil sahaja di sekitar altitud puncak sendiri. */
 function buildPuffs(): Puff[] {
 	const rng = seededRng(9911);
-	return Array.from({ length: 32 }, () => {
+	return Array.from({ length: 36 }, () => {
 		const angle = rng() * Math.PI * 2;
-		const r = rng() * 0.14;
-		const offset = new THREE.Vector3(Math.cos(angle) * r, 0.16 + rng() * 0.07, Math.sin(angle) * r);
+		const r = 0.16 + rng() * 0.24;
+		const y = -0.06 + rng() * 0.12;
+		const offset = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
 		return { offset, phase: rng() };
 	});
 }

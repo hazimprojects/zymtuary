@@ -278,8 +278,11 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		type: 'mountain',
 		theta: deg(280),
 		y: -0.78,
-		radius: 0.15,
-		heightScale: 7.5,
+		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
+		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
+		// dramatik tapi tidak keterlaluan nipis.
+		radius: 0.2,
+		heightScale: 6,
 		peakSharpness: 1.4,
 		snowCap: true,
 		crystalVein: true,
@@ -291,10 +294,14 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		type: 'mountain',
 		theta: deg(280),
 		y: -0.78,
-		radius: 0.26,
-		ringWidth: 0.06,
+		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
+		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
+		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
+		// bayang tipis dekat puncak utama.
+		radius: 0.34,
+		ringWidth: 0.09,
 		ringMode: true,
-		heightScale: 0.5,
+		heightScale: 0.75,
 		raggedness: 0.5,
 	},
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
