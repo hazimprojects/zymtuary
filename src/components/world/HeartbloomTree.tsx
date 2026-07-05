@@ -12,55 +12,162 @@ type HeartbloomTreeProps = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-
-const TRUNK_H = 0.22;
+const TRUNK_H = 0.24;
 
 // Heartbloom ialah ciri type 'water' (lembah tasik) dgn heightScale — MESTI
-// sepadan dgn heightScale 'heartbloom' dlm worldGlobeConfig.ts. Pangkal
-// pokok perlu dianjak SAMA jumlah supaya duduk di dasar tasik (pulau kecil
-// tersirat), bukan terapung di udara di atas permukaan air.
+// sepadan dgn heightScale 'heartbloom' dlm worldGlobeConfig.ts. Pangkal pokok
+// dianjak SAMA supaya duduk di dasar tasik, bukan terapung di atas air.
 const HEARTBLOOM_WATER_HEIGHT_SCALE = 2.8;
 const LAKE_INDENT = 0.03 * HEARTBLOOM_WATER_HEIGHT_SCALE;
 
-type CanopyClump = { position: THREE.Vector3; radiusXZ: number; radiusY: number };
-
-/** Serak beberapa "rumpun" daun rata/bujur pada bulatan tak-seragam
- * (bukan satu kubah bulat sempurna) — profil bonsai/cendawan bertingkat,
- * bukan pokok pine simetri. */
-function buildCanopyClumps(count: number, ringRadius: number, baseY: number, sizeRange: [number, number], seed: number): CanopyClump[] {
-	const rng = seededRng(seed);
-	const clumps: CanopyClump[] = [];
-	for (let i = 0; i < count; i++) {
-		const angle = (i / count) * Math.PI * 2 + (rng() - 0.5) * 0.7;
-		const r = ringRadius * (0.7 + rng() * 0.55);
-		const x = Math.cos(angle) * r;
-		const z = Math.sin(angle) * r;
-		const y = baseY + (rng() - 0.5) * 0.045;
-		const size = sizeRange[0] + rng() * (sizeRange[1] - sizeRange[0]);
-		clumps.push({ position: new THREE.Vector3(x, y, z), radiusXZ: size, radiusY: size * (0.55 + rng() * 0.15) });
-	}
-	return clumps;
+/** Silinder tirus antara dua titik (r0 di a, r1 di b) — blok binaan batang,
+ * dahan & akar (teknik sama dgn segmen kilat/rekahan). */
+function addTaperedSegment(
+	pieces: THREE.BufferGeometry[],
+	a: THREE.Vector3,
+	b: THREE.Vector3,
+	r0: number,
+	r1: number,
+	radialSeg = 6,
+): void {
+	const dir = b.clone().sub(a);
+	const len = dir.length();
+	if (len < 1e-5) return;
+	const geo = new THREE.CylinderGeometry(r1, r0, len, radialSeg);
+	geo.translate(0, len / 2, 0);
+	geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize()));
+	geo.translate(a.x, a.y, a.z);
+	pieces.push(geo);
 }
 
-function makeClumpGeometry(clump: CanopyClump): THREE.BufferGeometry {
-	const g = new THREE.IcosahedronGeometry(1, 1);
-	g.scale(clump.radiusXZ, clump.radiusY, clump.radiusXZ);
-	g.translate(clump.position.x, clump.position.y, clump.position.z);
-	return g;
-}
-
-function mergeClumps(clumps: CanopyClump[]): THREE.BufferGeometry {
-	const pieces = clumps.map(makeClumpGeometry);
+function mergePieces(pieces: THREE.BufferGeometry[]): THREE.BufferGeometry {
 	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
 	for (const p of pieces) p.dispose();
 	return merged;
 }
 
+/** Batang tirus (lebar di pangkal → nipis di atas) dgn sedikit bengkok
+ * organik, kemudian BERCABANG jadi beberapa dahan naik-keluar ke dlm kanopi
+ * (gema rujukan: batang yg bercabang ke dlm mahkota, bukan tiang lurus).
+ * Pulangkan geometri + hujung dahan (utk letak rumpun kanopi betul-betul di
+ * atas dahan). */
+function buildTrunkAndBranches(): { geo: THREE.BufferGeometry; branchEnds: THREE.Vector3[]; trunkTop: THREE.Vector3 } {
+	const rng = seededRng(7710);
+	const pieces: THREE.BufferGeometry[] = [];
+
+	// Batang — 3 segmen, tirus 0.06→0.028, bengkok sedikit.
+	const segs = 3;
+	let prev = new THREE.Vector3(0, 0.02, 0);
+	let r = 0.06;
+	const bx = (rng() - 0.5) * 0.03;
+	const bz = (rng() - 0.5) * 0.03;
+	for (let i = 1; i <= segs; i++) {
+		const t = i / segs;
+		const next = new THREE.Vector3(bx * t * t, 0.02 + TRUNK_H * t, bz * t * t);
+		const rNext = THREE.MathUtils.lerp(0.06, 0.028, t);
+		addTaperedSegment(pieces, prev, next, r, rNext, 8);
+		prev = next;
+		r = rNext;
+	}
+	const trunkTop = prev.clone();
+
+	// Dahan — 5 bercabang naik-keluar, setiap satu 2 segmen (fork sekali).
+	const branchEnds: THREE.Vector3[] = [];
+	const branchCount = 5;
+	for (let b = 0; b < branchCount; b++) {
+		const angle = (b / branchCount) * Math.PI * 2 + (rng() - 0.5) * 0.6;
+		const outLen = 0.075 + rng() * 0.05;
+		const up = 0.05 + rng() * 0.055;
+		const mid = trunkTop.clone().add(new THREE.Vector3(Math.cos(angle) * outLen * 0.55, up * 0.65, Math.sin(angle) * outLen * 0.55));
+		addTaperedSegment(pieces, trunkTop, mid, 0.026, 0.016, 6);
+		const end = mid.clone().add(new THREE.Vector3(Math.cos(angle) * outLen * 0.5, up * 0.5, Math.sin(angle) * outLen * 0.5));
+		addTaperedSegment(pieces, mid, end, 0.016, 0.008, 5);
+		branchEnds.push(end);
+	}
+
+	return { geo: mergePieces(pieces), branchEnds, trunkTop };
+}
+
+/** Akar berjejari terselerak keluar dari pangkal ke atas tanah (gema rujukan:
+ * akar merebak di atas pentas kecil), tirus & sedikit bengkok. */
+function buildRoots(): THREE.BufferGeometry {
+	const rng = seededRng(8820);
+	const pieces: THREE.BufferGeometry[] = [];
+	const rootCount = 7;
+	for (let i = 0; i < rootCount; i++) {
+		const angle = (i / rootCount) * Math.PI * 2 + (rng() - 0.5) * 0.5;
+		const outR = 0.1 + rng() * 0.07;
+		const start = new THREE.Vector3(0, 0.035, 0);
+		const mid = new THREE.Vector3(Math.cos(angle) * outR * 0.5, 0.012, Math.sin(angle) * outR * 0.5);
+		const end = new THREE.Vector3(Math.cos(angle) * outR, 0.0, Math.sin(angle) * outR);
+		addTaperedSegment(pieces, start, mid, 0.03, 0.018, 5);
+		addTaperedSegment(pieces, mid, end, 0.018, 0.005, 4);
+	}
+	return mergePieces(pieces);
+}
+
+/** Mahkota LEBAT & padu — satu rumpun pusat besar + rumpun sederhana di atas
+ * setiap hujung dahan + beberapa rumpun kecil di atas utk kubah — bertindih
+ * BERAT supaya terbaca sbg SATU jisim organik (bukan beberapa blob berasingan
+ * spt sebelum ini). */
+function buildCrown(branchEnds: THREE.Vector3[], trunkTop: THREE.Vector3): THREE.BufferGeometry {
+	const rng = seededRng(5501);
+	const pieces: THREE.BufferGeometry[] = [];
+	const crownCenterY = trunkTop.y + 0.08;
+
+	const addClump = (x: number, y: number, z: number, rXZ: number, rY: number) => {
+		const g = new THREE.IcosahedronGeometry(1, 1);
+		g.scale(rXZ, rY, rXZ);
+		g.translate(x, y, z);
+		pieces.push(g);
+	};
+
+	// Rumpun pusat besar.
+	addClump(0, crownCenterY, 0, 0.2, 0.16);
+	// Rumpun di atas setiap hujung dahan (sambung mahkota ke dahan).
+	for (const e of branchEnds) {
+		addClump(e.x * 1.1, e.y + 0.03, e.z * 1.1, 0.11 + rng() * 0.04, 0.1 + rng() * 0.03);
+	}
+	// Rumpun kecil di atas utk kubah rata-bulat.
+	const topCount = 4;
+	for (let i = 0; i < topCount; i++) {
+		const a = (i / topCount) * Math.PI * 2 + rng();
+		const rr = 0.06 + rng() * 0.05;
+		addClump(Math.cos(a) * rr, crownCenterY + 0.07 + rng() * 0.03, Math.sin(a) * rr, 0.08 + rng() * 0.03, 0.07 + rng() * 0.02);
+	}
+	return mergePieces(pieces);
+}
+
+/** Pentas diorama kecil — gundukan rumput rendah + beberapa batu kelabu di
+ * sekeliling pangkal (gema rujukan: pokok di atas pentas berumput dgn batu). */
+function buildGrassMound(): THREE.BufferGeometry {
+	const g = new THREE.IcosahedronGeometry(1, 1);
+	g.scale(0.22, 0.045, 0.22);
+	g.translate(0, 0.01, 0);
+	return g;
+}
+
+function buildRocks(): THREE.BufferGeometry {
+	const rng = seededRng(3310);
+	const pieces: THREE.BufferGeometry[] = [];
+	const rockCount = 5;
+	for (let i = 0; i < rockCount; i++) {
+		const a = (i / rockCount) * Math.PI * 2 + (rng() - 0.5) * 0.8;
+		const rr = 0.11 + rng() * 0.08;
+		const s = 0.018 + rng() * 0.016;
+		const g = new THREE.IcosahedronGeometry(1, 0);
+		g.scale(s * (0.8 + rng() * 0.5), s * (0.6 + rng() * 0.4), s * (0.8 + rng() * 0.5));
+		g.rotateY(rng() * Math.PI * 2);
+		g.rotateX((rng() - 0.5) * 0.6);
+		g.translate(Math.cos(a) * rr, 0.012, Math.sin(a) * rr);
+		pieces.push(g);
+	}
+	return mergePieces(pieces);
+}
+
 type MistPuff = { offset: THREE.Vector3; phase: number };
 
-/** Kabus lembut mengelilingi pokok pada beberapa ketinggian — bukan cuma
- * hiasan, tapi isyarat visual skala/ketinggian gergasi pokok ini (gema
- * awan berpusar di sekeliling world tree dlm rujukan). */
+/** Kabus lembut mengelilingi pokok — isyarat visual skala/ketinggian. */
 function buildMistPuffs(): MistPuff[] {
 	const rng = seededRng(6602);
 	return Array.from({ length: 22 }, () => {
@@ -74,36 +181,22 @@ function buildMistPuffs(): MistPuff[] {
 }
 
 /**
- * Pokok gergasi Heartbloom — tempat kelahiran Auryalis, tumbuh di pulau
- * kecil tengah lembah tasik Heartbloom Isle. Kanopi cendawan DUA tingkat:
- * tingkat-atas duduk RAPAT/bertindih terus di atas tingkat-bawah (bukan
- * disambung dahan berasingan — itu nampak macam pokok kedua terapung),
- * profil cendawan sebenar. Kabus mengelilingi memberi kesan skala/ketinggian.
+ * Pokok gergasi Heartbloom — tempat kelahiran Auryalis. Direka semula ikut
+ * rujukan pokok low-poly: batang tirus BERCABANG ke dlm mahkota, akar merebak
+ * di pangkal, mahkota lebat padu (satu jisim, bukan blob berasingan), di atas
+ * pentas diorama kecil (gundukan rumput + batu). Kabus mengelilingi memberi
+ * kesan skala.
  */
 export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreeProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('heartbloom')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS - LAKE_INDENT + 0.006), [dir]);
 
-	const rootFlareGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.09, 0.06, 8);
-		g.translate(0, 0.03, 0);
-		return g;
-	}, []);
-	const trunkGeo = useMemo(() => {
-		const g = new THREE.CylinderGeometry(0.032, 0.05, TRUNK_H, 7);
-		g.translate(0, TRUNK_H / 2 + 0.03, 0);
-		return g;
-	}, []);
-
-	const tier1Clumps = useMemo(() => buildCanopyClumps(5, 0.17, TRUNK_H + 0.09, [0.11, 0.15], 5501), []);
-	// Tingkat-atas duduk BERTINDIH terus di atas jasad tingkat-bawah (bukan
-	// dinaikkan jauh + disambung dahan berasingan) — kesan cendawan dua
-	// tudung bertindih, bukan pokok kedua terapung di atas.
-	const tier2Clumps = useMemo(() => buildCanopyClumps(3, 0.08, TRUNK_H + 0.16, [0.06, 0.08], 5502), []);
-
-	const tier1Geo = useMemo(() => mergeClumps(tier1Clumps), [tier1Clumps]);
-	const tier2Geo = useMemo(() => mergeClumps(tier2Clumps), [tier2Clumps]);
+	const trunk = useMemo(() => buildTrunkAndBranches(), []);
+	const rootsGeo = useMemo(() => buildRoots(), []);
+	const crownGeo = useMemo(() => buildCrown(trunk.branchEnds, trunk.trunkTop), [trunk]);
+	const grassGeo = useMemo(() => buildGrassMound(), []);
+	const rocksGeo = useMemo(() => buildRocks(), []);
 
 	const mistPuffs = useMemo(() => buildMistPuffs(), []);
 	const mistPositions = useMemo(() => new Float32Array(mistPuffs.length * 3), [mistPuffs.length]);
@@ -111,35 +204,53 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 	const mistMatRef = useRef<THREE.PointsMaterial>(null);
 	const mistTexture = useMemo(() => buildSpriteTexture(), []);
 
-	const trunkMat = useMemo(
+	const woodMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#5a3d24', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
+		[],
+	);
+	const rootMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#4a3018', flatShading: true, roughness: 0.9, transparent: true, opacity: 0 }),
 		[],
 	);
 	const canopyMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				color: '#a8c94a',
-				emissive: '#4a5a1a',
+				color: '#79b23a',
+				emissive: '#3a5216',
 				emissiveIntensity: 0.4,
 				flatShading: true,
-				roughness: 0.65,
+				roughness: 0.62,
 				transparent: true,
 				opacity: 0,
 			}),
 		[],
 	);
+	const grassMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#8cbf46', emissive: '#2f4a14', emissiveIntensity: 0.25, flatShading: true, roughness: 0.8, transparent: true, opacity: 0 }),
+		[],
+	);
+	const rockMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#8a8a92', flatShading: true, roughness: 0.95, transparent: true, opacity: 0 }),
+		[],
+	);
 
-	const materials = useMemo(() => [trunkMat, canopyMat], [trunkMat, canopyMat]);
+	// Bahagian siluet pokok (batang/akar/kanopi) kekal separa kelihatan dari
+	// orbit (lantai 0.55 — mercu tanda). Perincian tanah (rumput/batu) pudar
+	// penuh (lantai 0) — hanya kelihatan bila rapat.
+	const landmarkMats = useMemo(() => [woodMat, rootMat, canopyMat], [woodMat, rootMat, canopyMat]);
+	const groundMats = useMemo(() => [grassMat, rockMat], [grassMat, rockMat]);
 
 	useFrame(({ clock }) => {
 		const blend = atmosphereBlendRef.current;
-		// Tidak macam pokok/objek lain — pokok Heartbloom GERGASI dan sepatutnya
-		// kelihatan sbg mercu tanda walau dari orbit jauh (pelawat sepatutnya
-		// nampak siluetnya, bukan hilang terus), jadi opacity ada lantai
-		// minimum (0.55) drpd 0 — kekayaan penuh (1.0) tetap hanya dlm atmosfera.
-		const target = THREE.MathUtils.lerp(0.55, 1, THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1));
-		for (const mat of materials) {
-			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
+		const near = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
+
+		const landmarkTarget = THREE.MathUtils.lerp(0.55, 1, near);
+		for (const mat of landmarkMats) {
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, landmarkTarget, 0.05);
+			mat.visible = mat.opacity > 0.01;
+		}
+		for (const mat of groundMats) {
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, near, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 
@@ -152,7 +263,7 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 		}
 		if (mistGeomRef.current) mistGeomRef.current.attributes.position.needsUpdate = true;
 		if (mistMatRef.current) {
-			const mistTarget = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.55;
+			const mistTarget = near * 0.5;
 			mistMatRef.current.opacity = THREE.MathUtils.lerp(mistMatRef.current.opacity, mistTarget, 0.05);
 			mistMatRef.current.visible = mistMatRef.current.opacity > 0.01;
 		}
@@ -160,10 +271,11 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 
 	return (
 		<group position={position} quaternion={quaternion}>
-			<mesh geometry={rootFlareGeo} material={trunkMat} />
-			<mesh geometry={trunkGeo} material={trunkMat} />
-			<mesh geometry={tier1Geo} material={canopyMat} />
-			<mesh geometry={tier2Geo} material={canopyMat} />
+			<mesh geometry={grassGeo} material={grassMat} />
+			<mesh geometry={rocksGeo} material={rockMat} />
+			<mesh geometry={rootsGeo} material={rootMat} />
+			<mesh geometry={trunk.geo} material={woodMat} />
+			<mesh geometry={crownGeo} material={canopyMat} />
 			<points>
 				<bufferGeometry ref={mistGeomRef}>
 					<bufferAttribute attach="attributes-position" args={[mistPositions, 3]} count={mistPositions.length / 3} itemSize={3} />
