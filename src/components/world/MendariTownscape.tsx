@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib';
 import { GLOBE_RADIUS, findLandmarkDirection, seededRng, tangentBasis, localToDir } from './worldGlobeConfig';
@@ -9,6 +9,10 @@ type MendariTownscapeProps = {
 	/** Sama seperti Vegetation/Aethirion — kota hanya kelihatan sepenuhnya
 	 * apabila pelawat masuk atmosfera. */
 	atmosphereBlendRef: React.MutableRefObject<number>;
+	/** Ketik/klik model kota sendiri utk masuk — hanya aktif bila descent
+	 * sudah cukup dekat (gantikan butang terapung yg menutup pandangan). */
+	enterEnabled?: boolean;
+	onEnter?: () => void;
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -355,7 +359,7 @@ function zoneOf(id: ZoneId): ZoneDef {
  * Carousel asal ("The Carousel That Never Stops") dikekalkan tanpa
  * perubahan — signature Idlewick.
  */
-export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscapeProps) {
+export default function MendariTownscape({ atmosphereBlendRef, enterEnabled = false, onEnter }: MendariTownscapeProps) {
 	const centerDir = useMemo(() => findLandmarkDirection('mendari-kota'), []);
 	const dir = useMemo(() => new THREE.Vector3(...centerDir), [centerDir]);
 	const { u: uArr, v: vArr } = useMemo(() => tangentBasis(centerDir), [centerDir]);
@@ -662,8 +666,24 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 		);
 	};
 
+	const handleClick = (e: ThreeEvent<MouseEvent>) => {
+		if (!enterEnabled) return;
+		e.stopPropagation();
+		onEnter?.();
+	};
+
+	const handlePointerOver = (e: ThreeEvent<PointerEvent>) => {
+		if (!enterEnabled) return;
+		e.stopPropagation();
+		document.body.style.cursor = 'pointer';
+	};
+
+	const handlePointerOut = () => {
+		document.body.style.cursor = 'auto';
+	};
+
 	return (
-		<group>
+		<group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
 			{/* Rumah biasa mengisi jurang antara kawasan bernama */}
 			{houseVariants.map((v, i) => (
 				<group key={i}>

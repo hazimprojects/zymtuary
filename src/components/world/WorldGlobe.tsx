@@ -72,13 +72,17 @@ export default function WorldGlobe() {
 		if (zoomMode !== 'descent') setNearPortalId(null);
 	}, [zoomMode]);
 
-	const handleEnterPortal = useCallback(() => {
-		if (!nearPortal || diving) return;
-		setDiving(true);
-		window.setTimeout(() => {
-			window.location.href = nearPortal.route;
-		}, 620);
-	}, [nearPortal, diving]);
+	const handleEnterPortal = useCallback(
+		(wilayahId: string) => {
+			const portal = WILAYAH_PORTALS[wilayahId];
+			if (!portal || diving) return;
+			setDiving(true);
+			window.setTimeout(() => {
+				window.location.href = portal.route;
+			}, 620);
+		},
+		[diving],
+	);
 
 	const showRotatePrompt = isMobile && isPortrait;
 
@@ -108,6 +112,7 @@ export default function WorldGlobe() {
 								onAtmosphereBlendChange={handleAtmosphereBlend}
 								onJoystickChange={setJoystick}
 								onPortalNear={setNearPortalId}
+								onEnterPortal={handleEnterPortal}
 							/>
 						</Suspense>
 					</Canvas>
@@ -128,19 +133,21 @@ export default function WorldGlobe() {
 			</header>
 
 			<motion.p
-				key={zoomMode}
+				key={nearPortal ? `enter-${nearPortal.wilayahId}` : zoomMode}
 				className="pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 text-center font-body text-[0.55rem] leading-relaxed tracking-[0.2em] text-[#f5f0e8]/28"
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ delay: zoomMode === 'orbit' ? 2 : 0.4, duration: 1.8 }}
 			>
-				{zoomMode === 'descent'
-					? 'Joystick kiri bawah untuk bergerak · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
-					: zoomMode === 'atmosphere'
-						? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
-						: isMobile
-							? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk mendekat'
-							: 'Putar · zoom untuk mendekat ke permukaan'}
+				{nearPortal && !diving
+					? `◈ Ketik ${nearPortal.nama} untuk masuk`
+					: zoomMode === 'descent'
+						? 'Joystick kiri bawah untuk bergerak · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
+						: zoomMode === 'atmosphere'
+							? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk zoom'
+							: isMobile
+								? 'Joystick kiri bawah · seret kanan untuk toleh · cubit dua ibu jari untuk mendekat'
+								: 'Putar · zoom untuk mendekat ke permukaan'}
 			</motion.p>
 
 			{joystick ? (
@@ -165,24 +172,6 @@ export default function WorldGlobe() {
 					/>
 				</div>
 			) : null}
-
-			<AnimatePresence>
-				{nearPortal && !diving ? (
-					<motion.button
-						type="button"
-						onClick={handleEnterPortal}
-						className="pointer-events-auto fixed bottom-40 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#f5f0e8]/30 bg-black/45 px-6 py-3 backdrop-blur-sm"
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 10 }}
-						transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-					>
-						<span className="font-body text-[0.6rem] uppercase tracking-[0.32em] text-[#f5f0e8]/85">
-							◈ Masuk {nearPortal.nama}
-						</span>
-					</motion.button>
-				) : null}
-			</AnimatePresence>
 
 			<AnimatePresence>
 				{diving ? (
