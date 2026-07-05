@@ -15,21 +15,26 @@ export const ATMOSPHERE_FOG = {
 } as const;
 
 /**
- * Tona langit ikut hemisfera — hanya kelihatan dari DALAM atmosfera (shell
- * & inner sahaja; angkasa jauh kekal universal). Luminara cerah/ceria/
- * hangat, Noctira redup/sejuk/melindungi, Equilara neutral tapi bervariasi
- * (bukan sekadar purata linear Luminara-Noctira).
+ * Tona langit ikut hemisfera — identiti TIGA ALAM ABADI (bukan kitaran masa):
+ * Luminara = SIANG abadi (langit emas cerah, matahari menyerlah, nebula
+ * tersembunyi), Noctira = MALAM abadi (gelap; cakerawala Aethernals kelihatan
+ * dari tanah — lihat CosmicBackdrop hemiVis), Equilara = SENJA abadi (ufuk
+ * hangat beralih ke biru sejuk, separa berbintang). 'inner' = tona dekat
+ * permukaan, 'shell' = tona lebih tinggi ke arah zenit.
  */
 export const HEMISPHERE_SKY = {
-	luminara: { shell: '#3d6e8f', inner: '#f0e2b0' },
-	noctira: { shell: '#0c1c30', inner: '#161f34' },
-	equilara: { shell: '#1a4a72', inner: '#7a93ac' },
+	// Siang: ufuk emas terang → biru langit siang hangat di atas.
+	luminara: { shell: '#6ea6cc', inner: '#f6e6b0' },
+	// Malam: sangat gelap — nebula Aethernals (CosmicBackdrop) jadi bintang utama.
+	noctira: { shell: '#070f1e', inner: '#0e1626' },
+	// Senja: ufuk jingga-mawar hangat → biru-nila sejuk di atas (seam siang/malam).
+	equilara: { shell: '#2a3f68', inner: '#d08a66' },
 } as const;
 
 export const HEMISPHERE_FOG = {
-	luminara: '#e8d9a0',
-	noctira: '#0c111e',
-	equilara: '#8fc4ea',
+	luminara: '#ecdca4', // kabus siang hangat keemasan
+	noctira: '#070d18', // kabus malam gelap (biar nebula menyerlah)
+	equilara: '#b58a7a', // kabus senja jingga-kelabu lembut
 } as const;
 
 function clamp01(t: number): number {
