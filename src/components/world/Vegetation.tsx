@@ -40,8 +40,8 @@ function placeTree(dirVec: THREE.Vector3, scaleMin: number, scaleMax: number, rn
 /** Kawasan yang layak ditanami pokok — hijau/Heartbloom sahaja. TIADA pokok
  * di gunung berapi/obsidian — lereng itu tandus batu-batu dan rekahan. */
 function densityFor(feature: LandmarkFeature): number {
-	if (feature.type === 'tree') return 90;
-	if (feature.type === 'green') return 70;
+	if (feature.type === 'tree') return 1200;
+	if (feature.type === 'green') return 900;
 	return 0;
 }
 
@@ -65,7 +65,7 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 			const lu = Math.cos(angle) * r;
 			const lv = Math.sin(angle) * r;
 			const dir = localToDir(center, u, v, lu, lv);
-			spots.push(placeTree(new THREE.Vector3(...dir), 0.22, 0.42, rng, warm));
+			spots.push(placeTree(new THREE.Vector3(...dir), 0.1, 0.19, rng, warm));
 		}
 	}
 
@@ -91,18 +91,18 @@ function buildRiverbankTreeSpots(): TreeSpot[] {
 		for (const seg of segments) {
 			const a = new THREE.Vector3(...seg.a);
 			const b = new THREE.Vector3(...seg.b);
-			const perTrees = 5;
+			const perTrees = 100;
 			for (let i = 0; i < perTrees; i++) {
 				const t = rng();
 				const along = a.clone().lerp(b, t).normalize();
 				// Ofset tepi (bank) berserenjang dengan arah sungai, supaya pokok
 				// berbaris di kedua-dua tebing, bukan terus di atas air.
 				const bankSide = rng() < 0.5 ? 1 : -1;
-				const bankDist = (0.012 + rng() * 0.018) * bankSide;
+				const bankDist = (0.01 + rng() * 0.022) * bankSide;
 				const crossed = new THREE.Vector3().crossVectors(along, u);
 				const perp = crossed.length() > 0.001 ? crossed : v.clone();
 				const dir = along.clone().addScaledVector(perp.normalize(), bankDist).normalize();
-				spots.push(placeTree(dir, 0.18, 0.32, rng, warm));
+				spots.push(placeTree(dir, 0.08, 0.15, rng, warm));
 			}
 		}
 	}
