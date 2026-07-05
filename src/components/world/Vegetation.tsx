@@ -73,18 +73,83 @@ function placeTree(dirVec: THREE.Vector3, scaleMin: number, scaleMax: number, rn
 	return { position, quaternion, scale, warm, dead, variant, canopyColor, trunkColor };
 }
 
-type ClumpCenter = { u: number; v: number; r: number };
+function hash2D(x: number, y: number, seed: number): number {
+	const s = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+	return s - Math.floor(s);
+}
 
-/** Beberapa "pusat kluster" tak sekata (jejari & kedudukan rawak) —
- * pokok diserak sekitar kluster TERDEKAT sahaja, bukan taburan cakera/
- * jalur genap, supaya ada tompok & jurang macam hutan sebenar (bukan
- * bulatan/garis sekata). */
-function buildClumpCenters(rng: () => number, count: number, spread: number): ClumpCenter[] {
-	return Array.from({ length: count }, () => ({
-		u: (rng() - 0.5) * 2 * spread,
-		v: (rng() - 0.5) * 2 * spread,
-		r: spread * (0.3 + rng() * 0.5),
-	}));
+function valueNoise2D(x: number, y: number, seed: number): number {
+	const xi = Math.floor(x);
+	const yi = Math.floor(y);
+	const xf = x - xi;
+	const yf = y - yi;
+	const h00 = hash2D(xi, yi, seed);
+	const h10 = hash2D(xi + 1, yi, seed);
+	const h01 = hash2D(xi, yi + 1, seed);
+	const h11 = hash2D(xi + 1, yi + 1, seed);
+	const u = xf * xf * (3 - 2 * xf);
+	const v = yf * yf * (3 - 2 * yf);
+	return THREE.MathUtils.lerp(THREE.MathUtils.lerp(h00, h10, u), THREE.MathUtils.lerp(h01, h11, u), v);
+}
+
+/** Bunyi berbilang oktaf (fbm) 2D murah — dipakai utk medan ketumpatan
+ * hutan tak sekata (tompok & jurang organik, BUKAN kluster bulat/cakera
+ * genap). */
+function fbm2D(x: number, y: number, seed: number): number {
+	let v = 0;
+	let amp = 0.55;
+	let freq = 1;
+	let norm = 0;
+	for (let i = 0; i < 3; i++) {
+		v += amp * valueNoise2D(x * freq, y * freq, seed + i * 101);
+		norm += amp;
+		amp *= 0.5;
+		freq *= 2.15;
+	}
+	return v / norm;
+}
+
+/** Sempadan kawasan hutan bukan bulatan sempurna — gabungan beberapa
+ * harmonik sudut (fasa/amplitud rawak) memberi bentuk "blob" tak sekata
+ * (lobus keluar-masuk), macam sempadan hutan sebenar mengikut rupa bumi,
+ * bukan cakera genap. */
+function buildIrregularBoundary(rng: () => number): (theta: number) => number {
+	const a1 = 0.16 + rng() * 0.12;
+	const p1 = rng() * Math.PI * 2;
+	const a2 = 0.09 + rng() * 0.1;
+	const p2 = rng() * Math.PI * 2;
+	const a3 = 0.05 + rng() * 0.08;
+	const p3 = rng() * Math.PI * 2;
+	return (theta: number) => 1 + a1 * Math.cos(theta + p1) + a2 * Math.cos(2 * theta + p2) + a3 * Math.cos(3 * theta + p3);
+}
+
+/** Jana "tompok" hutan organik — calon diserak dlm sempadan tak sekata
+ * (buildIrregularBoundary), setiap calon diberi pemberat drpd bunyi fbm
+ * 2D (medan ketumpatan tak sekata), lebihan calon (oversample) disusun
+ * ikut pemberat & hanya `count` teratas diambil. Ini menjamin bilangan
+ * TEPAT tanpa gelung tolak-terima (rejection loop) yg boleh tak menentu,
+ * & hasilnya tompok/jurang organik ikut kontur bunyi — bukan kluster
+ * bulat kecil berulang (masalah pendekatan "pusat kluster" sebelum ini). */
+function buildOrganicPatch(rng: () => number, count: number, baseRadius: number, seed: number): { u: number; v: number }[] {
+	const boundary = buildIrregularBoundary(rng);
+	const oversample = 3;
+	const total = count * oversample;
+	const candidates: { u: number; v: number; w: number }[] = [];
+	for (let i = 0; i < total; i++) {
+		const theta = rng() * Math.PI * 2;
+		const rho = Math.sqrt(rng());
+		const localMax = baseRadius * boundary(theta);
+		const u = Math.cos(theta) * rho * localMax;
+		const v = Math.sin(theta) * rho * localMax;
+		const n = fbm2D(u * 8 + 50, v * 8 + 50, seed);
+		// Berat sedikit lebih tinggi berhampiran tengah supaya tidak jadi
+		// gegelang kosong di tengah, tapi bunyi fbm kekal penentu utama
+		// bentuk tompok/jurangnya.
+		const w = n * (0.65 + 0.35 * (1 - rho));
+		candidates.push({ u, v, w });
+	}
+	candidates.sort((a, b) => b.w - a.w);
+	return candidates.slice(0, count);
 }
 
 /** Kawasan yang layak ditanami pokok — hijau/Heartbloom sahaja. TIADA pokok
@@ -110,21 +175,10 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 		const warm = feature.y > 0;
 		const variantCount = warm ? LUMINARA_VARIANT_COUNT : NOCTIRA_VARIANT_COUNT;
 		const maxR = feature.radius * 0.95;
-		const clumps = buildClumpCenters(rng, 10 + Math.floor(rng() * 6), maxR * 0.85);
+		const patch = buildOrganicPatch(rng, count, maxR, feature.theta * 733 + feature.y * 991);
 
-		for (let i = 0; i < count; i++) {
-			const clump = clumps[Math.floor(rng() * clumps.length)];
-			const rr = Math.sqrt(rng()) * clump.r;
-			const angle = rng() * Math.PI * 2;
-			let lu = clump.u + Math.cos(angle) * rr;
-			let lv = clump.v + Math.sin(angle) * rr;
-			const dist = Math.hypot(lu, lv);
-			if (dist > maxR) {
-				const k = maxR / dist;
-				lu *= k;
-				lv *= k;
-			}
-			const dir = localToDir(center, u, v, lu, lv);
+		for (const p of patch) {
+			const dir = localToDir(center, u, v, p.u, p.v);
 			spots.push(placeTree(new THREE.Vector3(...dir), 0.1, 0.19, rng, warm, variantCount));
 		}
 	}
@@ -154,17 +208,35 @@ function buildRiverbankTreeSpots(): TreeSpot[] {
 		for (const seg of segments) {
 			const a = new THREE.Vector3(...seg.a);
 			const b = new THREE.Vector3(...seg.b);
-			const perTrees = 500;
-			const clumpAnchors = Array.from({ length: 4 + Math.floor(rng() * 4) }, () => rng());
-			for (let i = 0; i < perTrees; i++) {
-				const anchor = clumpAnchors[Math.floor(rng() * clumpAnchors.length)];
-				const t = THREE.MathUtils.clamp(anchor + (rng() - 0.5) * 0.14, 0, 1);
-				const along = a.clone().lerp(b, t).normalize();
-				// Ofset tepi (bank) berserenjang dengan arah sungai, supaya pokok
-				// berbaris di kedua-dua tebing, bukan terus di atas air. Julat
-				// lebih luas & tak sekata (bukan formula tetap) drpd sebelum ini.
+			const perTreesTarget = 500;
+			const segSeed = rng() * 9999;
+
+			// Kepekatan sepanjang tebing ikut bunyi fbm 1D (bukan titik jangkar
+			// diskret — itu sendiri jadi kelihatan macam kluster bulat kecil
+			// berulang) — oversample & ambil pemberat teratas, sama teknik dgn
+			// buildOrganicPatch, supaya tompok/jurang organik sepanjang alir.
+			const oversample = 3;
+			const candidates: { t: number; bankSide: number; bankFrac: number; w: number }[] = [];
+			for (let i = 0; i < perTreesTarget * oversample; i++) {
+				const t = rng();
 				const bankSide = rng() < 0.5 ? 1 : -1;
-				const bankDist = (0.006 + rng() * 0.03) * bankSide;
+				const bankFrac = 1.6 + rng() * 2.4;
+				const n = fbm2D(t * 14, bankSide * 3.1, segSeed);
+				candidates.push({ t, bankSide, bankFrac, w: n });
+			}
+			candidates.sort((x, y) => y.w - x.w);
+			const chosen = candidates.slice(0, perTreesTarget);
+
+			for (const c of chosen) {
+				const along = a.clone().lerp(b, c.t).normalize();
+				// Ofset tebing MESTI relatif kpd lebar SEBENAR segmen ini
+				// (seg.width), bukan pemalar tetap — sungai melebar ke hilir,
+				// jadi ofset tetap menyebabkan pokok "melanggar"/tumbuh di dlm
+				// air berhampiran muara yg lebar. Visual lebar sungai dlm
+				// shader ialah ~width*1.3 (riverMask smoothstep(w*1.3,w*0.25,d))
+				// — mulakan ofset SELEPAS itu (×1.6 keatas) supaya sentiasa di
+				// luar air tidak kira lebar segmen.
+				const bankDist = seg.width * c.bankFrac * c.bankSide;
 				const crossed = new THREE.Vector3().crossVectors(along, u);
 				const perp = crossed.length() > 0.001 ? crossed : v.clone();
 				const dir = along.clone().addScaledVector(perp.normalize(), bankDist).normalize();
