@@ -83,7 +83,9 @@ export default function WorldGlobe() {
 	const showRotatePrompt = isMobile && isPortrait;
 
 	const handleAtmosphereBlend = useCallback((blend: number) => {
-		setSkyBackground(getSkyColor(blend).getStyle());
+		// hemisphereY=0 (neutral/Equilara) — CSS fallback latar sebelum Canvas
+		// 3D sedia, tiada arah kamera sebenar utk dirujuk lagi.
+		setSkyBackground(getSkyColor(blend, 0).getStyle());
 	}, []);
 
 	return (

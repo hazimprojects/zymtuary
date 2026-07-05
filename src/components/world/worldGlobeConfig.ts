@@ -270,8 +270,12 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		theta: deg(280),
 		y: -0.78,
 		radius: 0.24,
-		heightScale: 1.45,
-		peakSharpness: 0.4,
+		// heightScale amat besar drpd gunung biasa (0.1 lalai) supaya puncak
+		// melepasi altitud biasa descent (0.05-0.55) dan kelihatan "melebihi
+		// lapisan langit". peakSharpness > 1 tekan nilai tengah jejari turun
+		// jauh drpd hujung, tukar bukit lebar jadi kon TIRUS sebenar.
+		heightScale: 4.2,
+		peakSharpness: 4,
 		snowCap: true,
 	},
 	{

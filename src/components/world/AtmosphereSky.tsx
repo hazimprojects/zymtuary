@@ -6,12 +6,15 @@ type AtmosphereSkyProps = {
 	blendRef: RefObject<number>;
 };
 
-/** Kemas kini warna latar scene mengikut blend atmosfera — lancar tanpa snap mod */
+/** Kemas kini warna latar scene mengikut blend atmosfera & hemisfera semasa
+ * (Luminara cerah/hangat, Noctira redup/sejuk, Equilara neutral) — lancar
+ * tanpa snap mod */
 export function AtmosphereSky({ blendRef }: AtmosphereSkyProps) {
-	const { scene } = useThree();
+	const { scene, camera } = useThree();
 
 	useFrame(() => {
-		scene.background = getSkyColor(blendRef.current);
+		const hemisphereY = camera.position.y / (camera.position.length() || 1);
+		scene.background = getSkyColor(blendRef.current, hemisphereY);
 	});
 
 	return null;

@@ -139,8 +139,10 @@ float terrainHeight(vec3 n) {
 			// rendah-poligon menghasilkan corak cincin/tangga kelihatan sebab
 			// nilai melompat terlalu pantas antara verteks berdekatan.
 			float domeFalloff = smoothstep(cosR, 1.0, align);
-			// peakSharpness < 1 menajamkan puncak jadi tirus/runcing (bukan
-			// kubah/bukit bulat) — pow() tidak mengecilkan lebar jalur
+			// peakSharpness > 1 menajamkan puncak jadi tirus/runcing (nilai
+			// tengah jejari ditekan turun jauh lebih drpd hujung pusat, jadi
+			// bukit lebar+rata bertukar jadi kon tajam); < 1 sebaliknya
+			// melebarkan jadi lebih rata. pow() tidak mengecilkan lebar jalur
 			// peralihan sedia ada, jadi selamat drpd artifak cincin/tangga.
 			falloff = pow(domeFalloff, uFeaturePeakSharpness[i]);
 		}
