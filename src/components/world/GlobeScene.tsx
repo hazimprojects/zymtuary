@@ -144,11 +144,14 @@ export function GlobeScene({
 
 		ambColor.current.copy(SPACE_AMB).lerp(INNER_AMB, blend);
 		if (ambLightRef.current) {
-			ambLightRef.current.intensity = THREE.MathUtils.lerp(0.38, 0.55, blend);
+			// Ambien lebih terang dalam atmosfera (bukan 0.55) — pokok/objek 3D
+			// lain kelihatan gelap/hilang berbanding tanah Luminara yang lebih
+			// gelap pada sisi terlindung cahaya tanpa ini.
+			ambLightRef.current.intensity = THREE.MathUtils.lerp(0.38, 0.85, blend);
 			ambLightRef.current.color.copy(ambColor.current);
 		}
 		if (dirLightRef.current) {
-			dirLightRef.current.intensity = THREE.MathUtils.lerp(0.85, 1.1, blend);
+			dirLightRef.current.intensity = THREE.MathUtils.lerp(0.85, 1.25, blend);
 		}
 
 		if (camera instanceof THREE.PerspectiveCamera) {
