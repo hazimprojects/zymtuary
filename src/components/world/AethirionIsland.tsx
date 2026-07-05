@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS } from './worldGlobeConfig';
+import { GLOBE_RADIUS, seededRng } from './worldGlobeConfig';
+import { buildSpriteTexture } from './FeatureParticles';
 
 type AethirionIslandProps = {
 	/** 0 di orbit jauh, 1 dalam atmosfera/descent — pulau hanya kelihatan
@@ -10,21 +11,30 @@ type AethirionIslandProps = {
 	atmosphereBlendRef: React.MutableRefObject<number>;
 };
 
-/** Gumpalan batu rendah-poligon — icosahedron disubdivide sekali dengan
- * jitter LEMBUT (bukan melampau) per-verteks — cukup untuk lasak/tidak
- * simetri sempurna, tapi masih kelihatan seperti batu bulat, bukan
- * kristal bergerigi tajam. */
-function buildRockGeometry(radius: number, seed: number, flatten: number): THREE.BufferGeometry {
-	const geo = new THREE.IcosahedronGeometry(radius, 1);
+/**
+ * Bongkah "mesa terbalik" — rata/lebar di atas (tempat jungle tumbuh),
+ * menirus ke satu hujung sempit/jengkel di bawah (gema rujukan: pulau
+ * terapung gaya Pandora/Avatar dengan air terjun menitis dari hujung
+ * bawah). Permukaan ATAS geometri sentiasa pada y=0 tempatan supaya pokok
+ * boleh diletak terus di y=0 tanpa kira offset per-pulau.
+ */
+function buildMesaGeometry(topRadius: number, bottomRadius: number, height: number, seed: number): THREE.BufferGeometry {
+	const geo = new THREE.CylinderGeometry(topRadius, bottomRadius, height, 8, 5, false);
+	geo.translate(0, -height / 2, 0);
 	const pos = geo.attributes.position;
 	for (let i = 0; i < pos.count; i++) {
 		const x = pos.getX(i);
 		const y = pos.getY(i);
 		const z = pos.getZ(i);
+		const depthT = THREE.MathUtils.clamp(-y / height, 0, 1);
 		const n1 = Math.sin(i * 12.9898 + seed * 3.7) * 43758.5453;
 		const n2 = Math.sin(i * 78.233 + seed * 9.1) * 12543.231;
-		const jitter = 0.9 + Math.abs(n1 - Math.floor(n1)) * 0.14 + Math.abs(n2 - Math.floor(n2)) * 0.06;
-		pos.setXYZ(i, x * jitter, y * jitter * flatten, z * jitter);
+		const f1 = Math.abs(n1 - Math.floor(n1));
+		const f2 = Math.abs(n2 - Math.floor(n2));
+		// Jengkel LEMBUT di atas, makin jengkel/tidak sekata menghampiri hujung
+		// bawah — kesan batu merekah/runtuh di mana air terjun tercurah keluar.
+		const jitter = 0.92 + f1 * 0.12 + f2 * 0.06 + depthT * f1 * 0.4;
+		pos.setXYZ(i, x * jitter, y, z * jitter);
 	}
 	geo.computeVertexNormals();
 	return geo;
@@ -38,53 +48,140 @@ function buildTreeGeometry() {
 	return { trunk, canopy };
 }
 
-type IslandSpec = { offset: [number, number, number]; radius: number; seed: number; flatten: number };
+type IslandSpec = {
+	offset: [number, number, number];
+	topRadius: number;
+	bottomRadius: number;
+	height: number;
+	seed: number;
+};
 
-/** Kelompok — satu pulau utama + beberapa pulau kecil di sekelilingnya,
- * bukan satu bongkah tunggal terlalu geometri. */
+/** Kelompok — satu pulau utama + beberapa pulau kecil di sekelilingnya
+ * (pada altitud berlainan, macam rujukan), semuanya bentuk mesa terbalik
+ * yang sama, bukan gumpalan batu bulat. */
 const ISLAND_SPECS: IslandSpec[] = [
-	{ offset: [0, 0, 0], radius: 0.12, seed: 11, flatten: 0.7 },
-	{ offset: [0.21, -0.06, 0.05], radius: 0.045, seed: 23, flatten: 0.72 },
-	{ offset: [-0.18, 0.02, -0.08], radius: 0.04, seed: 37, flatten: 0.7 },
-	{ offset: [0.03, -0.08, -0.2], radius: 0.032, seed: 51, flatten: 0.74 },
-	{ offset: [-0.1, 0.05, 0.18], radius: 0.028, seed: 64, flatten: 0.68 },
+	{ offset: [0, 0, 0], topRadius: 0.16, bottomRadius: 0.018, height: 0.26, seed: 11 },
+	{ offset: [0.26, 0.04, 0.1], topRadius: 0.07, bottomRadius: 0.01, height: 0.13, seed: 23 },
+	{ offset: [-0.22, -0.09, -0.12], topRadius: 0.055, bottomRadius: 0.008, height: 0.1, seed: 37 },
+	{ offset: [0.06, -0.16, -0.24], topRadius: 0.045, bottomRadius: 0.007, height: 0.085, seed: 51 },
+	{ offset: [-0.14, 0.1, 0.22], topRadius: 0.04, bottomRadius: 0.006, height: 0.08, seed: 64 },
 ];
 
-/** Kedudukan pokok kecil di atas pulau utama (radius 0.12) — setiap satu
- * diorientasikan tegak keluar dari pusat pulau (macam pokok pada globe),
- * bukan ikut satu arah tetap yang boleh kelihatan tumbuh ke tepi. Jejari
- * (0.135-0.145) sengaja MELEBIHI radius pulau (0.12) supaya pangkal pokok
- * sentiasa berada di atas permukaan batu berjitar, bukan terbenam/terapung
- * pada cerun yang tidak rata. */
-const TREE_SPOTS: [number, number, number][] = [
-	[0.04, 0.13, 0.025],
-	[-0.05, 0.125, -0.03],
-	[0.012, 0.14, -0.055],
-	[-0.022, 0.128, 0.05],
-];
+/** Pokok tumbuh tegak (local +Y) di atas permukaan rata pulau utama (jauh
+ * lebih ramai drpd sebelum ini — kesan "jungle lebat" macam rujukan) +
+ * beberapa di pulau kecil pertama. */
+function buildTreeSpots(): { offset: [number, number, number]; islandIndex: number }[] {
+	const rng = seededRng(771);
+	const spots: { offset: [number, number, number]; islandIndex: number }[] = [];
+	const mainTop = ISLAND_SPECS[0].topRadius;
+	for (let i = 0; i < 11; i++) {
+		const r = Math.sqrt(rng()) * mainTop * 0.78;
+		const angle = rng() * Math.PI * 2;
+		spots.push({ offset: [Math.cos(angle) * r, 0, Math.sin(angle) * r], islandIndex: 0 });
+	}
+	const satTop = ISLAND_SPECS[1].topRadius;
+	for (let i = 0; i < 3; i++) {
+		const r = Math.sqrt(rng()) * satTop * 0.7;
+		const angle = rng() * Math.PI * 2;
+		spots.push({ offset: [Math.cos(angle) * r, 0, Math.sin(angle) * r], islandIndex: 1 });
+	}
+	return spots;
+}
+
+type WaterfallSpec = { islandIndex: number; localX: number; localZ: number; startDrop: number; length: number; width: number };
+
+/** Beberapa jalur air terjun tercurah dari hujung bawah pulau utama & satu
+ * pulau kecil — gema rujukan (air menitis dari bongkah batu terapung ke
+ * kabus di bawah). */
+function buildWaterfallSpecs(): WaterfallSpec[] {
+	const rng = seededRng(882);
+	const specs: WaterfallSpec[] = [];
+	const main = ISLAND_SPECS[0];
+	for (let i = 0; i < 5; i++) {
+		const r = main.bottomRadius + rng() * main.topRadius * 0.4;
+		const angle = rng() * Math.PI * 2;
+		specs.push({
+			islandIndex: 0,
+			localX: Math.cos(angle) * r,
+			localZ: Math.sin(angle) * r,
+			startDrop: main.height * (0.4 + rng() * 0.35),
+			length: main.height * (0.9 + rng() * 0.7),
+			width: 0.008 + rng() * 0.007,
+		});
+	}
+	const sat = ISLAND_SPECS[1];
+	specs.push({
+		islandIndex: 1,
+		localX: sat.bottomRadius * 1.5,
+		localZ: 0,
+		startDrop: sat.height * 0.5,
+		length: sat.height * 1.1,
+		width: 0.007,
+	});
+	return specs;
+}
+
+/** Tekstur jalur menegak (bukan gradien bulat) — legap dekat atas, pudar
+ * ke bawah, dengan sedikit "jalur" rawak supaya nampak macam aliran air,
+ * bukan asap rata. */
+function buildWaterfallTexture(): THREE.CanvasTexture {
+	const w = 16;
+	const h = 128;
+	const canvas = document.createElement('canvas');
+	canvas.width = w;
+	canvas.height = h;
+	const ctx = canvas.getContext('2d')!;
+	for (let x = 0; x < w; x++) {
+		const streak = 0.6 + Math.random() * 0.4;
+		for (let y = 0; y < h; y++) {
+			const fade = 1 - y / h;
+			const noise = 0.75 + Math.random() * 0.25;
+			const alpha = Math.max(0, streak * fade * fade * noise);
+			ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+			ctx.fillRect(x, y, 1, 1);
+		}
+	}
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.wrapS = THREE.RepeatWrapping;
+	tex.wrapT = THREE.RepeatWrapping;
+	return tex;
+}
+
+type MistPuff = { localOffset: THREE.Vector3; islandIndex: number; phase: number };
+
+function buildMistPuffs(): MistPuff[] {
+	const rng = seededRng(993);
+	const puffs: MistPuff[] = [];
+	const main = ISLAND_SPECS[0];
+	for (let i = 0; i < 14; i++) {
+		const angle = rng() * Math.PI * 2;
+		const r = rng() * main.topRadius * 0.5;
+		const y = -main.height * (1.1 + rng() * 0.6);
+		puffs.push({ localOffset: new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r), islandIndex: 0, phase: rng() });
+	}
+	return puffs;
+}
 
 const UP = new THREE.Vector3(0, 1, 0);
 
 export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandProps) {
 	const groupRef = useRef<THREE.Group>(null);
 
-	const rockGeometries = useMemo(() => ISLAND_SPECS.map((s) => buildRockGeometry(s.radius, s.seed, s.flatten)), []);
-	const { trunk, canopy } = useMemo(() => buildTreeGeometry(), []);
-	const treeTransforms = useMemo(
-		() =>
-			TREE_SPOTS.map((pos) => {
-				const dir = new THREE.Vector3(...pos).normalize();
-				return { position: new THREE.Vector3(...pos), quaternion: new THREE.Quaternion().setFromUnitVectors(UP, dir) };
-			}),
+	const rockGeometries = useMemo(
+		() => ISLAND_SPECS.map((s) => buildMesaGeometry(s.topRadius, s.bottomRadius, s.height, s.seed)),
 		[],
 	);
+	const { trunk, canopy } = useMemo(() => buildTreeGeometry(), []);
+	const treeSpots = useMemo(() => buildTreeSpots(), []);
+	const waterfallSpecs = useMemo(() => buildWaterfallSpecs(), []);
+	const mistPuffs = useMemo(() => buildMistPuffs(), []);
 
 	const rockMaterial = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				color: '#a89678',
+				color: '#8a7a62',
 				flatShading: true,
-				roughness: 0.85,
+				roughness: 0.88,
 				metalness: 0.03,
 				transparent: true,
 				opacity: 0,
@@ -99,20 +196,58 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 	const canopyMaterial = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				color: '#9ab85a',
+				color: '#7dbf52',
 				emissive: '#2a3a12',
 				emissiveIntensity: 0.4,
 				flatShading: true,
-				roughness: 0.75,
+				roughness: 0.7,
 				transparent: true,
 				opacity: 0,
 			}),
 		[],
 	);
+	const waterfallTexture = useMemo(() => buildWaterfallTexture(), []);
+	const waterfallMaterial = useMemo(
+		() =>
+			new THREE.MeshBasicMaterial({
+				map: waterfallTexture,
+				color: '#dff2ff',
+				transparent: true,
+				opacity: 0,
+				depthWrite: false,
+				side: THREE.DoubleSide,
+			}),
+		[waterfallTexture],
+	);
+	const mistTexture = useMemo(() => buildSpriteTexture(), []);
+	const mistMaterial = useMemo(
+		() =>
+			new THREE.PointsMaterial({
+				size: 0.05,
+				map: mistTexture,
+				color: '#eef8ff',
+				transparent: true,
+				opacity: 0,
+				depthWrite: false,
+				sizeAttenuation: true,
+			}),
+		[mistTexture],
+	);
 
-	const materials = useMemo(() => [rockMaterial, trunkMaterial, canopyMaterial], [rockMaterial, trunkMaterial, canopyMaterial]);
+	const materials = useMemo(
+		() => [rockMaterial, trunkMaterial, canopyMaterial, waterfallMaterial, mistMaterial],
+		[rockMaterial, trunkMaterial, canopyMaterial, waterfallMaterial, mistMaterial],
+	);
 
-	useFrame(({ clock }) => {
+	const waterfallGeos = useMemo(
+		() => waterfallSpecs.map((w) => new THREE.PlaneGeometry(w.width, w.length, 1, 6)),
+		[waterfallSpecs],
+	);
+
+	const mistPositions = useMemo(() => new Float32Array(mistPuffs.length * 3), [mistPuffs.length]);
+	const mistGeomRef = useRef<THREE.BufferGeometry>(null);
+
+	useFrame(({ clock }, delta) => {
 		const t = clock.elapsedTime;
 		// Sama seperti kanun: "tidak pernah diam di satu kedudukan cukup lama
 		// untuk dipetakan" — kedudukan dikira terus daripada masa, hanyut
@@ -126,14 +261,27 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 			groupRef.current.position.set(ring * Math.sin(theta) * altitude, y * altitude, ring * Math.cos(theta) * altitude);
 			// Putar mengufuk (paksi-Y) sahaja — bukan senget/goyang (paksi-Z),
 			// supaya pulau kekal "atas" konsisten macam ada gravity sendiri
-			// dan pokok sentiasa kelihatan tegak, bukan senget ikut putaran.
+			// (rujukan: jungle sentiasa di atas, air terjun sentiasa jatuh ke
+			// bawah, tidak kira di mana pulau ini hanyut mengelilingi globe).
 			groupRef.current.rotation.y = t * 0.12;
 		}
+
+		waterfallTexture.offset.y -= delta * 0.6;
+
+		for (let i = 0; i < mistPuffs.length; i++) {
+			const p = mistPuffs[i];
+			const bob = Math.sin(t * 0.3 + p.phase * Math.PI * 2) * 0.012;
+			mistPositions[i * 3] = p.localOffset.x;
+			mistPositions[i * 3 + 1] = p.localOffset.y + bob;
+			mistPositions[i * 3 + 2] = p.localOffset.z;
+		}
+		if (mistGeomRef.current) mistGeomRef.current.attributes.position.needsUpdate = true;
 
 		const blend = atmosphereBlendRef.current;
 		const targetOpacity = THREE.MathUtils.clamp((blend - 0.25) / 0.4, 0, 1);
 		for (const mat of materials) {
-			mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetOpacity, 0.05);
+			const target = mat === waterfallMaterial ? targetOpacity * 0.8 : mat === mistMaterial ? targetOpacity * 0.5 : targetOpacity;
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 	});
@@ -143,12 +291,38 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 			{ISLAND_SPECS.map((spec, i) => (
 				<mesh key={i} geometry={rockGeometries[i]} material={rockMaterial} position={spec.offset} />
 			))}
-			{treeTransforms.map((tr, i) => (
-				<group key={i} position={tr.position} quaternion={tr.quaternion}>
-					<mesh geometry={trunk} material={trunkMaterial} />
-					<mesh geometry={canopy} material={canopyMaterial} />
-				</group>
-			))}
+			{treeSpots.map((spot, i) => {
+				const islandOffset = ISLAND_SPECS[spot.islandIndex].offset;
+				const position: [number, number, number] = [
+					islandOffset[0] + spot.offset[0],
+					islandOffset[1] + spot.offset[1],
+					islandOffset[2] + spot.offset[2],
+				];
+				return (
+					<group key={i} position={position}>
+						<mesh geometry={trunk} material={trunkMaterial} />
+						<mesh geometry={canopy} material={canopyMaterial} />
+					</group>
+				);
+			})}
+			{waterfallSpecs.map((w, i) => {
+				const islandOffset = ISLAND_SPECS[w.islandIndex].offset;
+				const centerY = islandOffset[1] - w.startDrop - w.length / 2;
+				return (
+					<mesh
+						key={i}
+						geometry={waterfallGeos[i]}
+						material={waterfallMaterial}
+						position={[islandOffset[0] + w.localX, centerY, islandOffset[2] + w.localZ]}
+					/>
+				);
+			})}
+			<points>
+				<bufferGeometry ref={mistGeomRef}>
+					<bufferAttribute attach="attributes-position" args={[mistPositions, 3]} count={mistPositions.length / 3} itemSize={3} />
+				</bufferGeometry>
+				<primitive object={mistMaterial} attach="material" />
+			</points>
 		</group>
 	);
 }
