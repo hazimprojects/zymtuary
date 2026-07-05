@@ -40,11 +40,11 @@ function buildMesaGeometry(topRadius: number, bottomRadius: number, height: numb
 	return geo;
 }
 
-function buildTreeGeometry() {
-	const trunk = new THREE.CylinderGeometry(0.004, 0.006, 0.028, 5);
-	trunk.translate(0, 0.014, 0);
-	const canopy = new THREE.ConeGeometry(0.017, 0.038, 6);
-	canopy.translate(0, 0.031, 0);
+function buildTreeGeometry(scale: number) {
+	const trunk = new THREE.CylinderGeometry(0.004 * scale, 0.006 * scale, 0.028 * scale, 5);
+	trunk.translate(0, 0.014 * scale, 0);
+	const canopy = new THREE.ConeGeometry(0.017 * scale, 0.038 * scale, 6);
+	canopy.translate(0, 0.031 * scale, 0);
 	return { trunk, canopy };
 }
 
@@ -56,16 +56,28 @@ type IslandSpec = {
 	seed: number;
 };
 
+// Pulau nampak terlalu besar/rendah berbanding globe — kecilkan sedikit
+// (bukan drastik) supaya nisbah skala lebih munasabah berbanding permukaan.
+const ISLAND_SCALE = 0.7;
+
 /** Kelompok — satu pulau utama + beberapa pulau kecil di sekelilingnya
  * (pada altitud berlainan, macam rujukan), semuanya bentuk mesa terbalik
  * yang sama, bukan gumpalan batu bulat. */
-const ISLAND_SPECS: IslandSpec[] = [
+const RAW_ISLAND_SPECS: IslandSpec[] = [
 	{ offset: [0, 0, 0], topRadius: 0.16, bottomRadius: 0.018, height: 0.26, seed: 11 },
 	{ offset: [0.26, 0.04, 0.1], topRadius: 0.07, bottomRadius: 0.01, height: 0.13, seed: 23 },
 	{ offset: [-0.22, -0.09, -0.12], topRadius: 0.055, bottomRadius: 0.008, height: 0.1, seed: 37 },
 	{ offset: [0.06, -0.16, -0.24], topRadius: 0.045, bottomRadius: 0.007, height: 0.085, seed: 51 },
 	{ offset: [-0.14, 0.1, 0.22], topRadius: 0.04, bottomRadius: 0.006, height: 0.08, seed: 64 },
 ];
+
+const ISLAND_SPECS: IslandSpec[] = RAW_ISLAND_SPECS.map((s) => ({
+	offset: [s.offset[0] * ISLAND_SCALE, s.offset[1] * ISLAND_SCALE, s.offset[2] * ISLAND_SCALE],
+	topRadius: s.topRadius * ISLAND_SCALE,
+	bottomRadius: s.bottomRadius * ISLAND_SCALE,
+	height: s.height * ISLAND_SCALE,
+	seed: s.seed,
+}));
 
 /** Pokok tumbuh tegak (local +Y) di atas permukaan rata pulau utama (jauh
  * lebih ramai drpd sebelum ini — kesan "jungle lebat" macam rujukan) +
@@ -174,7 +186,7 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 		() => ISLAND_SPECS.map((s) => buildMesaGeometry(s.topRadius, s.bottomRadius, s.height, s.seed)),
 		[],
 	);
-	const { trunk, canopy } = useMemo(() => buildTreeGeometry(), []);
+	const { trunk, canopy } = useMemo(() => buildTreeGeometry(ISLAND_SCALE), []);
 	const treeSpots = useMemo(() => buildTreeSpots(), []);
 	const waterfallSpecs = useMemo(() => buildWaterfallSpecs(), []);
 	const mistPuffs = useMemo(() => buildMistPuffs(), []);
@@ -258,7 +270,8 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 		const theta = t * 0.05 + 1.4;
 		const y = 0.03 + 0.06 * Math.sin(t * 0.09);
 		const ring = Math.sqrt(Math.max(0, 1 - y * y));
-		const altitude = GLOBE_RADIUS + 0.22 + Math.sin(t * 0.6) * 0.015;
+		// Jauhkan lagi drpd permukaan globe — sebelum ini terlalu rendah/rapat.
+		const altitude = GLOBE_RADIUS + 0.48 + Math.sin(t * 0.6) * 0.015;
 
 		if (groupRef.current) {
 			groupRef.current.position.set(ring * Math.sin(theta) * altitude, y * altitude, ring * Math.cos(theta) * altitude);

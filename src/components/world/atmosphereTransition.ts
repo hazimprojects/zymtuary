@@ -56,7 +56,9 @@ function lerpRgb(a: [number, number, number], b: [number, number, number], t: nu
 
 /** 0 = angkasa jauh, 1 = dalam atmosfera — zon perantaraan untuk transisi lancar */
 export function getAtmosphereBlend(distance: number): number {
-	const outer = 6.2;
+	// Diluaskan sepadan dgn ZOOM_THRESHOLDS yg lebih tinggi (ruang udara lebih
+	// lapang) — kekalkan nisbah jarak yg sama drpd shellEdge/innerEdge.
+	const outer = 7.4;
 	const shellEdge = ZOOM_THRESHOLDS.atmosphereEnter;
 	const innerEdge = ZOOM_THRESHOLDS.descentEnter;
 	const core = GLOBE_RADIUS + 0.12;

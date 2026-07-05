@@ -17,7 +17,7 @@ export function AtmosphereVeil({ intensity = 0.025 }: AtmosphereVeilProps) {
 
 	return (
 		<mesh renderOrder={4}>
-			<sphereGeometry args={[GLOBE_RADIUS * 1.14, 32, 32]} />
+			<sphereGeometry args={[GLOBE_RADIUS * 1.24, 32, 32]} />
 			<meshBasicMaterial
 				ref={matRef}
 				color="#a8c4d8"

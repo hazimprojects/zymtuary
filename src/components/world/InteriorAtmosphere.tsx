@@ -30,11 +30,14 @@ export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: Inter
 		[baseOpacities],
 	);
 
+	// Awan kekal pada beberapa tingkat rendah — atmosfera (skyHaze di bawah)
+	// diletak JAUH lebih tinggi drpd tingkat awan tertinggi, supaya ada ruang
+	// udara lapang antara awan & tepi atmosfera, bukan berhimpit rapat.
 	const shellRadii = useMemo(
 		() =>
 			isMobile
-				? [GLOBE_RADIUS + 0.16, GLOBE_RADIUS + 0.4]
-				: [GLOBE_RADIUS + 0.12, GLOBE_RADIUS + 0.28, GLOBE_RADIUS + 0.48],
+				? [GLOBE_RADIUS + 0.2, GLOBE_RADIUS + 0.5]
+				: [GLOBE_RADIUS + 0.15, GLOBE_RADIUS + 0.35, GLOBE_RADIUS + 0.6],
 		[isMobile],
 	);
 
@@ -95,7 +98,7 @@ export function InteriorAtmosphere({ interiorBlendRef, isMobile = false }: Inter
 			</group>
 
 			<mesh ref={skyHazeRef} renderOrder={5}>
-				<sphereGeometry args={[GLOBE_RADIUS + 0.62, 32, 32]} />
+				<sphereGeometry args={[GLOBE_RADIUS + 1.6, 32, 32]} />
 				<meshBasicMaterial
 					color="#b8d4f0"
 					transparent
