@@ -209,11 +209,17 @@ function buildCloudPuffs(): CloudPuff[] {
 			const cv = Math.sin(angle) * r;
 			const puffsInClump = 7 + Math.floor(rng() * 5);
 
+			// Kabus hutan MESTI terapung DI ATAS puncak kanopi pokok, bukan di
+			// paras/bawahnya — pokok (Vegetation.tsx) boleh capai ~0.05 unit di
+			// atas permukaan, jadi baseHeight rendah (0.03-0.08) sebelum ini
+			// bertindih/di bawah kanopi utk kawasan hutan. Gunung kekal rendah
+			// (kabus kaki bukit), hutan/pokok dinaikkan dgn ketara.
+			const isForestCloud = feature.type === 'green' || feature.type === 'tree';
 			for (let p = 0; p < puffsInClump; p++) {
 				const ou = cu + (rng() - 0.5) * 0.05;
 				const ov = cv + (rng() - 0.5) * 0.05;
 				const dir = new THREE.Vector3(...localToDir(center, u, v, ou, ov));
-				const baseHeight = 0.03 + rng() * 0.05;
+				const baseHeight = isForestCloud ? 0.1 + rng() * 0.08 : 0.03 + rng() * 0.05;
 				puffs.push({ dir, baseHeight, phase: rng(), speed: 0.15 + rng() * 0.2, warm });
 			}
 		}

@@ -304,7 +304,11 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 		if (mistGeomRef.current) mistGeomRef.current.attributes.position.needsUpdate = true;
 
 		const blend = atmosphereBlendRef.current;
-		const targetOpacity = THREE.MathUtils.clamp((blend - 0.25) / 0.4, 0, 1);
+		// Sama macam pokok Heartbloom — pulau terapung ini patut kelihatan sbg
+		// mercu tanda walau dari orbit jauh (lantai/rock sentiasa kelihatan
+		// separuh, bukan hilang terus), jadi opacity ada lantai minimum (0.5)
+		// drpd 0 — kekayaan penuh (air terjun/kabus) tetap hanya dlm atmosfera.
+		const targetOpacity = THREE.MathUtils.lerp(0.5, 1, THREE.MathUtils.clamp((blend - 0.15) / 0.4, 0, 1));
 		for (const mat of materials) {
 			const target = mat === waterfallMaterial ? targetOpacity * 0.8 : mat === mistMaterial ? targetOpacity * 0.5 : targetOpacity;
 			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
