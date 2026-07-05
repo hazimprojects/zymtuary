@@ -432,7 +432,7 @@ export const MAX_RIVER_SEGMENTS = 10;
  * (muara), dengan satu anak sungai (tributary) yang menyatu di tengah,
  * dijana melalui gelek rawak (meander) supaya tidak jadi garis lurus.
  */
-function generateRiverNetwork(river: RiverNetwork, maxSegments: number): Segment[] {
+export function generateRiverNetwork(river: RiverNetwork, maxSegments: number): Segment[] {
 	const center = directionFromThetaY(river.center.theta, river.center.y);
 	const { u, v } = tangentBasis(center);
 	const rng = seededRng(river.seed);

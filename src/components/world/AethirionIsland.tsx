@@ -52,12 +52,15 @@ const ISLAND_SPECS: IslandSpec[] = [
 
 /** Kedudukan pokok kecil di atas pulau utama (radius 0.12) — setiap satu
  * diorientasikan tegak keluar dari pusat pulau (macam pokok pada globe),
- * bukan ikut satu arah tetap yang boleh kelihatan tumbuh ke tepi. */
+ * bukan ikut satu arah tetap yang boleh kelihatan tumbuh ke tepi. Jejari
+ * (0.135-0.145) sengaja MELEBIHI radius pulau (0.12) supaya pangkal pokok
+ * sentiasa berada di atas permukaan batu berjitar, bukan terbenam/terapung
+ * pada cerun yang tidak rata. */
 const TREE_SPOTS: [number, number, number][] = [
-	[0.035, 0.115, 0.02],
-	[-0.045, 0.11, -0.025],
-	[0.01, 0.118, -0.05],
-	[-0.02, 0.112, 0.045],
+	[0.04, 0.13, 0.025],
+	[-0.05, 0.125, -0.03],
+	[0.012, 0.14, -0.055],
+	[-0.022, 0.128, 0.05],
 ];
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -95,7 +98,15 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 	);
 	const canopyMaterial = useMemo(
 		() =>
-			new THREE.MeshStandardMaterial({ color: '#6a8a4a', flatShading: true, roughness: 0.8, transparent: true, opacity: 0 }),
+			new THREE.MeshStandardMaterial({
+				color: '#9ab85a',
+				emissive: '#2a3a12',
+				emissiveIntensity: 0.4,
+				flatShading: true,
+				roughness: 0.75,
+				transparent: true,
+				opacity: 0,
+			}),
 		[],
 	);
 
@@ -113,8 +124,10 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 
 		if (groupRef.current) {
 			groupRef.current.position.set(ring * Math.sin(theta) * altitude, y * altitude, ring * Math.cos(theta) * altitude);
-			groupRef.current.rotation.y = t * 0.15;
-			groupRef.current.rotation.z = Math.sin(t * 0.3) * 0.08;
+			// Putar mengufuk (paksi-Y) sahaja — bukan senget/goyang (paksi-Z),
+			// supaya pulau kekal "atas" konsisten macam ada gravity sendiri
+			// dan pokok sentiasa kelihatan tegak, bukan senget ikut putaran.
+			groupRef.current.rotation.y = t * 0.12;
 		}
 
 		const blend = atmosphereBlendRef.current;
