@@ -188,9 +188,20 @@ export type LandmarkFeature = {
 	y: number;
 	radius: number;
 	/** Pengganda ketinggian relief pada terrainHeight (lalai 1 jika tiada) —
-	 * dipakai supaya satu gunung boleh jadi "paling tinggi" berbanding
-	 * gunung lain jenis sama, tanpa perlu jenis landmark baharu. */
+	 * dipakai supaya satu gunung/lembangan boleh lebih tinggi/dalam drpd
+	 * ciri lain jenis sama, tanpa perlu jenis landmark baharu. */
 	heightScale?: number;
+	/** Jika benar, relief & warna dibentuk sebagai GEGELANG (cincin) pada
+	 * jejari `radius`, bukan kubah/lembangan penuh dari pusat — utk banjaran
+	 * gunung yang mengelilingi lembah/puncak sebagai TERRAIN sebenar
+	 * (bukan objek 3D berasingan). */
+	ringMode?: boolean;
+	/** Lebar (radian) jalur gegelang di sekitar `radius`, hanya relevan jika ringMode. */
+	ringWidth?: number;
+	/** <1 = puncak lebih tirus/runcing (bukan kubah bulat); 1 = lalai. */
+	peakSharpness?: number;
+	/** Jika benar, hujung puncak (align hampir 1) diwarna putih-biru salji. */
+	snowCap?: boolean;
 };
 
 export function deg(d: number): number {
@@ -220,26 +231,60 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// MendariTownscape.tsx.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.13 },
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
-	// Lembah tasik dilindungi benteng gunung ganang (bukan menjulang tinggi),
-	// pulau kecil tempat Pokok Heartbloom tumbuh di tengah tasik. Jauh ke
-	// dalam Luminara (y tinggi, jauh drpd Equilara), TAPI dijauhkan drpd
-	// kutub sebenar (~0.85+) sebab geometri sfera rendah-poligon paling
-	// terjejas berhampiran kutub (sama sebab rekahan Ignisara/Nivira
-	// dijauhkan drpd kutub). Type 'water' — lembah ini tasik, bukan hutan
-	// (pokok gergasi tunggal dilayan brpisah dlm HeartbloomTree.tsx, bukan
-	// hutan lebat Vegetation.tsx). Benteng gunung ganang: TerrainRings.tsx.
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.78, radius: 0.1 },
+	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
+	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
+	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
+	// berasingan), pulau kecil tempat Pokok Heartbloom tumbuh di tengah
+	// tasik. Jauh ke dalam Luminara (y tinggi, jauh drpd Equilara), TAPI
+	// dijauhkan drpd kutub sebenar (~0.85+) sebab geometri sfera
+	// rendah-poligon paling terjejas berhampiran kutub. Type 'water' —
+	// lembah ini tasik, bukan hutan (pokok gergasi tunggal dilayan
+	// berasingan dlm HeartbloomTree.tsx, bukan hutan lebat Vegetation.tsx).
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.78, radius: 0.1, heightScale: 2.8 },
+	{
+		id: 'heartbloom-benteng',
+		nama: 'Benteng Gunung Heartbloom',
+		type: 'mountain',
+		theta: deg(100),
+		y: 0.78,
+		radius: 0.22,
+		ringWidth: 0.055,
+		ringMode: true,
+		heightScale: 0.35,
+	},
 	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
 	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
-	// Gunung obsidian PALING TINGGI di Noctira (radius lebih besar drpd
-	// gunung biasa), berpuncak ais (ObsidianHollowPeak.tsx), dikelilingi
-	// banjaran lebih rendah (TerrainRings.tsx). Kedudukan bertentangan
-	// dengan Heartbloom Isle merentasi globe (theta 180° berbeza, y
-	// disongsangkan) — sama semangat dgn Ignisara/Nivira yang bertentangan,
-	// tapi TIDAK berkongsi lokasi sebenar dgn mana-mana rekahan.
-	{ id: 'obsidian-hollow', nama: 'Obsidian Hollow', type: 'mountain', theta: deg(280), y: -0.78, radius: 0.24, heightScale: 1.45 },
+	// Gunung obsidian PALING TINGGI di Noctira (heightScale), puncak TIRUS
+	// (peakSharpness < 1, bukan kubah/bukit) berpuncak ais (snowCap —
+	// diwarna terus dlm shader, bukan objek kon berasingan), dikelilingi
+	// banjaran lebih rendah berbentuk GEGELANG (ringMode). Kedudukan
+	// bertentangan dengan Heartbloom Isle merentasi globe (theta 180°
+	// berbeza, y disongsangkan) — sama semangat dgn Ignisara/Nivira yang
+	// bertentangan, tapi TIDAK berkongsi lokasi sebenar dgn mana-mana rekahan.
+	{
+		id: 'obsidian-hollow',
+		nama: 'Obsidian Hollow',
+		type: 'mountain',
+		theta: deg(280),
+		y: -0.78,
+		radius: 0.24,
+		heightScale: 1.45,
+		peakSharpness: 0.4,
+		snowCap: true,
+	},
+	{
+		id: 'obsidian-hollow-banjaran',
+		nama: 'Banjaran Obsidian Hollow',
+		type: 'mountain',
+		theta: deg(280),
+		y: -0.78,
+		radius: 0.34,
+		ringWidth: 0.06,
+		ringMode: true,
+		heightScale: 0.5,
+	},
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
 	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2 },
 	{ id: 'padang-pasir', nama: 'Padang Pasir', type: 'arid', theta: deg(300), y: -0.42, radius: 0.18 },
@@ -263,13 +308,17 @@ export function findLandmarkDirection(id: string): [number, number, number] {
 	return directionFromThetaY(feature.theta, feature.y);
 }
 
-export const MAX_FEATURES = 16;
+export const MAX_FEATURES = 24;
 
 export function buildFeatureUniformArrays(): {
 	dirs: [number, number, number][];
 	types: number[];
 	radii: number[];
 	heightScales: number[];
+	ringModes: number[];
+	ringWidths: number[];
+	peakSharpnesses: number[];
+	snowCaps: number[];
 	count: number;
 } {
 	return {
@@ -277,6 +326,10 @@ export function buildFeatureUniformArrays(): {
 		types: LANDMARK_FEATURES.map((f) => LANDMARK_TYPE_CODE[f.type]),
 		radii: LANDMARK_FEATURES.map((f) => f.radius),
 		heightScales: LANDMARK_FEATURES.map((f) => f.heightScale ?? 1),
+		ringModes: LANDMARK_FEATURES.map((f) => (f.ringMode ? 1 : 0)),
+		ringWidths: LANDMARK_FEATURES.map((f) => f.ringWidth ?? 0.05),
+		peakSharpnesses: LANDMARK_FEATURES.map((f) => f.peakSharpness ?? 1),
+		snowCaps: LANDMARK_FEATURES.map((f) => (f.snowCap ? 1 : 0)),
 		count: LANDMARK_FEATURES.length,
 	};
 }
