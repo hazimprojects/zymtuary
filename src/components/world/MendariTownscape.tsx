@@ -12,14 +12,10 @@ type MendariTownscapeProps = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-const MENDARI_RADIUS = 0.13;
-
-// Kebun/taman menghuni SATU sektor sudut kota (bukan serata) — kesan
-// "daerah taman" tersendiri dlm kota, gema kota-taman (Codex 5.2: "setiap
-// bumbung rumah dilitupi bunga bougainvillea", "kota-taman yang terlalu
-// sempurna"). Rumah dielakkan drpd sektor ini.
-const GARDEN_CENTER_ANGLE = Math.PI * 0.25;
-const GARDEN_HALF_SPAN = 0.95;
+// MESTI sepadan dgn radius 'mendari-kota' dlm worldGlobeConfig.ts — jejari
+// dibesarkan drpd 0.13 asal (~1.7x, luas ~3x) supaya kota "3x lebih besar"
+// tanpa bertindih dgn Laut Keemasan yg berdekatan.
+const MENDARI_RADIUS = 0.22;
 
 function angularDist(a: number, b: number): number {
 	return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
@@ -35,6 +31,36 @@ function buildIrregularBoundary(rng: () => number): (theta: number) => number {
 	return (theta: number) => 1 + a1 * Math.cos(theta + p1) + a2 * Math.cos(2 * theta + p2);
 }
 
+/**
+ * MENDARI ialah kota berbilang KAWASAN bernama (Codex/zip-model.json) —
+ * bukan satu bandar rata:
+ *  - Veilrose Quarter ("jantung Mendari") — pasar mawar terbuka, jambu→fuchsia.
+ *  - Faceless Bazaar — kedai berpindah susun setiap kunjungan, tak pernah tetap.
+ *  - Idlewick — neon pastel + muzik tak henti (gema carousel sedia ada).
+ *  - Harlequin's Corner — lebih kecil & intim, kopi & lilin.
+ *  - Velvet Alcove — kawasan paling teduh, pokok berdaun jambu lembut.
+ * Setiap satu diberi SEKTOR SUDUT sendiri (bukan serata) supaya "dikumpul
+ * bersama" sbg kawasan tersendiri dlm satu kota, sepadan lore. Rumah biasa
+ * mengisi jurang antara sektor.
+ */
+type ZoneId = 'veilrose' | 'faceless' | 'idlewick' | 'harlequin' | 'velvet';
+type ZoneDef = { id: ZoneId; center: number; halfSpan: number };
+
+const ZONES: ZoneDef[] = [
+	{ id: 'veilrose', center: 0.0, halfSpan: 0.55 }, // jantung — sektor terbesar
+	{ id: 'velvet', center: 1.35, halfSpan: 0.42 },
+	{ id: 'faceless', center: 2.8, halfSpan: 0.45 },
+	{ id: 'idlewick', center: 4.2, halfSpan: 0.38 },
+	{ id: 'harlequin', center: 5.4, halfSpan: 0.28 }, // "lebih kecil & intim" — sektor terkecil
+];
+
+function classifyZone(angle: number): ZoneId | null {
+	for (const z of ZONES) {
+		if (angularDist(angle, z.center) < z.halfSpan) return z.id;
+	}
+	return null;
+}
+
 type HouseSpot = {
 	position: THREE.Vector3;
 	quaternion: THREE.Quaternion;
@@ -43,24 +69,24 @@ type HouseSpot = {
 };
 
 const HOUSE_VARIANT_COUNT = 3;
-const INNER_EXCLUSION = 0.032; // ruang utk carousel + air pancut di tengah
+const INNER_EXCLUSION = 0.05; // ruang utk carousel + air pancut di tengah
 
-/** Rumah diserak organik (radial + sempadan tak sekata), MENGELAK sektor
- * taman — kesan "kota besar" berjalan-jalur, bukan cakera genap satu
- * bentuk rumah berulang. */
+/** Rumah "biasa" (bukan kawasan bernama) mengisi JURANG antara sektor —
+ * diserak organik (radial + sempadan tak sekata), MENGELAK kelima-lima
+ * sektor kawasan supaya tidak bertindih dgn kandungan kawasan tersebut. */
 function buildHouseSpots(count: number): HouseSpot[] {
 	const spots: HouseSpot[] = [];
 	const center = findLandmarkDirection('mendari-kota');
 	const { u, v } = tangentBasis(center);
 	const rng = seededRng(6501);
 	const boundary = buildIrregularBoundary(rng);
-	const maxAttempts = count * 6;
+	const maxAttempts = count * 8;
 
 	let attempts = 0;
 	while (spots.length < count && attempts < maxAttempts) {
 		attempts++;
 		const angle = rng() * Math.PI * 2;
-		if (angularDist(angle, GARDEN_CENTER_ANGLE) < GARDEN_HALF_SPAN) continue;
+		if (classifyZone(angle) !== null) continue;
 
 		const maxR = MENDARI_RADIUS * 0.92 * boundary(angle);
 		const r = INNER_EXCLUSION + Math.sqrt(rng()) * (maxR - INNER_EXCLUSION);
@@ -79,16 +105,16 @@ function buildHouseSpots(count: number): HouseSpot[] {
 	return spots;
 }
 
-type GardenSpot = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number };
+type ZoneSpot = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number; colorIndex: number };
 
-/** Pokok & rumpun bunga taman — dlm sektor taman sahaja, gema "kota-taman". */
-function buildGardenSpots(treeCount: number, flowerCount: number): { trees: GardenSpot[]; flowers: GardenSpot[] } {
+/** Serak spot dlm SATU sektor zon (angle center±halfSpan), radial-uniform. */
+function buildZoneSpots(zone: ZoneDef, count: number, rMin: number, rMax: number, scaleMin: number, scaleMax: number, colorCount: number, seed: number): ZoneSpot[] {
 	const center = findLandmarkDirection('mendari-kota');
 	const { u, v } = tangentBasis(center);
-	const rng = seededRng(6733);
-
-	const makeSpot = (rMin: number, rMax: number, scaleMin: number, scaleMax: number): GardenSpot => {
-		const angle = GARDEN_CENTER_ANGLE + (rng() - 0.5) * GARDEN_HALF_SPAN * 1.7;
+	const rng = seededRng(seed);
+	const spots: ZoneSpot[] = [];
+	for (let i = 0; i < count; i++) {
+		const angle = zone.center + (rng() - 0.5) * zone.halfSpan * 1.75;
 		const r = rMin + Math.sqrt(rng()) * (rMax - rMin);
 		const lu = Math.cos(angle) * r;
 		const lv = Math.sin(angle) * r;
@@ -96,24 +122,47 @@ function buildGardenSpots(treeCount: number, flowerCount: number): { trees: Gard
 		const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.003);
 		const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir);
 		quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
-		return { position, quaternion, scale: scaleMin + rng() * (scaleMax - scaleMin) };
-	};
-
-	const trees = Array.from({ length: treeCount }, () => makeSpot(INNER_EXCLUSION, MENDARI_RADIUS * 0.85, 0.7, 1.1));
-	const flowers = Array.from({ length: flowerCount }, () => makeSpot(INNER_EXCLUSION * 0.7, MENDARI_RADIUS * 0.9, 0.6, 1.2));
-	return { trees, flowers };
+		spots.push({
+			position,
+			quaternion,
+			scale: scaleMin + rng() * (scaleMax - scaleMin),
+			colorIndex: Math.floor(rng() * colorCount),
+		});
+	}
+	return spots;
 }
 
+/** PENTING: mergeBufferGeometries GAGAL (pulang null) jika ada campuran
+ * geometri BERINDEKS (Box/Cylinder/Cone/Sphere/Torus — indexed lalai) dgn
+ * geometri TAK BERINDEKS (Icosahedron/Octahedron/dll — PolyhedronGeometry
+ * sentiasa tak berindeks utk normal per-muka rata). toNonIndexed() SEMUA
+ * kepingan dahulu supaya seragam sebelum cantum — elak kegagalan senyap
+ * (yg sebelum ini menyebabkan fallback `?? pieces[0]` DIBUANG serta-merta
+ * oleh dispose() gelung sama, memutuskan geometri null pada peringkat
+ * render). toNonIndexed() pulangkan OBJEK SAMA jika geometri asal sudah
+ * tak berindeks — guna Set supaya tak dispose dua kali/dispose objek yg
+ * masih digunakan. */
 function mergePieces(pieces: THREE.BufferGeometry[]): THREE.BufferGeometry {
-	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
-	for (const p of pieces) p.dispose();
+	const nonIndexed = pieces.map((p) => p.toNonIndexed());
+	const merged = mergeBufferGeometries(nonIndexed, false);
+	if (!merged) throw new Error('mergePieces: mergeBufferGeometries gagal walau selepas toNonIndexed()');
+	const toDispose = new Set([...pieces, ...nonIndexed]);
+	for (const p of toDispose) p.dispose();
 	return merged;
 }
 
+function zoneDirPosition(zone: ZoneDef, r: number, centerDir: [number, number, number], u: [number, number, number], v: [number, number, number]): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
+	const lu = Math.cos(zone.center) * r;
+	const lv = Math.sin(zone.center) * r;
+	const dir = new THREE.Vector3(...localToDir(centerDir, u, v, lu, lv));
+	const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.003);
+	const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize());
+	return { position, quaternion };
+}
+
 /**
- * Menara loceng Mendari — mercu tanda kota (gema rujukan: menara jam/loceng
- * menjulang di atas bumbung rumah), diletak di tepi bertentangan drpd sektor
- * taman supaya jadi "penanda" bahagian bandar yg lain.
+ * Menara loceng Mendari — mercu tanda kota umum (bukan kawasan bernama),
+ * diletak di jurang antara Velvet Alcove & Faceless Bazaar.
  */
 function buildBellTowerGeo(): THREE.BufferGeometry {
 	const pieces: THREE.BufferGeometry[] = [];
@@ -124,9 +173,9 @@ function buildBellTowerGeo(): THREE.BufferGeometry {
 		pieces.push(g);
 		y += h;
 	};
-	add(0.021, 0.024, 0.05); // asas
-	add(0.017, 0.02, 0.035); // badan
-	add(0.014, 0.016, 0.022); // aras loceng
+	add(0.021, 0.024, 0.05);
+	add(0.017, 0.02, 0.035);
+	add(0.014, 0.016, 0.022);
 	const roof = new THREE.ConeGeometry(0.02, 0.03, 8);
 	roof.translate(0, y + 0.015, 0);
 	pieces.push(roof);
@@ -138,12 +187,9 @@ const HOUSE_WALL_COLORS = ['#d9b878', '#e0c290', '#cfae70'] as const;
 
 type HouseVariant = { wallGeo: THREE.BufferGeometry; roofGeo: THREE.BufferGeometry; bloomGeo: THREE.BufferGeometry };
 
-/** 3 bentuk rumah berlainan (pondok/rumah-teres/rumah-lebar) — kesan "kota
- * besar" pelbagai rupa, bukan satu bentuk berulang. Setiap satu ada
- * "bloom" (rumpun bunga bougainvillea kecil) di puncak bumbung — gema
- * langsung "setiap bumbung dilitupi bunga bougainvillea" (Codex 5.2). */
+/** 3 bentuk rumah berlainan (pondok/rumah-teres/rumah-lebar), setiap satu
+ * ada "bloom" bougainvillea di puncak bumbung. */
 function buildHouseVariants(): HouseVariant[] {
-	// V0 — pondok (asal).
 	const wall0 = new THREE.BoxGeometry(0.024, 0.02, 0.024);
 	wall0.translate(0, 0.01, 0);
 	const roof0 = new THREE.ConeGeometry(0.019, 0.016, 4);
@@ -152,7 +198,6 @@ function buildHouseVariants(): HouseVariant[] {
 	const bloom0 = new THREE.IcosahedronGeometry(0.007, 0);
 	bloom0.translate(0, 0.038, 0);
 
-	// V1 — rumah-teres (lebih tinggi & tirus).
 	const wall1 = new THREE.BoxGeometry(0.02, 0.032, 0.02);
 	wall1.translate(0, 0.016, 0);
 	const roof1 = new THREE.ConeGeometry(0.016, 0.02, 4);
@@ -161,7 +206,6 @@ function buildHouseVariants(): HouseVariant[] {
 	const bloom1 = new THREE.IcosahedronGeometry(0.0065, 0);
 	bloom1.translate(0, 0.053, 0);
 
-	// V2 — rumah lebar (kesan kedai/rumah agam kecil).
 	const wall2 = new THREE.BoxGeometry(0.033, 0.022, 0.026);
 	wall2.translate(0, 0.011, 0);
 	const roof2 = new THREE.ConeGeometry(0.023, 0.017, 4);
@@ -177,21 +221,88 @@ function buildHouseVariants(): HouseVariant[] {
 	];
 }
 
-function buildTreeGeometry() {
-	const trunk = new THREE.CylinderGeometry(0.0025, 0.0038, 0.018, 5);
-	trunk.translate(0, 0.009, 0);
-	const canopy = new THREE.IcosahedronGeometry(0.013, 1);
-	canopy.translate(0, 0.023, 0);
+// --- Veilrose Quarter: pasar mawar (gema VEILROSE_PALETTE — gold/pink/purple/cream) ---
+const VEILROSE_STALL_COLORS = ['#F2D9A0', '#E8A8A0', '#C9A0C4', '#FFF6E8'] as const;
+
+function buildVeilroseStallGeo(): THREE.BufferGeometry {
+	const counter = new THREE.BoxGeometry(0.02, 0.012, 0.014);
+	counter.translate(0, 0.006, 0);
+	const awning = new THREE.BoxGeometry(0.026, 0.003, 0.02);
+	awning.rotateX(-0.15);
+	awning.translate(0, 0.017, -0.004);
+	return mergePieces([counter, awning]);
+}
+
+function buildRoseBushGeo(): THREE.BufferGeometry {
+	const rng = seededRng(2201);
+	const pieces: THREE.BufferGeometry[] = [];
+	for (let j = 0; j < 4; j++) {
+		const g = new THREE.IcosahedronGeometry(0.0055 + rng() * 0.003, 0);
+		g.translate((rng() - 0.5) * 0.014, 0.005 + rng() * 0.004, (rng() - 0.5) * 0.014);
+		pieces.push(g);
+	}
+	return mergePieces(pieces);
+}
+
+// --- Faceless Bazaar: kedai tak simetri/senget, tona kelabu-mauve pudar (gema "tak pernah tetap") ---
+const FACELESS_SHOP_COLORS = ['#B0A89C', '#B5766E', '#9a8f9c', '#a89aa0'] as const;
+
+function buildFacelessShopGeo(): THREE.BufferGeometry {
+	const rng = seededRng(3302);
+	const box = new THREE.BoxGeometry(0.019 + rng() * 0.006, 0.017 + rng() * 0.006, 0.019 + rng() * 0.006);
+	box.rotateZ((rng() - 0.5) * 0.18);
+	box.rotateY((rng() - 0.5) * 0.3);
+	box.translate(0, 0.011, 0);
+	// Bumbung leper senget (bukan kon simetri) — kesan "tak pernah selesai/tetap".
+	const lid = new THREE.BoxGeometry(0.024, 0.004, 0.024);
+	lid.rotateZ((rng() - 0.5) * 0.35);
+	lid.translate(0, 0.021, 0);
+	return mergePieces([box, lid]);
+}
+
+// --- Idlewick: tiang lampu neon pastel + carousel (sedia ada) ---
+const IDLEWICK_NEON_COLORS = ['#f4b6d2', '#a6d8f0', '#f5eda0'] as const;
+
+function buildNeonLampGeo(): THREE.BufferGeometry {
+	const pole = new THREE.CylinderGeometry(0.0012, 0.0018, 0.026, 5);
+	pole.translate(0, 0.013, 0);
+	const bulb = new THREE.IcosahedronGeometry(0.005, 1);
+	bulb.translate(0, 0.028, 0);
+	return mergePieces([pole, bulb]);
+}
+
+// --- Harlequin's Corner: lampu lilin hangat + satu bangunan kecil intim ---
+function buildLanternGeo(): THREE.BufferGeometry {
+	const pole = new THREE.CylinderGeometry(0.001, 0.0015, 0.018, 5);
+	pole.translate(0, 0.009, 0);
+	const flame = new THREE.IcosahedronGeometry(0.0035, 0);
+	flame.translate(0, 0.019, 0);
+	return mergePieces([pole, flame]);
+}
+
+function buildCornerNookGeo(): { wallGeo: THREE.BufferGeometry; roofGeo: THREE.BufferGeometry } {
+	const wall = new THREE.BoxGeometry(0.028, 0.024, 0.024);
+	wall.translate(0, 0.012, 0);
+	const roof = new THREE.ConeGeometry(0.021, 0.018, 4);
+	roof.rotateY(Math.PI / 4);
+	roof.translate(0, 0.033, 0);
+	return { wallGeo: wall, roofGeo: roof };
+}
+
+// --- Velvet Alcove: pokok berdaun jambu lembut (retema drpd hijau generik) + katil bunga jambu ---
+function buildPinkTreeGeometry() {
+	const trunk = new THREE.CylinderGeometry(0.0028, 0.0042, 0.02, 5);
+	trunk.translate(0, 0.01, 0);
+	const canopy = new THREE.IcosahedronGeometry(0.015, 1);
+	canopy.translate(0, 0.026, 0);
 	return { trunk, canopy };
 }
 
-const FLOWER_COLORS = ['#e8547a', '#f0b23a', '#e88a3a', '#d9698f'] as const;
+const VELVET_FLOWER_COLORS = ['#e8a8a0', '#d9698f', '#c9a0c4'] as const;
 
-/** Rumpun bunga rendah utk katil bunga taman — pelbagai warna (gema
- * bougainvillea/taman berbunga-bunga). */
-function buildFlowerVariants(): THREE.BufferGeometry[] {
-	return FLOWER_COLORS.map((_, i) => {
-		const rng = seededRng(910 + i);
+function buildVelvetFlowerVariants(): THREE.BufferGeometry[] {
+	return VELVET_FLOWER_COLORS.map((_, i) => {
+		const rng = seededRng(1120 + i);
 		const pieces: THREE.BufferGeometry[] = [];
 		for (let j = 0; j < 3; j++) {
 			const g = new THREE.IcosahedronGeometry(0.005 + rng() * 0.003, 0);
@@ -226,12 +337,21 @@ function buildWaterSpray(): WaterSpray[] {
 	});
 }
 
+function zoneOf(id: ZoneId): ZoneDef {
+	const z = ZONES.find((zz) => zz.id === id);
+	if (!z) throw new Error(`Zon "${id}" tidak dijumpai`);
+	return z;
+}
+
 /**
- * Mendari — kota-taman Wilayah Lumiborne (Codex 5.2). Sebelum ini hanya 55
- * rumah kotak SAMA berselerak di sekeliling carousel — kini kota SEBENAR:
- * 3 bentuk rumah berbeza (setiap satu berbunga bougainvillea di bumbung),
- * daerah taman berpokok & berbunga tersendiri, menara loceng menjulang jadi
- * mercu tanda, & air pancut plaza di sisi carousel (dua mercu tanda plaza).
+ * Mendari — kota-taman Wilayah Lumiborne, kini merangkumi LIMA kawasan
+ * bernama sedia ada dlm lore (zip-model.json) yg sebelum ini tak pernah
+ * digemakan di peringkat globe: Veilrose Quarter (jantung/pasar mawar),
+ * Faceless Bazaar (kedai tak pernah tetap), Idlewick (neon+muzik, gema
+ * carousel), Harlequin's Corner (sudut intim), Velvet Alcove (taman teduh
+ * berdaun jambu). Setiap satu diberi sektor sudut sendiri supaya
+ * "dikumpul bersama" sbg satu kota, bukan diserak rata tanpa identiti.
+ * Jejari kota dibesarkan 0.13→0.22 (~1.7x jejari, ~3x luas/kandungan).
  * Carousel asal ("The Carousel That Never Stops") dikekalkan tanpa
  * perubahan — signature Idlewick.
  */
@@ -242,35 +362,62 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 	const carouselPosition = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.003), [dir]);
 	const carouselQuaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 
-	const houseSpots = useMemo(() => buildHouseSpots(90), []);
+	// Kiraan dinaikkan ~3x drpd asal (55→170 serata kawasan) utk kesan "kota
+	// 3x lebih besar" dari segi kandungan.
+	const houseSpots = useMemo(() => buildHouseSpots(150), []);
 	const houseVariants = useMemo(() => buildHouseVariants(), []);
-	const gardenSpots = useMemo(() => buildGardenSpots(16, 26), []);
-	const { trunk: treeTrunkGeo, canopy: treeCanopyGeo } = useMemo(() => buildTreeGeometry(), []);
-	const flowerVariants = useMemo(() => buildFlowerVariants(), []);
 	const bellTowerGeo = useMemo(() => buildBellTowerGeo(), []);
 	const { basinGeo: fountainBasinGeo, poleGeo: fountainPoleGeo } = useMemo(() => buildFountainGeo(), []);
 	const waterSpray = useMemo(() => buildWaterSpray(), []);
 
-	// Menara loceng di tepi kota BERTENTANGAN drpd sektor taman — jadi
-	// penanda jelas di bahagian bandar yg lain, macam menara pengawal di
-	// rujukan.
+	// --- Veilrose Quarter ---
+	const veilroseZone = useMemo(() => zoneOf('veilrose'), []);
+	const veilroseStalls = useMemo(() => buildZoneSpots(veilroseZone, 26, INNER_EXCLUSION * 1.2, MENDARI_RADIUS * 0.88, 0.8, 1.2, VEILROSE_STALL_COLORS.length, 7001), [veilroseZone]);
+	const veilroseBushes = useMemo(() => buildZoneSpots(veilroseZone, 18, INNER_EXCLUSION, MENDARI_RADIUS * 0.9, 0.7, 1.1, 1, 7002), [veilroseZone]);
+	const veilroseStallGeo = useMemo(() => buildVeilroseStallGeo(), []);
+	const roseBushGeo = useMemo(() => buildRoseBushGeo(), []);
+
+	// --- Faceless Bazaar ---
+	const facelessZone = useMemo(() => zoneOf('faceless'), []);
+	const facelessShops = useMemo(() => buildZoneSpots(facelessZone, 22, INNER_EXCLUSION * 1.2, MENDARI_RADIUS * 0.88, 0.8, 1.25, FACELESS_SHOP_COLORS.length, 8001), [facelessZone]);
+	const facelessShopGeo = useMemo(() => buildFacelessShopGeo(), []);
+
+	// --- Idlewick ---
+	const idlewickZone = useMemo(() => zoneOf('idlewick'), []);
+	const idlewickLamps = useMemo(() => buildZoneSpots(idlewickZone, 16, INNER_EXCLUSION * 1.1, MENDARI_RADIUS * 0.85, 0.8, 1.1, IDLEWICK_NEON_COLORS.length, 9001), [idlewickZone]);
+	const neonLampGeo = useMemo(() => buildNeonLampGeo(), []);
+
+	// --- Harlequin's Corner ---
+	const harlequinZone = useMemo(() => zoneOf('harlequin'), []);
+	const harlequinLanterns = useMemo(() => buildZoneSpots(harlequinZone, 10, INNER_EXCLUSION * 1.1, MENDARI_RADIUS * 0.7, 0.8, 1.0, 1, 10001), [harlequinZone]);
+	const lanternGeo = useMemo(() => buildLanternGeo(), []);
+	const { wallGeo: nookWallGeo, roofGeo: nookRoofGeo } = useMemo(() => buildCornerNookGeo(), []);
+	const nookPosition = useMemo(() => zoneDirPosition(harlequinZone, MENDARI_RADIUS * 0.45, centerDir, uArr, vArr), [harlequinZone, centerDir, uArr, vArr]);
+
+	// --- Velvet Alcove ---
+	const velvetZone = useMemo(() => zoneOf('velvet'), []);
+	const velvetTrees = useMemo(() => buildZoneSpots(velvetZone, 22, INNER_EXCLUSION, MENDARI_RADIUS * 0.88, 0.75, 1.15, 1, 11001), [velvetZone]);
+	const velvetFlowers = useMemo(() => buildZoneSpots(velvetZone, 24, INNER_EXCLUSION * 0.7, MENDARI_RADIUS * 0.92, 0.6, 1.2, VELVET_FLOWER_COLORS.length, 11002), [velvetZone]);
+	const { trunk: pinkTrunkGeo, canopy: pinkCanopyGeo } = useMemo(() => buildPinkTreeGeometry(), []);
+	const velvetFlowerVariants = useMemo(() => buildVelvetFlowerVariants(), []);
+
+	// Menara loceng — mercu tanda kota umum, di jurang antara Velvet Alcove &
+	// Faceless Bazaar.
 	const towerPosition = useMemo(() => {
-		const angle = GARDEN_CENTER_ANGLE + Math.PI;
-		const r = MENDARI_RADIUS * 0.62;
-		const dirT = new THREE.Vector3(...localToDir(centerDir, uArr, vArr, Math.cos(angle) * r, Math.sin(angle) * r));
-		return dirT.multiplyScalar(GLOBE_RADIUS + 0.003);
-	}, [centerDir, uArr, vArr]);
-	const towerQuaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, towerPosition.clone().normalize()), [towerPosition]);
+		const angle = (velvetZone.center + velvetZone.halfSpan + facelessZone.center - facelessZone.halfSpan) / 2;
+		const fakeZone: ZoneDef = { id: 'harlequin', center: angle, halfSpan: 0 };
+		return zoneDirPosition(fakeZone, MENDARI_RADIUS * 0.62, centerDir, uArr, vArr);
+	}, [velvetZone, facelessZone, centerDir, uArr, vArr]);
+	const towerQuaternion = towerPosition.quaternion;
 
-	// Air pancut betul2 di sisi carousel (plaza tengah ada DUA mercu tanda).
-	const fountainPosition = useMemo(() => {
-		const angle = GARDEN_CENTER_ANGLE + Math.PI * 0.55;
-		const r = INNER_EXCLUSION * 1.6;
-		const dirF = new THREE.Vector3(...localToDir(centerDir, uArr, vArr, Math.cos(angle) * r, Math.sin(angle) * r));
-		return dirF.multiplyScalar(GLOBE_RADIUS + 0.003);
-	}, [centerDir, uArr, vArr]);
-	const fountainQuaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, fountainPosition.clone().normalize()), [fountainPosition]);
+	// Air pancut betul2 di sisi carousel, condong ke arah Veilrose (pintu
+	// masuk pasar) — plaza tengah ada DUA mercu tanda.
+	const fountainSpot = useMemo(() => {
+		const fakeZone: ZoneDef = { id: 'veilrose', center: veilroseZone.center + 0.55 * Math.PI, halfSpan: 0 };
+		return zoneDirPosition(fakeZone, INNER_EXCLUSION * 1.6, centerDir, uArr, vArr);
+	}, [veilroseZone, centerDir, uArr, vArr]);
 
+	// --- Bahan (materials) ---
 	const wallMats = useMemo(
 		() => HOUSE_WALL_COLORS.map((c) => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.75, transparent: true, opacity: 0 })),
 		[],
@@ -292,62 +439,11 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 		[],
 	);
 	const bloomMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				color: '#e8547a',
-				emissive: '#6a1a38',
-				emissiveIntensity: 0.45,
-				flatShading: true,
-				roughness: 0.55,
-				transparent: true,
-				opacity: 0,
-			}),
+		() => new THREE.MeshStandardMaterial({ color: '#e8547a', emissive: '#6a1a38', emissiveIntensity: 0.45, flatShading: true, roughness: 0.55, transparent: true, opacity: 0 }),
 		[],
 	);
 	const carouselRoofMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				color: '#e8a34a',
-				emissive: '#5a3410',
-				emissiveIntensity: 0.35,
-				flatShading: true,
-				roughness: 0.55,
-				transparent: true,
-				opacity: 0,
-			}),
-		[],
-	);
-	const treeTrunkMat = useMemo(
-		() => new THREE.MeshStandardMaterial({ color: '#6a4a2a', flatShading: true, roughness: 0.8, transparent: true, opacity: 0 }),
-		[],
-	);
-	const treeCanopyMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				color: '#8ec24a',
-				emissive: '#3a5a1a',
-				emissiveIntensity: 0.35,
-				flatShading: true,
-				roughness: 0.65,
-				transparent: true,
-				opacity: 0,
-			}),
-		[],
-	);
-	const flowerMats = useMemo(
-		() =>
-			FLOWER_COLORS.map(
-				(c) =>
-					new THREE.MeshStandardMaterial({
-						color: c,
-						emissive: c,
-						emissiveIntensity: 0.3,
-						flatShading: true,
-						roughness: 0.6,
-						transparent: true,
-						opacity: 0,
-					}),
-			),
+		() => new THREE.MeshStandardMaterial({ color: '#e8a34a', emissive: '#5a3410', emissiveIntensity: 0.35, flatShading: true, roughness: 0.55, transparent: true, opacity: 0 }),
 		[],
 	);
 	const towerMat = useMemo(
@@ -374,13 +470,84 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 		[waterTexture],
 	);
 
+	// Veilrose — guna warna sebenar drpd VEILROSE_PALETTE, base putih supaya
+	// instanceColor tentukan hue sebenar (teknik sama dgn Vegetation.tsx).
+	const veilroseStallMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 0.7, transparent: true, opacity: 0 }),
+		[],
+	);
+	const roseBushMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#e8547a', emissive: '#6a1a38', emissiveIntensity: 0.4, flatShading: true, roughness: 0.55, transparent: true, opacity: 0 }),
+		[],
+	);
+	const facelessShopMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
+		[],
+	);
+	const neonLampMat = useMemo(
+		() =>
+			new THREE.MeshStandardMaterial({
+				color: '#ffffff',
+				emissive: '#ffffff',
+				emissiveIntensity: 0.7,
+				flatShading: true,
+				roughness: 0.4,
+				transparent: true,
+				opacity: 0,
+			}),
+		[],
+	);
+	const lanternMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#4a3020', emissive: '#f0a030', emissiveIntensity: 0.6, flatShading: true, roughness: 0.6, transparent: true, opacity: 0 }),
+		[],
+	);
+	const nookWallMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#c9a878', flatShading: true, roughness: 0.75, transparent: true, opacity: 0 }),
+		[],
+	);
+	const nookRoofMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#8a5a3a', emissive: '#3a2010', emissiveIntensity: 0.3, flatShading: true, roughness: 0.6, transparent: true, opacity: 0 }),
+		[],
+	);
+	const pinkTrunkMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#6a4a4a', flatShading: true, roughness: 0.8, transparent: true, opacity: 0 }),
+		[],
+	);
+	const pinkCanopyMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#e0a0ac', emissive: '#5a2a3a', emissiveIntensity: 0.3, flatShading: true, roughness: 0.65, transparent: true, opacity: 0 }),
+		[],
+	);
+	const velvetFlowerMats = useMemo(
+		() =>
+			VELVET_FLOWER_COLORS.map(
+				(c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.3, flatShading: true, roughness: 0.6, transparent: true, opacity: 0 }),
+			),
+		[],
+	);
+
 	// Menara loceng ialah MERCU TANDA kota — sama corak dgn Heartbloom/
-	// Ascendari/Aethirion: kekal separa kelihatan dari orbit (lantai 0.55),
-	// bukan hilang terus. Elemen kota lain (rumah/taman/air pancut) kekal
-	// lantai 0 — hanya kelihatan bila rapat.
+	// Ascendari/Aethirion: kekal separa kelihatan dari orbit (lantai 0.55).
+	// Semua kandungan kawasan/rumah/taman kekal lantai 0 — hanya kelihatan
+	// bila rapat.
 	const cityMats = useMemo(
-		() => [...wallMats, ...roofMats, bloomMat, carouselRoofMat, treeTrunkMat, treeCanopyMat, ...flowerMats, fountainMat],
-		[wallMats, roofMats, bloomMat, carouselRoofMat, treeTrunkMat, treeCanopyMat, flowerMats, fountainMat],
+		() => [
+			...wallMats,
+			...roofMats,
+			bloomMat,
+			carouselRoofMat,
+			fountainMat,
+			veilroseStallMat,
+			roseBushMat,
+			facelessShopMat,
+			neonLampMat,
+			lanternMat,
+			nookWallMat,
+			nookRoofMat,
+			pinkTrunkMat,
+			pinkCanopyMat,
+			...velvetFlowerMats,
+		],
+		[wallMats, roofMats, bloomMat, carouselRoofMat, fountainMat, veilroseStallMat, roseBushMat, facelessShopMat, neonLampMat, lanternMat, nookWallMat, nookRoofMat, pinkTrunkMat, pinkCanopyMat, velvetFlowerMats],
 	);
 	const landmarkMats = useMemo(() => [towerMat], [towerMat]);
 
@@ -434,6 +601,13 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 		waterMat.opacity = THREE.MathUtils.lerp(waterMat.opacity, near * 0.8, 0.05);
 		waterMat.visible = waterMat.opacity > 0.01;
 
+		// Neon Idlewick berdenyut lembut (gema "muzik tak pernah henti").
+		const neonPulse = 0.65 + 0.35 * Math.sin(clock.elapsedTime * 1.4);
+		neonLampMat.emissiveIntensity = 0.7 * neonPulse;
+		// Lilin Harlequin's Corner berkelip lebih perlahan/hangat.
+		const flamePulse = 0.7 + 0.3 * Math.sin(clock.elapsedTime * 2.6 + 1.7);
+		lanternMat.emissiveIntensity = 0.6 * flamePulse;
+
 		// Gubah quaternion (bukan mutate rotation.y terus) — carousel perlu
 		// berputar mengelilingi paksi "atas" TEMPATANnya sendiri.
 		spinAngle.current += delta * 0.25;
@@ -459,7 +633,12 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 		return groups;
 	}, [houseSpots]);
 
-	const makeInstances = (list: HouseSpot[] | GardenSpot[], geometry: THREE.BufferGeometry, material: THREE.Material) => {
+	const makeInstances = (
+		list: (HouseSpot | ZoneSpot)[],
+		geometry: THREE.BufferGeometry,
+		material: THREE.Material,
+		colorPalette?: readonly string[],
+	) => {
 		if (list.length === 0) return null;
 		return (
 			<instancedMesh
@@ -467,11 +646,17 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 				ref={(mesh) => {
 					if (!mesh) return;
 					const m = new THREE.Matrix4();
+					const col = new THREE.Color();
 					list.forEach((spot, i) => {
 						m.compose(spot.position, spot.quaternion, new THREE.Vector3(spot.scale, spot.scale, spot.scale));
 						mesh.setMatrixAt(i, m);
+						if (colorPalette && 'colorIndex' in spot) {
+							col.set(colorPalette[spot.colorIndex % colorPalette.length]);
+							mesh.setColorAt(i, col);
+						}
 					});
 					mesh.instanceMatrix.needsUpdate = true;
+					if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 				}}
 			/>
 		);
@@ -479,6 +664,7 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 
 	return (
 		<group>
+			{/* Rumah biasa mengisi jurang antara kawasan bernama */}
 			{houseVariants.map((v, i) => (
 				<group key={i}>
 					{makeInstances(houseByVariant[i], v.wallGeo, wallMats[i])}
@@ -487,15 +673,31 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 				</group>
 			))}
 
-			{makeInstances(gardenSpots.trees, treeTrunkGeo, treeTrunkMat)}
-			{makeInstances(gardenSpots.trees, treeCanopyGeo, treeCanopyMat)}
-			{gardenSpots.flowers.map((spot, i) => {
-				const variant = i % flowerVariants.length;
+			{/* Veilrose Quarter — pasar mawar */}
+			{makeInstances(veilroseStalls, veilroseStallGeo, veilroseStallMat, VEILROSE_STALL_COLORS)}
+			{makeInstances(veilroseBushes, roseBushGeo, roseBushMat)}
+
+			{/* Faceless Bazaar — kedai tak simetri/senget */}
+			{makeInstances(facelessShops, facelessShopGeo, facelessShopMat, FACELESS_SHOP_COLORS)}
+
+			{/* Idlewick — tiang neon pastel di sekeliling carousel */}
+			{makeInstances(idlewickLamps, neonLampGeo, neonLampMat, IDLEWICK_NEON_COLORS)}
+
+			{/* Harlequin's Corner — lilin hangat + satu rumah nook kecil */}
+			{makeInstances(harlequinLanterns, lanternGeo, lanternMat)}
+			<mesh geometry={nookWallGeo} material={nookWallMat} position={nookPosition.position} quaternion={nookPosition.quaternion} />
+			<mesh geometry={nookRoofGeo} material={nookRoofMat} position={nookPosition.position} quaternion={nookPosition.quaternion} />
+
+			{/* Velvet Alcove — taman teduh berdaun jambu */}
+			{makeInstances(velvetTrees, pinkTrunkGeo, pinkTrunkMat)}
+			{makeInstances(velvetTrees, pinkCanopyGeo, pinkCanopyMat)}
+			{velvetFlowers.map((spot, i) => {
+				const variant = i % velvetFlowerVariants.length;
 				return (
 					<mesh
 						key={i}
-						geometry={flowerVariants[variant]}
-						material={flowerMats[variant]}
+						geometry={velvetFlowerVariants[variant]}
+						material={velvetFlowerMats[variant]}
 						position={spot.position}
 						quaternion={spot.quaternion}
 						scale={spot.scale}
@@ -503,9 +705,10 @@ export default function MendariTownscape({ atmosphereBlendRef }: MendariTownscap
 				);
 			})}
 
-			<mesh geometry={bellTowerGeo} material={towerMat} position={towerPosition} quaternion={towerQuaternion} />
+			{/* Mercu tanda kota umum */}
+			<mesh geometry={bellTowerGeo} material={towerMat} position={towerPosition.position} quaternion={towerQuaternion} />
 
-			<group position={fountainPosition} quaternion={fountainQuaternion}>
+			<group position={fountainSpot.position} quaternion={fountainSpot.quaternion}>
 				<mesh geometry={fountainBasinGeo} material={fountainMat} />
 				<mesh geometry={fountainPoleGeo} material={fountainMat} />
 				<points>
