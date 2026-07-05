@@ -11,11 +11,17 @@ type HeartbloomTreeProps = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-const TRUNK_H = 0.15;
+const TRUNK_H = 0.22;
 
-/** Kanopi rata/bujur (bukan kon tirus macam pokok pine) — sfera unit
- * dipepatkan (scale.y kecil drpd scale.x/z) untuk profil "payung/rak
- * daun" bertingkat macam world tree sebenar. */
+// Heartbloom ialah ciri type 'water' (lembah tasik) — terrainHeight
+// menakikkan lembangan ini sedalam falloff*0.03 di pusatnya. Pangkal
+// pokok perlu dianjak SAMA jumlah supaya duduk di atas dasar tasik
+// (pulau kecil tersirat), bukan terapung di udara di atas permukaan air.
+const LAKE_INDENT = 0.03;
+
+/** Kanopi rata/bujur amat luas (bukan kon tirus macam pokok pine) — sfera
+ * unit dipepatkan (scale.y kecil drpd scale.x/z) untuk profil "cendawan"
+ * bertingkat yang lebar mencecah banjaran gunung sekeliling lembah. */
 function makeCanopyGeometry(radiusXZ: number, radiusY: number, centerY: number): THREE.BufferGeometry {
 	const g = new THREE.IcosahedronGeometry(1, 1);
 	g.scale(radiusXZ, radiusY, radiusXZ);
@@ -24,29 +30,29 @@ function makeCanopyGeometry(radiusXZ: number, radiusY: number, centerY: number):
 }
 
 /**
- * Pokok gergasi Heartbloom — world tree bertingkat macam rujukan (kanopi
- * rata/bujur berlapis, bukan silhouette pine/Krismas), dengan pangkal akar
- * melebar di dasar batang. Jauh lebih besar drpd pokok hutan biasa yang
- * sudah diserak Vegetation.tsx di sekelilingnya.
+ * Pokok gergasi Heartbloom — tempat kelahiran Auryalis, tumbuh di pulau
+ * kecil tengah lembah tasik Heartbloom Isle. Kanopi cendawan dua tingkat
+ * amat lebar (jejari dunia ~0.3, sepadan jejari gegelang TerrainRings di
+ * sekelilingnya) supaya kelihatan "mencecah" banjaran gunung pelindung —
+ * bukan sekadar pokok besar biasa.
  */
 export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreeProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('heartbloom')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
-	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.006), [dir]);
+	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS - LAKE_INDENT + 0.006), [dir]);
 
 	const rootFlareGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.075, 0.05, 8);
-		g.translate(0, 0.025, 0);
+		const g = new THREE.ConeGeometry(0.09, 0.06, 8);
+		g.translate(0, 0.03, 0);
 		return g;
 	}, []);
 	const trunkGeo = useMemo(() => {
-		const g = new THREE.CylinderGeometry(0.026, 0.045, TRUNK_H, 7);
-		g.translate(0, TRUNK_H / 2 + 0.02, 0);
+		const g = new THREE.CylinderGeometry(0.032, 0.05, TRUNK_H, 7);
+		g.translate(0, TRUNK_H / 2 + 0.03, 0);
 		return g;
 	}, []);
-	const canopyLowGeo = useMemo(() => makeCanopyGeometry(0.16, 0.09, TRUNK_H + 0.05), []);
-	const canopyMidGeo = useMemo(() => makeCanopyGeometry(0.115, 0.07, TRUNK_H + 0.135), []);
-	const canopyTopGeo = useMemo(() => makeCanopyGeometry(0.075, 0.05, TRUNK_H + 0.2), []);
+	const canopyLowGeo = useMemo(() => makeCanopyGeometry(0.3, 0.14, TRUNK_H + 0.08), []);
+	const canopyTopGeo = useMemo(() => makeCanopyGeometry(0.19, 0.11, TRUNK_H + 0.24), []);
 
 	const trunkMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#5a3d24', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
@@ -82,7 +88,6 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 			<mesh geometry={rootFlareGeo} material={trunkMat} />
 			<mesh geometry={trunkGeo} material={trunkMat} />
 			<mesh geometry={canopyLowGeo} material={canopyMat} />
-			<mesh geometry={canopyMidGeo} material={canopyMat} />
 			<mesh geometry={canopyTopGeo} material={canopyMat} />
 		</group>
 	);

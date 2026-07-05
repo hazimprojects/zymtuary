@@ -32,6 +32,7 @@ uniform int uFeatureCount;
 uniform vec3 uFeatureDirs[MAX_FEATURES];
 uniform float uFeatureType[MAX_FEATURES];
 uniform float uFeatureRadius[MAX_FEATURES];
+uniform float uFeatureHeightScale[MAX_FEATURES];
 uniform vec3 uCrackA[MAX_CRACK_SEGMENTS];
 uniform vec3 uCrackB[MAX_CRACK_SEGMENTS];
 uniform float uCrackWidth[MAX_CRACK_SEGMENTS];
@@ -112,6 +113,7 @@ float terrainHeight(vec3 n) {
 		vec3 dir = uFeatureDirs[i];
 		float t = uFeatureType[i];
 		float radius = uFeatureRadius[i];
+		float heightScale = uFeatureHeightScale[i];
 		float align = dot(n, dir);
 		if (align < cos(radius * 1.7)) continue;
 
@@ -124,7 +126,9 @@ float terrainHeight(vec3 n) {
 		float falloff = smoothstep(cosR, 1.0, align);
 
 		if (t < 1.5) {
-			h += falloff * 0.1;
+			// heightScale > 1 utk gunung yang mesti "paling tinggi" (cth.
+			// Obsidian Hollow) berbanding gunung biasa jenis sama.
+			h += falloff * 0.1 * heightScale;
 		} else if (t < 2.5) {
 			h -= falloff * 0.03;
 		} else if (t < 5.5) {
@@ -517,12 +521,13 @@ void main() {
 export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.ShaderMaterial {
 	const glow = entityUniforms ?? createEntityGlowUniforms();
 
-	const { dirs, types, radii, count } = buildFeatureUniformArrays();
+	const { dirs, types, radii, heightScales, count } = buildFeatureUniformArrays();
 	const featureDirs = Array.from({ length: MAX_FEATURES }, (_, i) =>
 		dirs[i] ? new THREE.Vector3(...dirs[i]) : new THREE.Vector3(0, 1, 0),
 	);
 	const featureTypes = Array.from({ length: MAX_FEATURES }, (_, i) => types[i] ?? 0);
 	const featureRadii = Array.from({ length: MAX_FEATURES }, (_, i) => radii[i] ?? 0.1);
+	const featureHeightScales = Array.from({ length: MAX_FEATURES }, (_, i) => heightScales[i] ?? 1);
 
 	const cracks = buildCrackUniformArrays();
 	const crackA = Array.from({ length: MAX_CRACK_SEGMENTS }, (_, i) => new THREE.Vector3(...cracks.a[i]));
@@ -552,6 +557,7 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 			uFeatureDirs: { value: featureDirs },
 			uFeatureType: { value: featureTypes },
 			uFeatureRadius: { value: featureRadii },
+			uFeatureHeightScale: { value: featureHeightScales },
 			uCrackA: { value: crackA },
 			uCrackB: { value: crackB },
 			uCrackWidth: { value: crackWidth },
