@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLOBE_RADIUS, deg, directionFromThetaY } from './worldGlobeConfig';
+import { GLOBE_RADIUS, findLandmarkDirection } from './worldGlobeConfig';
 
 type HeartbloomTreeProps = {
 	/** Sama seperti Vegetation/Aethirion — pokok gergasi hanya kelihatan
@@ -9,44 +9,44 @@ type HeartbloomTreeProps = {
 	atmosphereBlendRef: React.MutableRefObject<number>;
 };
 
-const HEARTBLOOM_THETA = deg(100);
-const HEARTBLOOM_Y = 0.5;
-
 const UP = new THREE.Vector3(0, 1, 0);
 
-const TRUNK_H = 0.13;
+const TRUNK_H = 0.15;
+
+/** Kanopi rata/bujur (bukan kon tirus macam pokok pine) — sfera unit
+ * dipepatkan (scale.y kecil drpd scale.x/z) untuk profil "payung/rak
+ * daun" bertingkat macam world tree sebenar. */
+function makeCanopyGeometry(radiusXZ: number, radiusY: number, centerY: number): THREE.BufferGeometry {
+	const g = new THREE.IcosahedronGeometry(1, 1);
+	g.scale(radiusXZ, radiusY, radiusXZ);
+	g.translate(0, centerY, 0);
+	return g;
+}
 
 /**
- * Pokok gergasi Heartbloom — pusat Heartbloom Isle, jauh lebih besar drpd
- * pokok hutan biasa yang diserak Vegetation.tsx di sekelilingnya. Tiga
- * lapisan kanopi bertindih (bukan satu kon tunggal) untuk kesan pokok
- * purba yang rendang & bertingkat.
+ * Pokok gergasi Heartbloom — world tree bertingkat macam rujukan (kanopi
+ * rata/bujur berlapis, bukan silhouette pine/Krismas), dengan pangkal akar
+ * melebar di dasar batang. Jauh lebih besar drpd pokok hutan biasa yang
+ * sudah diserak Vegetation.tsx di sekelilingnya.
  */
 export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreeProps) {
-	const dir = useMemo(() => new THREE.Vector3(...directionFromThetaY(HEARTBLOOM_THETA, HEARTBLOOM_Y)), []);
+	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('heartbloom')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.006), [dir]);
 
+	const rootFlareGeo = useMemo(() => {
+		const g = new THREE.ConeGeometry(0.075, 0.05, 8);
+		g.translate(0, 0.025, 0);
+		return g;
+	}, []);
 	const trunkGeo = useMemo(() => {
-		const g = new THREE.CylinderGeometry(0.02, 0.032, TRUNK_H, 7);
-		g.translate(0, TRUNK_H / 2, 0);
+		const g = new THREE.CylinderGeometry(0.026, 0.045, TRUNK_H, 7);
+		g.translate(0, TRUNK_H / 2 + 0.02, 0);
 		return g;
 	}, []);
-	const canopyLowGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.11, 0.12, 7);
-		g.translate(0, TRUNK_H + 0.05, 0);
-		return g;
-	}, []);
-	const canopyMidGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.08, 0.095, 7);
-		g.translate(0, TRUNK_H + 0.095, 0);
-		return g;
-	}, []);
-	const canopyTopGeo = useMemo(() => {
-		const g = new THREE.ConeGeometry(0.05, 0.07, 7);
-		g.translate(0, TRUNK_H + 0.135, 0);
-		return g;
-	}, []);
+	const canopyLowGeo = useMemo(() => makeCanopyGeometry(0.16, 0.09, TRUNK_H + 0.05), []);
+	const canopyMidGeo = useMemo(() => makeCanopyGeometry(0.115, 0.07, TRUNK_H + 0.135), []);
+	const canopyTopGeo = useMemo(() => makeCanopyGeometry(0.075, 0.05, TRUNK_H + 0.2), []);
 
 	const trunkMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#5a3d24', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
@@ -55,9 +55,9 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 	const canopyMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				color: '#c9d66a',
+				color: '#a8c94a',
 				emissive: '#4a5a1a',
-				emissiveIntensity: 0.45,
+				emissiveIntensity: 0.4,
 				flatShading: true,
 				roughness: 0.65,
 				transparent: true,
@@ -79,6 +79,7 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 
 	return (
 		<group position={position} quaternion={quaternion}>
+			<mesh geometry={rootFlareGeo} material={trunkMat} />
 			<mesh geometry={trunkGeo} material={trunkMat} />
 			<mesh geometry={canopyLowGeo} material={canopyMat} />
 			<mesh geometry={canopyMidGeo} material={canopyMat} />
