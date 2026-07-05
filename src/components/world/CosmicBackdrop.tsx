@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 
@@ -129,6 +129,7 @@ void main() {
 
 export function CosmicBackdrop({ atmosphereBlendRef }: CosmicBackdropProps) {
 	const matRef = useRef<THREE.ShaderMaterial>(null);
+	const { camera } = useThree();
 
 	const material = useMemo(
 		() =>
@@ -159,9 +160,27 @@ export function CosmicBackdrop({ atmosphereBlendRef }: CosmicBackdropProps) {
 	useFrame(({ clock }) => {
 		material.uniforms.uTime.value = clock.elapsedTime;
 		const blend = atmosphereBlendRef.current ?? 0;
-		// Penuh di angkasa (blend 0), pudar habis apabila masuk atmosfera
-		// (langit/awan ambil alih) supaya nebula tidak "menembusi" langit siang.
-		material.uniforms.uFade.value = 1 - THREE.MathUtils.smoothstep(0.05, 0.5, blend);
+
+		// atmosFade: penuh di angkasa (blend 0), pudar habis apabila masuk
+		// atmosfera. NOTA: THREE.MathUtils.smoothstep ialah (x, min, max) — dulu
+		// argumennya tersalah susun (0.05, 0.5, blend) menyebabkan ia sentiasa
+		// pulangkan 0 → nebula TAK PERNAH pudar (langit sama di semua Spheral).
+		const atmosFade = 1 - THREE.MathUtils.smoothstep(blend, 0.05, 0.5);
+
+		// hemiVis: KEKALKAN nebula dlm atmosfera mengikut hemisfera — identiti
+		// tiga alam abadi. Noctira (y<0) = malam abadi → cakerawala Aethernals
+		// kelihatan dari tanah; Luminara (y>0) = siang abadi → langit emas
+		// terang menyembunyikannya; Equilara (y~0) = senja → separa (aurora
+		// dekat ufuk). hemisphereY = arah-y kamera dinormalkan (sama spt
+		// AtmosphereSky) — stabil walau kumpulan globe berputar (putaran paksi-Y
+		// tak ubah latitud).
+		const hemisphereY = camera.position.y / (camera.position.length() || 1);
+		const hemiVis = 1 - THREE.MathUtils.smoothstep(hemisphereY, -0.5, 0.25);
+
+		// Di angkasa atmosFade=1 → nebula penuh di semua hemisfera. Dlm
+		// atmosfera atmosFade=0 → hemiVis menentukan (Noctira kekal, Luminara
+		// hilang, Equilara separa).
+		material.uniforms.uFade.value = Math.max(atmosFade, hemiVis);
 	});
 
 	return (
