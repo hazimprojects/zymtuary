@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib';
 import { GLOBE_RADIUS, findLandmarkDirection, seededRng } from './worldGlobeConfig';
+import { buildSpriteTexture } from './FeatureParticles';
 
 type HeartbloomTreeProps = {
 	/** Sama seperti Vegetation/Aethirion — pokok gergasi hanya kelihatan
@@ -55,33 +56,29 @@ function mergeClumps(clumps: CanopyClump[]): THREE.BufferGeometry {
 	return merged;
 }
 
-/** Dahan nipis condong dari batang ke pangkal setiap rumpun tingkat-bawah —
- * gema "beberapa dahan macam bonsai" (bukan kanopi licin tanpa dahan kelihatan). */
-function makeBranchGeometry(from: THREE.Vector3, to: THREE.Vector3): THREE.BufferGeometry {
-	const dir = to.clone().sub(from);
-	const len = dir.length();
-	const g = new THREE.CylinderGeometry(0.007, 0.016, len, 5);
-	g.translate(0, len / 2, 0);
-	g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize()));
-	g.translate(from.x, from.y, from.z);
-	return g;
-}
+type MistPuff = { offset: THREE.Vector3; phase: number };
 
-function mergeBranchPairs(pairs: [THREE.Vector3, THREE.Vector3][]): THREE.BufferGeometry {
-	const pieces = pairs.map(([from, to]) => makeBranchGeometry(from, to));
-	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
-	for (const p of pieces) p.dispose();
-	return merged;
+/** Kabus lembut mengelilingi pokok pada beberapa ketinggian — bukan cuma
+ * hiasan, tapi isyarat visual skala/ketinggian gergasi pokok ini (gema
+ * awan berpusar di sekeliling world tree dlm rujukan). */
+function buildMistPuffs(): MistPuff[] {
+	const rng = seededRng(6602);
+	return Array.from({ length: 22 }, () => {
+		const angle = rng() * Math.PI * 2;
+		const heightBand = rng();
+		const r = 0.16 + rng() * 0.1;
+		const y = TRUNK_H * 0.3 + heightBand * (TRUNK_H + 0.35);
+		const offset = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+		return { offset, phase: rng() };
+	});
 }
 
 /**
  * Pokok gergasi Heartbloom — tempat kelahiran Auryalis, tumbuh di pulau
- * kecil tengah lembah tasik Heartbloom Isle. Kanopi cendawan DUA tingkat
- * (tingkat atas jelas lebih kecil drpd tingkat bawah), setiap tingkat
- * terdiri drpd beberapa rumpun daun tak-seragam (bukan kubah bulat licin)
- * bersambung ke batang melalui dahan nipis condong — profil bonsai/world
- * tree, cukup lebar (jejari dunia keseluruhan ~0.3) utk mencecah banjaran
- * gunung sekeliling.
+ * kecil tengah lembah tasik Heartbloom Isle. Kanopi cendawan DUA tingkat:
+ * tingkat-atas duduk RAPAT/bertindih terus di atas tingkat-bawah (bukan
+ * disambung dahan berasingan — itu nampak macam pokok kedua terapung),
+ * profil cendawan sebenar. Kabus mengelilingi memberi kesan skala/ketinggian.
  */
 export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreeProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('heartbloom')), []);
@@ -100,39 +97,19 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 	}, []);
 
 	const tier1Clumps = useMemo(() => buildCanopyClumps(5, 0.17, TRUNK_H + 0.09, [0.11, 0.15], 5501), []);
-	// Tingkat-atas dinaikkan supaya jelas TERPISAH drpd puncak tertinggi
-	// tingkat-bawah (~TRUNK_H + 0.44 dgn jitter+saiz maksimum) — tunjang
-	// kelihatan (di bawah) mengisi jurang itu, bukan tersembunyi di dalam
-	// jasad tingkat-bawah macam sebelum ini (sebab tu ia nampak terapung).
-	const tier2Clumps = useMemo(() => buildCanopyClumps(3, 0.08, TRUNK_H + 0.39, [0.06, 0.08], 5502), []);
+	// Tingkat-atas duduk BERTINDIH terus di atas jasad tingkat-bawah (bukan
+	// dinaikkan jauh + disambung dahan berasingan) — kesan cendawan dua
+	// tudung bertindih, bukan pokok kedua terapung di atas.
+	const tier2Clumps = useMemo(() => buildCanopyClumps(3, 0.08, TRUNK_H + 0.16, [0.06, 0.08], 5502), []);
 
 	const tier1Geo = useMemo(() => mergeClumps(tier1Clumps), [tier1Clumps]);
 	const tier2Geo = useMemo(() => mergeClumps(tier2Clumps), [tier2Clumps]);
 
-	// Tunjang KELIHATAN menyambung tingkat-bawah ke tingkat-atas — mesti
-	// bermula DI ATAS titik tertinggi jasad tingkat-bawah supaya kelihatan
-	// dari luar (bukan tersembunyi di dalamnya).
-	const stalkBottom = new THREE.Vector3(0, TRUNK_H + 0.22, 0);
-	const stalkTop = new THREE.Vector3(0, TRUNK_H + 0.36, 0);
-	const stalkGeo = useMemo(() => {
-		const dirV = stalkTop.clone().sub(stalkBottom);
-		const len = dirV.length();
-		const g = new THREE.CylinderGeometry(0.014, 0.022, len, 6);
-		g.translate(0, len / 2, 0);
-		g.translate(stalkBottom.x, stalkBottom.y, stalkBottom.z);
-		return g;
-	}, []);
-
-	// Dahan tingkat-bawah dari puncak batang, DAN dahan dari hujung tunjang
-	// kelihatan ke setiap rumpun tingkat-atas.
-	const branchGeo = useMemo(() => {
-		const trunkTop = new THREE.Vector3(0, TRUNK_H + 0.03, 0);
-		const pairs: [THREE.Vector3, THREE.Vector3][] = [
-			...tier1Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [trunkTop, c.position.clone().multiplyScalar(0.72)]),
-			...tier2Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [stalkTop, c.position.clone().multiplyScalar(0.7)]),
-		];
-		return mergeBranchPairs(pairs);
-	}, [tier1Clumps, tier2Clumps]);
+	const mistPuffs = useMemo(() => buildMistPuffs(), []);
+	const mistPositions = useMemo(() => new Float32Array(mistPuffs.length * 3), [mistPuffs.length]);
+	const mistGeomRef = useRef<THREE.BufferGeometry>(null);
+	const mistMatRef = useRef<THREE.PointsMaterial>(null);
+	const mistTexture = useMemo(() => buildSpriteTexture(), []);
 
 	const trunkMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#5a3d24', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),
@@ -154,7 +131,7 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 
 	const materials = useMemo(() => [trunkMat, canopyMat], [trunkMat, canopyMat]);
 
-	useFrame(() => {
+	useFrame(({ clock }) => {
 		const blend = atmosphereBlendRef.current;
 		// Tidak macam pokok/objek lain — pokok Heartbloom GERGASI dan sepatutnya
 		// kelihatan sbg mercu tanda walau dari orbit jauh (pelawat sepatutnya
@@ -165,16 +142,44 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 			mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
+
+		for (let i = 0; i < mistPuffs.length; i++) {
+			const p = mistPuffs[i];
+			const bob = Math.sin(clock.elapsedTime * 0.22 + p.phase * Math.PI * 2) * 0.01;
+			mistPositions[i * 3] = p.offset.x;
+			mistPositions[i * 3 + 1] = p.offset.y + bob;
+			mistPositions[i * 3 + 2] = p.offset.z;
+		}
+		if (mistGeomRef.current) mistGeomRef.current.attributes.position.needsUpdate = true;
+		if (mistMatRef.current) {
+			const mistTarget = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.55;
+			mistMatRef.current.opacity = THREE.MathUtils.lerp(mistMatRef.current.opacity, mistTarget, 0.05);
+			mistMatRef.current.visible = mistMatRef.current.opacity > 0.01;
+		}
 	});
 
 	return (
 		<group position={position} quaternion={quaternion}>
 			<mesh geometry={rootFlareGeo} material={trunkMat} />
 			<mesh geometry={trunkGeo} material={trunkMat} />
-			<mesh geometry={stalkGeo} material={trunkMat} />
-			<mesh geometry={branchGeo} material={trunkMat} />
 			<mesh geometry={tier1Geo} material={canopyMat} />
 			<mesh geometry={tier2Geo} material={canopyMat} />
+			<points>
+				<bufferGeometry ref={mistGeomRef}>
+					<bufferAttribute attach="attributes-position" args={[mistPositions, 3]} count={mistPositions.length / 3} itemSize={3} />
+				</bufferGeometry>
+				<pointsMaterial
+					ref={mistMatRef}
+					size={0.075}
+					map={mistTexture}
+					color="#eef6ea"
+					transparent
+					opacity={0}
+					depthWrite={false}
+					sizeAttenuation
+					blending={THREE.NormalBlending}
+				/>
+			</points>
 		</group>
 	);
 }

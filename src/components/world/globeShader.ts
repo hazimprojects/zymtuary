@@ -38,6 +38,7 @@ uniform float uFeatureRingWidth[MAX_FEATURES];
 uniform float uFeaturePeakSharpness[MAX_FEATURES];
 uniform float uFeatureSnowCap[MAX_FEATURES];
 uniform float uFeatureCrystalVein[MAX_FEATURES];
+uniform float uFeatureRaggedness[MAX_FEATURES];
 uniform vec3 uCrackA[MAX_CRACK_SEGMENTS];
 uniform vec3 uCrackB[MAX_CRACK_SEGMENTS];
 uniform float uCrackWidth[MAX_CRACK_SEGMENTS];
@@ -97,6 +98,22 @@ float fbm2(vec3 p) {
 	return v;
 }
 
+/** Pecahkan simetri bulat sempurna satu ciri jadi beberapa "puncak" tidak
+ * sekata + rabung berbatu — gunung ragged, bukan kon/kubah tunggal generik.
+ * raggedness 0 = tiada kesan (mix() balik ke 1.0); ke arah 1 = kesan penuh. */
+float raggedMultiplier(vec3 n, vec3 dir, float radius, float raggedness) {
+	if (raggedness < 0.001) return 1.0;
+	vec3 upRefR = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+	vec3 tuR = normalize(cross(upRefR, dir));
+	vec3 tvR = cross(dir, tuR);
+	vec2 pR = vec2(dot(n, tuR), dot(n, tvR));
+	float azimuth = atan(pR.y, pR.x);
+	float lobes = 0.5 + 0.5 * sin(azimuth * 5.0 + fbm2(dir * 7.0) * 6.283);
+	float jagNoise = fbm2(vec3(pR * (5.0 / max(radius, 0.001)), 0.0) + dir * 9.0);
+	float shaped = mix(0.45, 1.3, lobes * 0.6 + jagNoise * 0.4);
+	return mix(1.0, shaped, raggedness);
+}
+
 float distToSegment(vec3 p, vec3 a, vec3 b) {
 	vec3 ab = b - a;
 	float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0);
@@ -146,6 +163,10 @@ float terrainHeight(vec3 n) {
 			// melebarkan jadi lebih rata.
 			falloff = pow(domeFalloff, uFeaturePeakSharpness[i]);
 		}
+
+		// Gunung ragged (cth. Obsidian Hollow) — pecahkan simetri bulat
+		// sempurna jadi beberapa puncak tidak sekata + rabung berbatu.
+		falloff *= raggedMultiplier(n, dir, radius, uFeatureRaggedness[i]);
 
 		if (t < 1.5) {
 			// heightScale > 1 utk gunung yang mesti "paling tinggi" (cth.
@@ -365,6 +386,7 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float domeFalloff = 1.0 - smoothstep(0.0, 1.0, slopeT);
 			mask = pow(domeFalloff, uFeaturePeakSharpness[i]);
 		}
+		mask *= raggedMultiplier(n, dir, radius, uFeatureRaggedness[i]);
 
 		if (!ringMode && ((t > 1.5 && t < 2.5) || (t > 6.5 && t < 7.5))) {
 			vec3 upRef = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
@@ -590,7 +612,7 @@ void main() {
 export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.ShaderMaterial {
 	const glow = entityUniforms ?? createEntityGlowUniforms();
 
-	const { dirs, types, radii, heightScales, ringModes, ringWidths, peakSharpnesses, snowCaps, crystalVeins, count } =
+	const { dirs, types, radii, heightScales, ringModes, ringWidths, peakSharpnesses, snowCaps, crystalVeins, raggednesses, count } =
 		buildFeatureUniformArrays();
 	const featureDirs = Array.from({ length: MAX_FEATURES }, (_, i) =>
 		dirs[i] ? new THREE.Vector3(...dirs[i]) : new THREE.Vector3(0, 1, 0),
@@ -603,6 +625,7 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 	const featurePeakSharpnesses = Array.from({ length: MAX_FEATURES }, (_, i) => peakSharpnesses[i] ?? 1);
 	const featureSnowCaps = Array.from({ length: MAX_FEATURES }, (_, i) => snowCaps[i] ?? 0);
 	const featureCrystalVeins = Array.from({ length: MAX_FEATURES }, (_, i) => crystalVeins[i] ?? 0);
+	const featureRaggednesses = Array.from({ length: MAX_FEATURES }, (_, i) => raggednesses[i] ?? 0);
 
 	const cracks = buildCrackUniformArrays();
 	const crackA = Array.from({ length: MAX_CRACK_SEGMENTS }, (_, i) => new THREE.Vector3(...cracks.a[i]));
@@ -638,6 +661,7 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 			uFeaturePeakSharpness: { value: featurePeakSharpnesses },
 			uFeatureSnowCap: { value: featureSnowCaps },
 			uFeatureCrystalVein: { value: featureCrystalVeins },
+			uFeatureRaggedness: { value: featureRaggednesses },
 			uCrackA: { value: crackA },
 			uCrackB: { value: crackB },
 			uCrackWidth: { value: crackWidth },
