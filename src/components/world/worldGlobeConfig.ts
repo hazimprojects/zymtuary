@@ -229,7 +229,9 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Elythrean Bloomfields), laut hangat, Heartbloom.
 	{ id: 'gunung-berapi', nama: 'Gunung Berapi', type: 'mountain', theta: deg(208), y: 0.78, radius: 0.19 },
 	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
-	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2 },
+	// heightScale/raggedness kecil sengaja — bukan gunung, cuma lantai hutan
+	// sedikit berbukit/tak rata (kedalaman/realistik), bukan padang rata licin.
+	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2, heightScale: 1.8, raggedness: 0.4 },
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
 	// Mendari — kota-taman Wilayah Lumiborne (Codex 5.2). theta/y MESTI sama
 	// dengan WILAYAH_PORTALS.mendari supaya lokasi terrain & titik portal
@@ -305,7 +307,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		raggedness: 0.5,
 	},
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
-	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2 },
+	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2, heightScale: 1.8, raggedness: 0.4 },
 	{ id: 'padang-pasir', nama: 'Padang Pasir', type: 'arid', theta: deg(300), y: -0.42, radius: 0.18 },
 	// Selat Equilara — rantaian laut penghubung Pulau Ascendari (Luminara)
 	// merentasi khatulistiwa Equilara terus ke Tasik Gelap (Noctira), warna
