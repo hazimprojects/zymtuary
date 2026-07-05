@@ -29,8 +29,9 @@ type ParticleState = {
 };
 
 /** Buat tekstur sprite bulat lembut sekali sahaja (kanvas offscreen) —
- * dikongsi oleh semua emitter supaya tidak jana berulang kali. */
-function buildSpriteTexture(): THREE.CanvasTexture {
+ * dikongsi oleh semua emitter supaya tidak jana berulang kali. Turut
+ * dikongsi dengan TerrainProps untuk kepulan wap/kabus. */
+export function buildSpriteTexture(): THREE.CanvasTexture {
 	const size = 64;
 	const canvas = document.createElement('canvas');
 	canvas.width = size;
