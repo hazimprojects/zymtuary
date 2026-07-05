@@ -31,6 +31,7 @@ import FeatureParticles from './FeatureParticles';
 import TerrainProps from './TerrainProps';
 import AscendariTower from './AscendariTower';
 import HeartbloomTree from './HeartbloomTree';
+import MendariTownscape from './MendariTownscape';
 
 const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
@@ -200,6 +201,7 @@ export function GlobeScene({
 				<TerrainProps atmosphereBlendRef={atmosphereBlend} />
 				<AscendariTower atmosphereBlendRef={atmosphereBlend} />
 				<HeartbloomTree atmosphereBlendRef={atmosphereBlend} />
+				<MendariTownscape atmosphereBlendRef={atmosphereBlend} />
 				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
 
