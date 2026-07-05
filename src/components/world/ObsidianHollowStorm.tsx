@@ -23,14 +23,14 @@ type CloudClump = { center: THREE.Vector3; puffs: Puff[] };
  * PALING TINGGI di Noctira patut kelihatan paling berawan/ribut. */
 function buildCloudClumps(): CloudClump[] {
 	const rng = seededRng(9911);
-	const clumpCount = 9;
+	const clumpCount = 13;
 	const clumps: CloudClump[] = [];
 	for (let c = 0; c < clumpCount; c++) {
 		const angle = rng() * Math.PI * 2;
 		const r = 0.14 + rng() * 0.3;
 		const y = -0.05 + rng() * 0.11;
 		const center = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
-		const puffCount = 5 + Math.floor(rng() * 6);
+		const puffCount = 7 + Math.floor(rng() * 7);
 		const puffs: Puff[] = [];
 		for (let i = 0; i < puffCount; i++) {
 			const pr = rng() * 0.06;
@@ -53,7 +53,11 @@ function buildCloudClumps(): CloudClump[] {
  * (bentuk statik); hanya keterlihatan/kedudukan yang berdenyut (useFrame). */
 function buildBoltGeometry(seed: number): THREE.BufferGeometry {
 	const rng = seededRng(seed);
-	const points: THREE.Vector3[] = [new THREE.Vector3(0, 0.18, 0)];
+	// Mula TEPAT pada (0,0,0) — kumpulan induknya (boltGroupRef) diletak
+	// pada kedudukan kepulan awan SEBENAR setiap denyar, jadi bolt kelihatan
+	// bercambah keluar terus DARI kepulan tersebut, bukan terapung di
+	// ruang kosong beberapa unit di atasnya.
+	const points: THREE.Vector3[] = [new THREE.Vector3(0, 0, 0)];
 	const steps = 5 + Math.floor(rng() * 2);
 	for (let i = 0; i < steps; i++) {
 		const cur = points[points.length - 1];
@@ -103,9 +107,12 @@ const BOLT_VARIANT_COUNT = 4;
 // berturutan/"kluster kilat", jarak antara kluster juga rawak).
 const TIMELINE = 42;
 
-type FlashEvent = { start: number; end: number; boltIndex: number; clumpIndex: number };
+type FlashEvent = { start: number; end: number; boltIndex: number; puffIndex: number };
 
-function buildFlashTimeline(clumpCount: number): FlashEvent[] {
+/** Kilat berlabuh pada satu KEPULAN awan SEBENAR (puffIndex, bukan pusat
+ * kluster abstrak) — supaya ia kelihatan keluar DARI awan, bukan muncul
+ * rawak di ruang kosong berhampiran awan. */
+function buildFlashTimeline(puffCount: number): FlashEvent[] {
 	const rng = seededRng(7731);
 	const events: FlashEvent[] = [];
 	let t = rng() * 2;
@@ -117,7 +124,7 @@ function buildFlashTimeline(clumpCount: number): FlashEvent[] {
 				start: t,
 				end: t + dur,
 				boltIndex: Math.floor(rng() * BOLT_VARIANT_COUNT),
-				clumpIndex: Math.floor(rng() * clumpCount),
+				puffIndex: Math.floor(rng() * puffCount),
 			});
 			t += dur + 0.05 + rng() * 0.14;
 		}
@@ -155,7 +162,7 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 	const cloudMatRef = useRef<THREE.PointsMaterial>(null);
 
 	const boltVariants = useMemo(() => Array.from({ length: BOLT_VARIANT_COUNT }, (_, i) => buildBoltGeometry(4471 + i * 97)), []);
-	const flashTimeline = useMemo(() => buildFlashTimeline(clumps.length), [clumps.length]);
+	const flashTimeline = useMemo(() => buildFlashTimeline(puffs.length), [puffs.length]);
 	const boltMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#cfe8ff', transparent: true, opacity: 0 }), []);
 	const boltMeshRef = useRef<THREE.Mesh>(null);
 	const boltGroupRef = useRef<THREE.Group>(null);
@@ -201,7 +208,12 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 		boltMat.visible = visible;
 		if (visible && flash) {
 			if (boltMeshRef.current) boltMeshRef.current.geometry = boltVariants[flash.boltIndex];
-			if (boltGroupRef.current) boltGroupRef.current.position.copy(clumps[flash.clumpIndex].center);
+			// Berlabuh terus pada kedudukan SEBENAR kepulan (termasuk bob
+			// semasa), bukan pusat kluster — supaya kilat kelihatan keluar
+			// betul-betul DARI kepulan awan, bukan rawak di ruang kosong.
+			const p = puffs[flash.puffIndex];
+			const bob = Math.sin(clock.elapsedTime * 0.2 + p.phase * Math.PI * 2) * 0.006;
+			if (boltGroupRef.current) boltGroupRef.current.position.set(p.offset.x, p.offset.y + bob, p.offset.z);
 		}
 		if (boltLightRef.current) boltLightRef.current.intensity = visible ? 3.5 : 0;
 	});
@@ -227,7 +239,7 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 			<group position={cloudCenter} quaternion={quaternion}>
 				<group ref={boltGroupRef}>
 					<mesh ref={boltMeshRef} geometry={boltVariants[0]} material={boltMat} />
-					<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, 0.09, 0]} />
+					<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, -0.06, 0]} />
 				</group>
 			</group>
 		</group>
