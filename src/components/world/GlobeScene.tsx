@@ -32,6 +32,8 @@ import TerrainProps from './TerrainProps';
 import AscendariTower from './AscendariTower';
 import HeartbloomTree from './HeartbloomTree';
 import MendariTownscape from './MendariTownscape';
+import TerrainRings from './TerrainRings';
+import ObsidianHollowPeak from './ObsidianHollowPeak';
 
 const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
@@ -202,6 +204,25 @@ export function GlobeScene({
 				<AscendariTower atmosphereBlendRef={atmosphereBlend} />
 				<HeartbloomTree atmosphereBlendRef={atmosphereBlend} />
 				<MendariTownscape atmosphereBlendRef={atmosphereBlend} />
+				<ObsidianHollowPeak atmosphereBlendRef={atmosphereBlend} />
+				<TerrainRings
+					landmarkId="heartbloom"
+					ringRadius={0.2}
+					count={16}
+					heightRange={[0.03, 0.05]}
+					seed={7301}
+					color="#6b7a52"
+					atmosphereBlendRef={atmosphereBlend}
+				/>
+				<TerrainRings
+					landmarkId="obsidian-hollow"
+					ringRadius={0.34}
+					count={20}
+					heightRange={[0.035, 0.065]}
+					seed={8302}
+					color="#241f2a"
+					atmosphereBlendRef={atmosphereBlend}
+				/>
 				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
 

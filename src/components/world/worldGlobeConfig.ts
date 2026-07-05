@@ -187,6 +187,10 @@ export type LandmarkFeature = {
 	theta: number;
 	y: number;
 	radius: number;
+	/** Pengganda ketinggian relief pada terrainHeight (lalai 1 jika tiada) —
+	 * dipakai supaya satu gunung boleh jadi "paling tinggi" berbanding
+	 * gunung lain jenis sama, tanpa perlu jenis landmark baharu. */
+	heightScale?: number;
 };
 
 export function deg(d: number): number {
@@ -215,24 +219,35 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// padan tepat. Struktur 3D (rumah + carousel) dilayan dalam
 	// MendariTownscape.tsx.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.13 },
-	// Heartbloom Isle — pulau pokok gergasi Heartbloom. Cukup jauh (~60°)
-	// drpd Pulau Ascendari supaya kedua-dua pulau tidak bertindih jadi satu
-	// bongkah tanah — dipisahkan oleh Selat Equilara (lihat rantaian
-	// 'selat-*' di bawah) yang menghubungkan Luminara terus ke Noctira.
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'tree', theta: deg(100), y: 0.5, radius: 0.15 },
+	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
+	// Lembah tasik dilindungi benteng gunung ganang (bukan menjulang tinggi),
+	// pulau kecil tempat Pokok Heartbloom tumbuh di tengah tasik. Jauh ke
+	// dalam Luminara (y tinggi, jauh drpd Equilara), TAPI dijauhkan drpd
+	// kutub sebenar (~0.85+) sebab geometri sfera rendah-poligon paling
+	// terjejas berhampiran kutub (sama sebab rekahan Ignisara/Nivira
+	// dijauhkan drpd kutub). Type 'water' — lembah ini tasik, bukan hutan
+	// (pokok gergasi tunggal dilayan brpisah dlm HeartbloomTree.tsx, bukan
+	// hutan lebat Vegetation.tsx). Benteng gunung ganang: TerrainRings.tsx.
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.78, radius: 0.1 },
 	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
-	// Noctira — gunung obsidian, tasik gelap (gema Thalyssan Depths), hutan
-	// senja (gema Vorynth Wood), padang pasir (gema Gorrathic Badlands).
-	{ id: 'gunung-obsidian', nama: 'Gunung Obsidian', type: 'mountain', theta: deg(80), y: -0.72, radius: 0.19 },
+	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
+	// Gunung obsidian PALING TINGGI di Noctira (radius lebih besar drpd
+	// gunung biasa), berpuncak ais (ObsidianHollowPeak.tsx), dikelilingi
+	// banjaran lebih rendah (TerrainRings.tsx). Kedudukan bertentangan
+	// dengan Heartbloom Isle merentasi globe (theta 180° berbeza, y
+	// disongsangkan) — sama semangat dgn Ignisara/Nivira yang bertentangan,
+	// tapi TIDAK berkongsi lokasi sebenar dgn mana-mana rekahan.
+	{ id: 'obsidian-hollow', nama: 'Obsidian Hollow', type: 'mountain', theta: deg(280), y: -0.78, radius: 0.24, heightScale: 1.45 },
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
 	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2 },
 	{ id: 'padang-pasir', nama: 'Padang Pasir', type: 'arid', theta: deg(300), y: -0.42, radius: 0.18 },
-	// Selat Equilara — rantaian laut penghubung Heartbloom Isle/Pulau
-	// Ascendari (Luminara) merentasi khatulistiwa Equilara terus ke Tasik
-	// Gelap (Noctira), warna aqua tersendiri (bukan keemasan/gelap seperti
-	// laut lain) mewakili pertemuan kedua-dua spheral.
+	// Selat Equilara — rantaian laut penghubung Pulau Ascendari (Luminara)
+	// merentasi khatulistiwa Equilara terus ke Tasik Gelap (Noctira), warna
+	// aqua tersendiri (bukan keemasan/gelap seperti laut lain) mewakili
+	// pertemuan kedua-dua spheral. Heartbloom Isle kini lembah pedalaman
+	// (bukan pulau pantai), jadi tidak lagi disentuh selat ini.
 	{ id: 'selat-equilara-utara', nama: 'Selat Equilara (Utara)', type: 'selat', theta: deg(130), y: 0.32, radius: 0.22 },
 	{ id: 'selat-equilara-tengah', nama: 'Selat Equilara (Tengah)', type: 'selat', theta: deg(130), y: 0.0, radius: 0.24 },
 	{ id: 'selat-equilara-selatan', nama: 'Selat Equilara (Selatan)', type: 'selat', theta: deg(145), y: -0.32, radius: 0.24 },
@@ -254,12 +269,14 @@ export function buildFeatureUniformArrays(): {
 	dirs: [number, number, number][];
 	types: number[];
 	radii: number[];
+	heightScales: number[];
 	count: number;
 } {
 	return {
 		dirs: LANDMARK_FEATURES.map((f) => directionFromThetaY(f.theta, f.y)),
 		types: LANDMARK_FEATURES.map((f) => LANDMARK_TYPE_CODE[f.type]),
 		radii: LANDMARK_FEATURES.map((f) => f.radius),
+		heightScales: LANDMARK_FEATURES.map((f) => f.heightScale ?? 1),
 		count: LANDMARK_FEATURES.length,
 	};
 }
