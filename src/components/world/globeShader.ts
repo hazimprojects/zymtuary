@@ -131,9 +131,12 @@ float terrainHeight(vec3 n) {
 			h += falloff * 0.014;
 		} else if (t < 6.5) {
 			h += falloff * 0.075;
-		} else {
+		} else if (t < 7.5) {
 			// Selat Equilara — lembangan cetek sama macam air biasa.
 			h -= falloff * 0.03;
+		} else {
+			// Mendari — plaza/jalan rata, bonjolan halus sahaja.
+			h += falloff * 0.012;
 		}
 	}
 
@@ -289,11 +292,14 @@ vec3 featureColor(float t, float lat) {
 	if (t < 4.5) return vec3(0.5, 0.42, 0.28); // padang pasir
 	if (t < 5.5) return vec3(0.85, 0.42, 0.08); // teres air panas
 	if (t < 6.5) return vec3(0.3, 0.42, 0.15); // pokok Heartbloom
-	// Selat Equilara — aqua tersendiri, beralih lancar merentasi khatulistiwa
-	// (bukan langkah tajam step() macam air biasa) sebab satu selat ini
-	// sebenarnya merentasi Luminara-Equilara-Noctira dalam satu rantaian.
-	float bridgeWarm = smoothstep(-0.2, 0.2, lat);
-	return mix(vec3(0.08, 0.4, 0.56), vec3(0.16, 0.56, 0.5), bridgeWarm);
+	if (t < 7.5) {
+		// Selat Equilara — aqua tersendiri, beralih lancar merentasi khatulistiwa
+		// (bukan langkah tajam step() macam air biasa) sebab satu selat ini
+		// sebenarnya merentasi Luminara-Equilara-Noctira dalam satu rantaian.
+		float bridgeWarm = smoothstep(-0.2, 0.2, lat);
+		return mix(vec3(0.08, 0.4, 0.56), vec3(0.16, 0.56, 0.5), bridgeWarm);
+	}
+	return vec3(0.68, 0.56, 0.34); // Mendari — jalan batu pasir keemasan
 }
 
 /** Mercu tanda liar (gunung/air/hijau/gurun/teres/pokok) — rekahan diasingkan
@@ -388,12 +394,17 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float core = smoothstep(cosR + epsilon * 0.6, 1.0, align);
 			col = mix(col, fc, mask * 0.75);
 			col += fc * core * 0.5;
-		} else {
+		} else if (t < 7.5) {
 			// Selat Equilara — kilauan air lembut sahaja, TANPA jurang Thalyssan
 			// (jurang itu khusus Tasik Gelap, bukan selat penghubung ini).
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
 			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
+		} else {
+			// Mendari — speckle merah jambu (bougainvillea) berselang jalan emas.
+			float speckle = smoothstep(0.74, 0.9, fbm2(n * 32.0 + dir * 7.0));
+			col = mix(col, fc, mask * 0.8);
+			col += speckle * mask * vec3(0.95, 0.55, 0.7) * 0.5;
 		}
 	}
 	return col;

@@ -89,6 +89,7 @@ export type WilayahPortal = {
  * tanpa portal sehingga scene masing-masing dibina.
  */
 export const WILAYAH_PORTALS: Record<string, WilayahPortal> = {
+	// theta/y MESTI sama dengan ciri 'mendari-kota' dalam LANDMARK_FEATURES.
 	mendari: { wilayahId: 'mendari', nama: 'Mendari', route: '/wilayah/mendari', theta: 0.65, y: 0.62 },
 };
 
@@ -165,7 +166,7 @@ function hash(s: string): number {
  * Kedudukan sengaja diseimbangkan antara dua hemisfera (setiap satu ada
  * rekahan api/ais, gunung, air, dan kawasan hijau) ikut arahan reka bentuk.
  */
-export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat';
+export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat' | 'kota';
 
 const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	fissure: 0,
@@ -176,6 +177,7 @@ const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	hotspring: 5,
 	tree: 6,
 	selat: 7,
+	kota: 8,
 };
 
 export type LandmarkFeature = {
@@ -208,6 +210,11 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
 	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2 },
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
+	// Mendari — kota-taman Wilayah Lumiborne (Codex 5.2). theta/y MESTI sama
+	// dengan WILAYAH_PORTALS.mendari supaya lokasi terrain & titik portal
+	// padan tepat. Struktur 3D (rumah + carousel) dilayan dalam
+	// MendariTownscape.tsx.
+	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.13 },
 	// Heartbloom Isle — pulau pokok gergasi Heartbloom. Cukup jauh (~60°)
 	// drpd Pulau Ascendari supaya kedua-dua pulau tidak bertindih jadi satu
 	// bongkah tanah — dipisahkan oleh Selat Equilara (lihat rantaian
