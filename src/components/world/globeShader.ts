@@ -23,7 +23,7 @@ function hexToVec3(hex: string): THREE.Vector3 {
  */
 const sharedGlsl = /* glsl */ `
 #define MAX_GLOWS 24
-#define MAX_FEATURES 16
+#define MAX_FEATURES 24
 #define MAX_CRACK_SEGMENTS 26
 #define MAX_RIVER_SEGMENTS 10
 
@@ -33,6 +33,10 @@ uniform vec3 uFeatureDirs[MAX_FEATURES];
 uniform float uFeatureType[MAX_FEATURES];
 uniform float uFeatureRadius[MAX_FEATURES];
 uniform float uFeatureHeightScale[MAX_FEATURES];
+uniform float uFeatureRingMode[MAX_FEATURES];
+uniform float uFeatureRingWidth[MAX_FEATURES];
+uniform float uFeaturePeakSharpness[MAX_FEATURES];
+uniform float uFeatureSnowCap[MAX_FEATURES];
 uniform vec3 uCrackA[MAX_CRACK_SEGMENTS];
 uniform vec3 uCrackB[MAX_CRACK_SEGMENTS];
 uniform float uCrackWidth[MAX_CRACK_SEGMENTS];
@@ -114,33 +118,51 @@ float terrainHeight(vec3 n) {
 		float t = uFeatureType[i];
 		float radius = uFeatureRadius[i];
 		float heightScale = uFeatureHeightScale[i];
+		bool ringMode = uFeatureRingMode[i] > 0.5;
+		float ringWidth = uFeatureRingWidth[i];
 		float align = dot(n, dir);
-		if (align < cos(radius * 1.7)) continue;
+		float outerReach = ringMode ? (radius + ringWidth * 2.0) : radius;
+		if (align < cos(outerReach * 1.7)) continue;
 
-		float cosR = cos(radius);
-		// Peralihan merentasi SELURUH jejari (pusat ke tepi), bukan jalur
-		// sempit dekat tepi — kubah/lembangan jadi cerun cerun landai yang
-		// berubah beransur dari verteks ke verteks. Jalur sempit pada sfera
-		// rendah-poligon menghasilkan corak cincin/tangga kelihatan sebab
-		// nilai melompat terlalu pantas antara verteks berdekatan.
-		float falloff = smoothstep(cosR, 1.0, align);
+		float falloff;
+		if (ringMode) {
+			// Banjaran/benteng gunung berbentuk GEGELANG — tinggi pada jejari
+			// sudut ~radius sahaja (bukan kubah penuh dari pusat), supaya
+			// bacaannya "terrain ditinggikan mengelilingi lembah/puncak".
+			float angDist = acos(clamp(align, -1.0, 1.0));
+			falloff = 1.0 - smoothstep(0.0, ringWidth, abs(angDist - radius));
+		} else {
+			float cosR = cos(radius);
+			// Peralihan merentasi SELURUH jejari (pusat ke tepi), bukan jalur
+			// sempit dekat tepi — kubah/lembangan jadi cerun cerun landai yang
+			// berubah beransur dari verteks ke verteks. Jalur sempit pada sfera
+			// rendah-poligon menghasilkan corak cincin/tangga kelihatan sebab
+			// nilai melompat terlalu pantas antara verteks berdekatan.
+			float domeFalloff = smoothstep(cosR, 1.0, align);
+			// peakSharpness < 1 menajamkan puncak jadi tirus/runcing (bukan
+			// kubah/bukit bulat) — pow() tidak mengecilkan lebar jalur
+			// peralihan sedia ada, jadi selamat drpd artifak cincin/tangga.
+			falloff = pow(domeFalloff, uFeaturePeakSharpness[i]);
+		}
 
 		if (t < 1.5) {
 			// heightScale > 1 utk gunung yang mesti "paling tinggi" (cth.
 			// Obsidian Hollow) berbanding gunung biasa jenis sama.
 			h += falloff * 0.1 * heightScale;
 		} else if (t < 2.5) {
-			h -= falloff * 0.03;
+			// heightScale > 1 utk lembangan yang mesti lebih DALAM (cth.
+			// lembah tasik Heartbloom Isle) berbanding air biasa.
+			h -= falloff * 0.03 * heightScale;
 		} else if (t < 5.5) {
-			h += falloff * 0.014;
+			h += falloff * 0.014 * heightScale;
 		} else if (t < 6.5) {
-			h += falloff * 0.075;
+			h += falloff * 0.075 * heightScale;
 		} else if (t < 7.5) {
 			// Selat Equilara — lembangan cetek sama macam air biasa.
-			h -= falloff * 0.03;
+			h -= falloff * 0.03 * heightScale;
 		} else {
 			// Mendari — plaza/jalan rata, bonjolan halus sahaja.
-			h += falloff * 0.012;
+			h += falloff * 0.012 * heightScale;
 		}
 	}
 
@@ -316,16 +338,25 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 		vec3 dir = uFeatureDirs[i];
 		float t = uFeatureType[i];
 		float radius = uFeatureRadius[i];
+		bool ringMode = uFeatureRingMode[i] > 0.5;
+		float ringWidth = uFeatureRingWidth[i];
 
 		float align = dot(n, dir);
-		if (align < cos(radius * 1.9)) continue;
+		float outerReach = ringMode ? (radius + ringWidth * 2.0) : radius;
+		if (align < cos(outerReach * 1.9)) continue;
 
 		float edgeNoise = fbm2(n * 9.0 + dir * 3.0) - 0.5;
 		float cosR = cos(radius * (1.0 + edgeNoise * 0.45));
 		float epsilon = max(radius * 0.4, 0.03);
-		float mask = smoothstep(cosR - epsilon, cosR + epsilon, align);
+		float mask;
+		if (ringMode) {
+			float angDist = acos(clamp(align, -1.0, 1.0));
+			mask = 1.0 - smoothstep(0.0, ringWidth, abs(angDist - radius));
+		} else {
+			mask = smoothstep(cosR - epsilon, cosR + epsilon, align);
+		}
 
-		if ((t > 1.5 && t < 2.5) || (t > 6.5 && t < 7.5)) {
+		if (!ringMode && ((t > 1.5 && t < 2.5) || (t > 6.5 && t < 7.5))) {
 			vec3 upRef = abs(dir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
 			vec3 tu = normalize(cross(upRef, dir));
 			vec3 tv = cross(dir, tu);
@@ -349,6 +380,11 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float groundCrack = smoothstep(0.78, 0.9, fbm2(n * 34.0 + dir * 9.0));
 			col = mix(col, fc * ridge, mask * 0.8);
 			col = mix(col, fc * 0.35, mask * groundCrack * 0.6);
+			if (uFeatureSnowCap[i] > 0.5) {
+				float snow = smoothstep(0.8, 0.95, align);
+				vec3 snowColor = mix(vec3(0.72, 0.84, 0.95), vec3(0.96, 0.99, 1.0), fbm2(n * 25.0 + dir * 5.0));
+				col = mix(col, snowColor, snow * mask);
+			}
 		} else if (t < 2.5) {
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
 			col = mix(col, fc, mask * 0.78);
@@ -521,13 +557,18 @@ void main() {
 export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.ShaderMaterial {
 	const glow = entityUniforms ?? createEntityGlowUniforms();
 
-	const { dirs, types, radii, heightScales, count } = buildFeatureUniformArrays();
+	const { dirs, types, radii, heightScales, ringModes, ringWidths, peakSharpnesses, snowCaps, count } =
+		buildFeatureUniformArrays();
 	const featureDirs = Array.from({ length: MAX_FEATURES }, (_, i) =>
 		dirs[i] ? new THREE.Vector3(...dirs[i]) : new THREE.Vector3(0, 1, 0),
 	);
 	const featureTypes = Array.from({ length: MAX_FEATURES }, (_, i) => types[i] ?? 0);
 	const featureRadii = Array.from({ length: MAX_FEATURES }, (_, i) => radii[i] ?? 0.1);
 	const featureHeightScales = Array.from({ length: MAX_FEATURES }, (_, i) => heightScales[i] ?? 1);
+	const featureRingModes = Array.from({ length: MAX_FEATURES }, (_, i) => ringModes[i] ?? 0);
+	const featureRingWidths = Array.from({ length: MAX_FEATURES }, (_, i) => ringWidths[i] ?? 0.05);
+	const featurePeakSharpnesses = Array.from({ length: MAX_FEATURES }, (_, i) => peakSharpnesses[i] ?? 1);
+	const featureSnowCaps = Array.from({ length: MAX_FEATURES }, (_, i) => snowCaps[i] ?? 0);
 
 	const cracks = buildCrackUniformArrays();
 	const crackA = Array.from({ length: MAX_CRACK_SEGMENTS }, (_, i) => new THREE.Vector3(...cracks.a[i]));
@@ -558,6 +599,10 @@ export function createGlobeMaterial(entityUniforms?: EntityGlowUniforms): THREE.
 			uFeatureType: { value: featureTypes },
 			uFeatureRadius: { value: featureRadii },
 			uFeatureHeightScale: { value: featureHeightScales },
+			uFeatureRingMode: { value: featureRingModes },
+			uFeatureRingWidth: { value: featureRingWidths },
+			uFeaturePeakSharpness: { value: featurePeakSharpnesses },
+			uFeatureSnowCap: { value: featureSnowCaps },
 			uCrackA: { value: crackA },
 			uCrackB: { value: crackB },
 			uCrackWidth: { value: crackWidth },
