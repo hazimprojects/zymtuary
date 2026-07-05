@@ -120,11 +120,18 @@ void main() {
 	float pulse = 0.8 + 0.2 * sin(uTime * 0.25 + nebula * 6.28);
 	col += mix(uNoctira, uEquilara, teal) * glow * pulse * 0.35;
 
-	// Bintang — dua saiz/kepekatan utk kedalaman.
-	float starsFar = starField(dir, 220.0, 42.0) * 0.6;
-	float starsNear = starField(dir + 3.3, 90.0, 60.0);
+	// Subordinasikan nebula (#2) — latar mesti TUNDUK supaya planet jadi hero:
+	// nyahtepu sedikit (ke arah luminans) + redup sedikit, jadi ia terbaca sbg
+	// kedalaman/atmosfera, bukan bersaing dgn planet. Bintang dikurangkan
+	// kecerahannya (elemen paling "sibuk"/keras).
+	float lum = dot(col, vec3(0.299, 0.587, 0.114));
+	col = mix(col, vec3(lum), 0.16) * 0.88;
+
+	// Bintang — dua saiz/kepekatan utk kedalaman (dikurangkan kecerahan).
+	float starsFar = starField(dir, 220.0, 42.0) * 0.42;
+	float starsNear = starField(dir + 3.3, 90.0, 60.0) * 0.7;
 	float twinkle = 0.7 + 0.3 * sin(uTime * 1.5 + dir.x * 40.0 + dir.z * 33.0);
-	col += vec3(0.85, 0.9, 1.0) * (starsFar + starsNear * twinkle);
+	col += vec3(0.8, 0.85, 0.95) * (starsFar + starsNear * twinkle);
 
 	// Aurora — tirai cahaya menari dlm satu pita langit tengah (bukan zenit/
 	// ufuk penuh), ombak fbm bergerak perlahan. Warna & kekuatan ditetapkan

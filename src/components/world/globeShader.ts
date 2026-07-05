@@ -314,6 +314,14 @@ vec3 mythicSurface(vec3 n, float detailBoost) {
 	col *= 0.86 + veins * 0.34;
 	col += veins * mix(uLuminara, uNoctira, step(0.0, -lat)) * 0.06;
 
+	// Kekayaan tona berlapis (#5) — variasi dwi-warna halus supaya permukaan
+	// tidak rata "murah": Luminara dapat lapisan amber-madu hangat, Noctira
+	// lapisan nila sejuk, Equilara sedikit teal — mengikut fbm tona berasingan.
+	float tone = fbm(pw * 2.3 + 5.0);
+	col = mix(col, col * vec3(1.10, 1.03, 0.88), tone * 0.34 * lumMask);
+	col = mix(col, col * vec3(0.9, 0.97, 1.06), (1.0 - tone) * 0.24 * noctMask);
+	col = mix(col, col * vec3(0.92, 1.05, 1.02), tone * 0.2 * overlap);
+
 	return col;
 }
 
@@ -585,9 +593,17 @@ void main() {
 	col = applyRivers(col, n);
 
 	vec3 lightDir = normalize(vec3(0.35, 0.55, 0.75));
-	float diffuse = 0.5 + 0.5 * max(dot(n, lightDir), 0.0);
+	float litSide = max(dot(n, lightDir), 0.0); // 0 = sisi bayang, 1 = sisi cahaya
+	float diffuse = 0.5 + 0.5 * litSide;
 	col *= diffuse;
 	col *= 1.08 + detailBoost * 0.18;
+
+	// Fill sejuk pada sisi bayang (#3) — angkat sedikit dgn nila-teal supaya
+	// sisi Noctira/bayang TIDAK jatuh hitam pekat & hilang ditelan nebula;
+	// planet kekal terbaca sbg sfera penuh. Halus, hanya di sisi tak bermandi
+	// cahaya.
+	float shadowSide = 1.0 - litSide;
+	col += vec3(0.10, 0.14, 0.22) * shadowSide * 0.14;
 
 	vec3 resonance = innerResonance(n, frontMask);
 	col += resonance * mix(0.32, 0.18, uProximity);
@@ -599,11 +615,20 @@ void main() {
 	float breathe = 0.94 + 0.03 * sin(uTime * 0.7);
 	col *= breathe;
 
-	float fresnel = pow(1.0 - max(dot(n, normalize(vViewDir)), 0.0), 2.4);
-	col += fresnel * vec3(0.14, 0.12, 0.10) * frontMask;
+	// Rim atmosfera berarah (#1) — halo cahaya di limbah planet: EMAS hangat di
+	// sisi bermandi cahaya, TEAL-NILA sejuk di sisi bayang. Ini memisahkan
+	// siluet planet drpd latar nebula DAN mengikatnya (rim sejuk berima dgn
+	// nebula sejuk) — teknik teras studio angkasa. Lebih kuat drpd fresnel
+	// lembut dahulu.
+	float rim = pow(1.0 - max(dot(n, normalize(vViewDir)), 0.0), 3.0);
+	vec3 rimWarm = vec3(1.0, 0.76, 0.4);
+	vec3 rimCool = vec3(0.32, 0.62, 0.82);
+	vec3 rimCol = mix(rimCool, rimWarm, litSide);
+	col += rim * rimCol * mix(0.35, 0.55, uProximity) * frontMask;
 
-	float atmosRim = pow(1.0 - max(dot(n, normalize(vViewDir)), 0.0), 3.0);
-	col += atmosRim * uEquilara * mix(0.06, 0.14, uProximity) * frontMask;
+	// Kilau tepi halus tambahan (kekal, lembut) supaya limbah tidak keras.
+	float fresnel = pow(1.0 - max(dot(n, normalize(vViewDir)), 0.0), 2.4);
+	col += fresnel * vec3(0.10, 0.11, 0.13) * frontMask;
 
 	gl_FragColor = vec4(col, 1.0);
 }

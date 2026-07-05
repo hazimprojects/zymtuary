@@ -17,11 +17,17 @@ export type EntityEntry = {
 	spot_utama?: SpotUtama[];
 };
 
-/** Warna hemisfera — orientasi geografi, bukan alam berasingan */
+/** Warna hemisfera — orientasi geografi, bukan alam berasingan.
+ * Ditala utk kohesi dgn latar nebula Aethernals:
+ * - Luminara: amber-madu lebih kaya (#dcae52) — bukan oren-labu rata "murah".
+ * - Equilara: teal-batu (#7c968e) berima dgn teal Equilara di langit/nebula —
+ *   bukan kelabu-lumpur (#9a8f7a) yg tak berima dgn apa-apa.
+ * - Noctira: nila (kekal) — sudah berima dgn ungu Noctira.
+ * Kekayaan tona berlapis ditambah dlm shader (mythicSurface). */
 export const HEMISPHERE_COLORS = {
-	luminara: '#d4a843',
+	luminara: '#dcae52',
 	noctira: '#5c4a8a',
-	equilara: '#9a8f7a',
+	equilara: '#7c968e',
 } as const;
 
 export const FAMILY_COLORS: Record<string, string> = {
