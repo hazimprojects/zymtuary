@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeBufferGeometries } from 'three-stdlib';
 import {
 	FISSURE_CENTERS,
 	GLOBE_RADIUS,
@@ -13,6 +14,7 @@ import {
 	tangentBasis,
 	type LandmarkFeature,
 } from './worldGlobeConfig';
+import { buildSpriteTexture } from './FeatureParticles';
 
 type TerrainPropsProps = {
 	/** Sama seperti Vegetation/Aethirion — perincian ini hanya kelihatan
@@ -25,6 +27,7 @@ type PropSpot = {
 	quaternion: THREE.Quaternion;
 	scale: THREE.Vector3;
 	warm: boolean;
+	variant: number;
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -37,6 +40,7 @@ function radialSpot(
 	warm: boolean,
 	tilt = 0,
 	tiltAxis?: THREE.Vector3,
+	variant = 0,
 ): PropSpot {
 	const position = dirVec.clone().multiplyScalar(GLOBE_RADIUS + heightOffset);
 	const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dirVec);
@@ -44,7 +48,7 @@ function radialSpot(
 	if (tilt !== 0 && tiltAxis) {
 		quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(tiltAxis, tilt));
 	}
-	return { position, quaternion, scale, warm };
+	return { position, quaternion, scale, warm, variant };
 }
 
 /** Gugusan batu kecil rendah-poli — badlands & gunung (termasuk obsidian)
@@ -84,10 +88,51 @@ function buildRockSpots(): PropSpot[] {
 	return spots;
 }
 
+const CRYSTAL_VARIANT_COUNT = 4;
+
+/** Satu "cebisan" kristal condong — bukan diamond simetri, tapi tirus
+ * sehala macam serpihan sebenar tumbuh dari retakan. */
+function makeShardGeometry(radiusBottom: number, height: number, segments: number, leanX: number, leanZ: number): THREE.BufferGeometry {
+	const geo = new THREE.ConeGeometry(radiusBottom, height, segments, 1);
+	geo.translate(0, height / 2, 0);
+	geo.rotateX(leanX);
+	geo.rotateZ(leanZ);
+	return geo;
+}
+
+/** Kluster kristal — gabungan 2-4 cebisan tirus pada saiz/sudut berlainan
+ * dicantum jadi satu geometri (guna mergeBufferGeometries), macam formasi
+ * kristal sebenar tumbuh berkelompok dari batu, bukan satu bentuk diamond
+ * generik tunggal. Beberapa variant dijana sekali sahaja dan dikongsi. */
+function makeCrystalClusterGeometry(seed: number): THREE.BufferGeometry {
+	const rng = seededRng(seed);
+	const shardCount = 2 + Math.floor(rng() * 3);
+	const pieces: THREE.BufferGeometry[] = [];
+
+	for (let i = 0; i < shardCount; i++) {
+		const radiusBottom = 0.14 + rng() * 0.14;
+		const height = 0.55 + rng() * 0.85;
+		const segments = 5 + Math.floor(rng() * 2);
+		const leanX = (rng() - 0.5) * 0.9;
+		const leanZ = (rng() - 0.5) * 0.9;
+		const shard = makeShardGeometry(radiusBottom, height, segments, leanX, leanZ);
+		const offsetU = (rng() - 0.5) * 0.4;
+		const offsetV = (rng() - 0.5) * 0.4;
+		shard.translate(offsetU, 0, offsetV);
+		shard.rotateY(rng() * Math.PI * 2);
+		pieces.push(shard);
+	}
+
+	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
+	for (const piece of pieces) piece.dispose();
+	return merged;
+}
+
 /** Kristal kecil bercahaya sepanjang rekahan Ignisara (lava, oren) dan
  * Nivira (ais, biru-putih) — diserak mengikut segmen retak SEBENAR (data
- * sama dengan glow rekahan dalam shader) supaya betul-betul mengikut
- * laluan retak, bukan kawasan bulat berasingan. */
+ * sama dengan glow rekahan dalam shader), dibenamkan sedikit (bukan
+ * terapung di atas) dan dicondongkan rawak macam serpihan tumbuh keluar
+ * dari mulut retak, bukan berdiri tegak sempurna. */
 function buildCrystalSpots(): PropSpot[] {
 	const spots: PropSpot[] = [];
 	const perFissureMax = Math.floor(MAX_CRACK_SEGMENTS / FISSURE_CENTERS.length);
@@ -103,30 +148,42 @@ function buildCrystalSpots(): PropSpot[] {
 		for (const seg of segments) {
 			const a = new THREE.Vector3(...seg.a);
 			const b = new THREE.Vector3(...seg.b);
-			const perSeg = 6;
+			const perSeg = 10;
 			for (let i = 0; i < perSeg; i++) {
 				const t = rng();
 				const along = a.clone().lerp(b, t).normalize();
-				const s = 0.008 + rng() * 0.014;
-				const scale = new THREE.Vector3(s * 0.55, s * (1.0 + rng() * 0.7), s * 0.55);
-				spots.push(radialSpot(along, 0.002, scale, rng() * Math.PI * 2, warm));
+				const s = 0.006 + rng() * 0.012;
+				const scale = new THREE.Vector3(s, s, s);
+				const tiltAxis = new THREE.Vector3(rng() - 0.5, 0, rng() - 0.5).normalize();
+				const variant = Math.floor(rng() * CRYSTAL_VARIANT_COUNT);
+				spots.push(radialSpot(along, -0.004, scale, rng() * Math.PI * 2, warm, (rng() - 0.5) * 0.8, tiltAxis, variant));
 			}
 		}
 	}
 	return spots;
 }
 
-/** Kepulan awan rendah-poli melekat berhampiran kawasan gunung & hijau/pokok
- * — beberapa "gumpalan" (klump) kecil, setiap satu terdiri drpd beberapa
- * puff bertindih, terapung sedikit di atas permukaan (bukan naik ke langit). */
+type CloudPuff = {
+	dir: THREE.Vector3;
+	baseHeight: number;
+	phase: number;
+	speed: number;
+	warm: boolean;
+};
+
+/** Kepulan wap/kabus (bukan poligon) berhampiran kawasan gunung & hijau/
+ * pokok — dijana sebagai partikel sprite lembut (sama teknik dgn ember/
+ * salji) supaya kelihatan macam kabus pekat bertumpuk, bukan bentuk 3D
+ * bersegi. Beberapa puff bertindih rapat setiap "gumpalan" untuk kesan
+ * pekat, terapung rendah dan hanyut perlahan (bukan naik ke langit). */
 function densityForCloud(feature: LandmarkFeature): number {
 	if (feature.type === 'mountain') return 5;
 	if (feature.type === 'green' || feature.type === 'tree') return 4;
 	return 0;
 }
 
-function buildCloudSpots(): PropSpot[] {
-	const spots: PropSpot[] = [];
+function buildCloudPuffs(): CloudPuff[] {
+	const puffs: CloudPuff[] = [];
 	for (const feature of LANDMARK_FEATURES) {
 		const clumps = densityForCloud(feature);
 		if (clumps === 0) continue;
@@ -141,42 +198,93 @@ function buildCloudSpots(): PropSpot[] {
 			const angle = rng() * Math.PI * 2;
 			const cu = Math.cos(angle) * r;
 			const cv = Math.sin(angle) * r;
-			const puffsInClump = 4 + Math.floor(rng() * 3);
+			const puffsInClump = 7 + Math.floor(rng() * 5);
 
 			for (let p = 0; p < puffsInClump; p++) {
-				const ou = cu + (rng() - 0.5) * 0.035;
-				const ov = cv + (rng() - 0.5) * 0.035;
+				const ou = cu + (rng() - 0.5) * 0.05;
+				const ov = cv + (rng() - 0.5) * 0.05;
 				const dir = new THREE.Vector3(...localToDir(center, u, v, ou, ov));
-				const height = 0.05 + rng() * 0.045;
-				const s = 0.02 + rng() * 0.022;
-				const scale = new THREE.Vector3(s, s * (0.65 + rng() * 0.3), s);
-				spots.push(radialSpot(dir, height, scale, rng() * Math.PI * 2, warm));
+				const baseHeight = 0.03 + rng() * 0.05;
+				puffs.push({ dir, baseHeight, phase: rng(), speed: 0.15 + rng() * 0.2, warm });
 			}
 		}
 	}
-	return spots;
+	return puffs;
+}
+
+function CloudLayer({
+	puffs,
+	texture,
+	color,
+	size,
+	atmosphereBlendRef,
+}: {
+	puffs: CloudPuff[];
+	texture: THREE.Texture;
+	color: string;
+	size: number;
+	atmosphereBlendRef: React.MutableRefObject<number>;
+}) {
+	const positions = useMemo(() => new Float32Array(puffs.length * 3), [puffs.length]);
+	const geomRef = useRef<THREE.BufferGeometry>(null);
+	const materialRef = useRef<THREE.PointsMaterial>(null);
+
+	useFrame(({ clock }) => {
+		for (let i = 0; i < puffs.length; i++) {
+			const p = puffs[i];
+			const bob = Math.sin(clock.elapsedTime * p.speed + p.phase * Math.PI * 2) * 0.006;
+			const altitude = GLOBE_RADIUS + p.baseHeight + bob;
+			positions[i * 3] = p.dir.x * altitude;
+			positions[i * 3 + 1] = p.dir.y * altitude;
+			positions[i * 3 + 2] = p.dir.z * altitude;
+		}
+		if (geomRef.current) geomRef.current.attributes.position.needsUpdate = true;
+
+		if (materialRef.current) {
+			const blend = atmosphereBlendRef.current;
+			const target = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1) * 0.8;
+			materialRef.current.opacity = THREE.MathUtils.lerp(materialRef.current.opacity, target, 0.06);
+			materialRef.current.visible = materialRef.current.opacity > 0.01;
+		}
+	});
+
+	if (puffs.length === 0) return null;
+
+	return (
+		<points>
+			<bufferGeometry ref={geomRef}>
+				<bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} itemSize={3} />
+			</bufferGeometry>
+			<pointsMaterial
+				ref={materialRef}
+				size={size}
+				map={texture}
+				color={color}
+				transparent
+				opacity={0}
+				depthWrite={false}
+				sizeAttenuation
+				blending={THREE.NormalBlending}
+			/>
+		</points>
+	);
 }
 
 function makeRockGeometry() {
 	return new THREE.IcosahedronGeometry(1, 0);
 }
 
-function makeCrystalGeometry() {
-	return new THREE.OctahedronGeometry(1, 0);
-}
-
-function makeCloudGeometry() {
-	return new THREE.IcosahedronGeometry(1, 1);
-}
-
 export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) {
 	const rockGeo = useMemo(() => makeRockGeometry(), []);
-	const crystalGeo = useMemo(() => makeCrystalGeometry(), []);
-	const cloudGeo = useMemo(() => makeCloudGeometry(), []);
+	const crystalGeoVariants = useMemo(
+		() => Array.from({ length: CRYSTAL_VARIANT_COUNT }, (_, i) => makeCrystalClusterGeometry(401 + i * 37)),
+		[],
+	);
+	const cloudTexture = useMemo(() => buildSpriteTexture(), []);
 
 	const rockSpots = useMemo(() => buildRockSpots(), []);
 	const crystalSpots = useMemo(() => buildCrystalSpots(), []);
-	const cloudSpots = useMemo(() => buildCloudSpots(), []);
+	const cloudPuffs = useMemo(() => buildCloudPuffs(), []);
 
 	const rockWarmMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#7a6a58', flatShading: true, roughness: 0.95, transparent: true, opacity: 0 }),
@@ -220,36 +328,10 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 			}),
 		[],
 	);
-	const cloudWarmMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				color: '#fff6e6',
-				emissive: '#4a3d28',
-				emissiveIntensity: 0.25,
-				flatShading: true,
-				roughness: 1,
-				transparent: true,
-				opacity: 0,
-			}),
-		[],
-	);
-	const cloudColdMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				color: '#eaf4ff',
-				emissive: '#26313d',
-				emissiveIntensity: 0.25,
-				flatShading: true,
-				roughness: 1,
-				transparent: true,
-				opacity: 0,
-			}),
-		[],
-	);
 
 	const materials = useMemo(
-		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, cloudWarmMat, cloudColdMat],
-		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, cloudWarmMat, cloudColdMat],
+		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat],
+		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat],
 	);
 
 	useFrame(({ clock }) => {
@@ -266,10 +348,19 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 
 	const warmRocks = useMemo(() => rockSpots.filter((s) => s.warm), [rockSpots]);
 	const coldRocks = useMemo(() => rockSpots.filter((s) => !s.warm), [rockSpots]);
-	const warmCrystals = useMemo(() => crystalSpots.filter((s) => s.warm), [crystalSpots]);
-	const coldCrystals = useMemo(() => crystalSpots.filter((s) => !s.warm), [crystalSpots]);
-	const warmClouds = useMemo(() => cloudSpots.filter((s) => s.warm), [cloudSpots]);
-	const coldClouds = useMemo(() => cloudSpots.filter((s) => !s.warm), [cloudSpots]);
+	const warmCloudPuffs = useMemo(() => cloudPuffs.filter((p) => p.warm), [cloudPuffs]);
+	const coldCloudPuffs = useMemo(() => cloudPuffs.filter((p) => !p.warm), [cloudPuffs]);
+
+	const crystalGroups = useMemo(() => {
+		const groups: { variant: number; warm: boolean; spots: PropSpot[] }[] = [];
+		for (let variant = 0; variant < CRYSTAL_VARIANT_COUNT; variant++) {
+			for (const warm of [true, false]) {
+				const spots = crystalSpots.filter((s) => s.variant === variant && s.warm === warm);
+				if (spots.length > 0) groups.push({ variant, warm, spots });
+			}
+		}
+		return groups;
+	}, [crystalSpots]);
 
 	const makeInstances = (list: PropSpot[], geometry: THREE.BufferGeometry, material: THREE.Material, key: string) => {
 		if (list.length === 0) return null;
@@ -294,10 +385,16 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 		<group>
 			{makeInstances(warmRocks, rockGeo, rockWarmMat, 'rock-warm')}
 			{makeInstances(coldRocks, rockGeo, rockColdMat, 'rock-cold')}
-			{makeInstances(warmCrystals, crystalGeo, crystalWarmMat, 'crystal-warm')}
-			{makeInstances(coldCrystals, crystalGeo, crystalColdMat, 'crystal-cold')}
-			{makeInstances(warmClouds, cloudGeo, cloudWarmMat, 'cloud-warm')}
-			{makeInstances(coldClouds, cloudGeo, cloudColdMat, 'cloud-cold')}
+			{crystalGroups.map(({ variant, warm, spots }) =>
+				makeInstances(
+					spots,
+					crystalGeoVariants[variant],
+					warm ? crystalWarmMat : crystalColdMat,
+					`crystal-${variant}-${warm ? 'warm' : 'cold'}`,
+				),
+			)}
+			<CloudLayer puffs={warmCloudPuffs} texture={cloudTexture} color="#fff6e6" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
+			<CloudLayer puffs={coldCloudPuffs} texture={cloudTexture} color="#eaf4ff" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
 		</group>
 	);
 }
