@@ -62,6 +62,10 @@ function densityForRock(feature: LandmarkFeature): number {
 	if (feature.ringMode) return 0;
 	if (feature.type === 'mountain') return 220;
 	if (feature.type === 'arid') return 180;
+	// Batu-batu bertaburan di lantai hutan (gema rujukan: batu kelabu
+	// berselerak antara pokok pain) — jauh lebih jarang drpd padang batu
+	// gunung, sekadar aksen kedalaman/realistik, bukan medan batu penuh.
+	if (feature.type === 'green' || feature.type === 'tree') return 45;
 	return 0;
 }
 
