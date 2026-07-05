@@ -165,7 +165,7 @@ function hash(s: string): number {
  * Kedudukan sengaja diseimbangkan antara dua hemisfera (setiap satu ada
  * rekahan api/ais, gunung, air, dan kawasan hijau) ikut arahan reka bentuk.
  */
-export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree';
+export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat';
 
 const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	fissure: 0,
@@ -175,6 +175,7 @@ const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	arid: 4,
 	hotspring: 5,
 	tree: 6,
+	selat: 7,
 };
 
 export type LandmarkFeature = {
@@ -207,13 +208,26 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
 	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2 },
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
-	{ id: 'heartbloom', nama: 'Heartbloom', type: 'tree', theta: deg(100), y: 0.5, radius: 0.15 },
+	// Heartbloom Isle — pulau pokok gergasi Heartbloom, bersebelahan Pulau
+	// Ascendari, kedua-duanya dilingkari Selat Equilara (lihat rantaian
+	// 'selat-*' di bawah) yang menghubungkan Luminara terus ke Noctira.
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'tree', theta: deg(100), y: 0.5, radius: 0.15 },
+	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
+	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
+	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(125), y: 0.5, radius: 0.15 },
 	// Noctira — gunung obsidian, tasik gelap (gema Thalyssan Depths), hutan
 	// senja (gema Vorynth Wood), padang pasir (gema Gorrathic Badlands).
 	{ id: 'gunung-obsidian', nama: 'Gunung Obsidian', type: 'mountain', theta: deg(80), y: -0.72, radius: 0.19 },
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
 	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2 },
 	{ id: 'padang-pasir', nama: 'Padang Pasir', type: 'arid', theta: deg(300), y: -0.42, radius: 0.18 },
+	// Selat Equilara — rantaian laut penghubung Heartbloom Isle/Pulau
+	// Ascendari (Luminara) merentasi khatulistiwa Equilara terus ke Tasik
+	// Gelap (Noctira), warna aqua tersendiri (bukan keemasan/gelap seperti
+	// laut lain) mewakili pertemuan kedua-dua spheral.
+	{ id: 'selat-equilara-utara', nama: 'Selat Equilara (Utara)', type: 'selat', theta: deg(112), y: 0.32, radius: 0.22 },
+	{ id: 'selat-equilara-tengah', nama: 'Selat Equilara (Tengah)', type: 'selat', theta: deg(112), y: 0.0, radius: 0.24 },
+	{ id: 'selat-equilara-selatan', nama: 'Selat Equilara (Selatan)', type: 'selat', theta: deg(125), y: -0.32, radius: 0.24 },
 ];
 
 export const MAX_FEATURES = 16;
