@@ -47,6 +47,7 @@ type GlobeSceneProps = {
 	onAtmosphereBlendChange?: (blend: number) => void;
 	onJoystickChange?: (joystick: JoystickVisual | null) => void;
 	onPortalNear?: (wilayahId: string | null) => void;
+	onEnterPortal?: (wilayahId: string) => void;
 };
 
 export function GlobeScene({
@@ -56,6 +57,7 @@ export function GlobeScene({
 	onAtmosphereBlendChange,
 	onJoystickChange,
 	onPortalNear,
+	onEnterPortal,
 }: GlobeSceneProps) {
 	const groupRef = useRef<THREE.Group>(null);
 	const globeRef = useRef<GlobeSurfaceHandle>(null);
@@ -69,6 +71,7 @@ export function GlobeScene({
 	const [showInterior, setShowInterior] = useState(false);
 	const [veilIntensity, setVeilIntensity] = useState(0);
 	const [globeProximity, setGlobeProximity] = useState(0);
+	const [nearPortalId, setNearPortalId] = useState<string | null>(null);
 	const groupRotationRef = useRef(0);
 	const blockDescentEntry = useRef(false);
 	const atmosphereBlend = useRef(0);
@@ -86,6 +89,14 @@ export function GlobeScene({
 	useEffect(() => {
 		onZoomModeChange?.(zoomMode);
 	}, [onZoomModeChange, zoomMode]);
+
+	const handlePortalNear = useCallback(
+		(wilayahId: string | null) => {
+			setNearPortalId(wilayahId);
+			onPortalNear?.(wilayahId);
+		},
+		[onPortalNear],
+	);
 
 	const endDescentInstant = useCallback(() => {
 		blockDescentEntry.current = true;
@@ -202,7 +213,11 @@ export function GlobeScene({
 				<TerrainProps atmosphereBlendRef={atmosphereBlend} />
 				<AscendariTower atmosphereBlendRef={atmosphereBlend} />
 				<HeartbloomTree atmosphereBlendRef={atmosphereBlend} />
-				<MendariTownscape atmosphereBlendRef={atmosphereBlend} />
+				<MendariTownscape
+					atmosphereBlendRef={atmosphereBlend}
+					enterEnabled={nearPortalId === 'mendari'}
+					onEnter={() => onEnterPortal?.('mendari')}
+				/>
 				<ObsidianHollowStorm atmosphereBlendRef={atmosphereBlend} />
 				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
@@ -217,7 +232,7 @@ export function GlobeScene({
 				groupRef={groupRef}
 				onAnchorChange={setDescentAnchor}
 				onJoystickChange={onJoystickChange}
-				onPortalNear={onPortalNear}
+				onPortalNear={handlePortalNear}
 				onExitDescent={endDescentInstant}
 				groupRotationRef={groupRotationRef}
 			/>
