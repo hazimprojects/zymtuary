@@ -229,9 +229,27 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Elythrean Bloomfields), laut hangat, Heartbloom.
 	{ id: 'gunung-berapi', nama: 'Gunung Berapi', type: 'mountain', theta: deg(208), y: 0.78, radius: 0.19 },
 	{ id: 'teres-air-panas', nama: 'Teres Air Panas', type: 'hotspring', theta: deg(260), y: 0.55, radius: 0.27 },
-	// heightScale/raggedness kecil sengaja — bukan gunung, cuma lantai hutan
-	// sedikit berbukit/tak rata (kedalaman/realistik), bukan padang rata licin.
-	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2, heightScale: 1.8, raggedness: 0.4 },
+	// heightScale kecil sengaja — bukan gunung, cuma lantai hutan sedikit
+	// berbukit (kedalaman/realistik). TIADA raggedness — pada ciri sekecil
+	// ini raggedness menolak mask ke ~0 pada banyak titik (jurang antara
+	// "puncak" ragged), mendedahkan warna kosmik asas (bukan hijau) sbg
+	// tompok gelap — sesuai utk gunung berbatu, TAPI salah utk lantai hutan
+	// lebat yg patut sentiasa hijau berterusan.
+	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2, heightScale: 1.4 },
+	// Banjaran gunung kecil MENGELILINGI padang bunga — "gunung di tepi"
+	// hutan, bukan padang terapung rata tanpa sempadan fizikal.
+	{
+		id: 'padang-bunga-banjaran',
+		nama: 'Banjaran Padang Bunga',
+		type: 'mountain',
+		theta: deg(320),
+		y: 0.45,
+		radius: 0.3,
+		ringWidth: 0.09,
+		ringMode: true,
+		heightScale: 1.1,
+		raggedness: 0.55,
+	},
 	{ id: 'laut-keemasan', nama: 'Laut Keemasan', type: 'water', theta: deg(15), y: 0.35, radius: 0.2 },
 	// Mendari — kota-taman Wilayah Lumiborne (Codex 5.2). theta/y MESTI sama
 	// dengan WILAYAH_PORTALS.mendari supaya lokasi terrain & titik portal
@@ -307,7 +325,22 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		raggedness: 0.5,
 	},
 	{ id: 'tasik-gelap', nama: 'Tasik Gelap', type: 'water', theta: deg(150), y: -0.55, radius: 0.18 },
-	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2, heightScale: 1.8, raggedness: 0.4 },
+	// Sama seperti Padang Bunga — heightScale rendah sahaja (bukit halus),
+	// TIADA raggedness (elak jurang mask mendedahkan warna kosmik asas).
+	{ id: 'hutan-senja', nama: 'Hutan Senja', type: 'green', theta: deg(215), y: -0.45, radius: 0.2, heightScale: 1.4 },
+	// Banjaran gunung kecil MENGELILINGI Hutan Senja — "gunung di tepi".
+	{
+		id: 'hutan-senja-banjaran',
+		nama: 'Banjaran Hutan Senja',
+		type: 'mountain',
+		theta: deg(215),
+		y: -0.45,
+		radius: 0.3,
+		ringWidth: 0.09,
+		ringMode: true,
+		heightScale: 1.1,
+		raggedness: 0.55,
+	},
 	{ id: 'padang-pasir', nama: 'Padang Pasir', type: 'arid', theta: deg(300), y: -0.42, radius: 0.18 },
 	// Selat Equilara — rantaian laut penghubung Pulau Ascendari (Luminara)
 	// merentasi khatulistiwa Equilara terus ke Tasik Gelap (Noctira), warna
@@ -552,12 +585,14 @@ export const RIVER_NETWORKS: RiverNetwork[] = [
 	},
 ];
 
-export const MAX_RIVER_SEGMENTS = 10;
+export const MAX_RIVER_SEGMENTS = 14;
 
 /**
  * Sungai tirus & bercabang — nipis di hulu (sumber), melebar ke hilir
  * (muara), dengan satu anak sungai (tributary) yang menyatu di tengah,
  * dijana melalui gelek rawak (meander) supaya tidak jadi garis lurus.
+ * Lebih banyak langkah + gelek lebih ketara drpd sebelum ini supaya
+ * laluannya kelihatan lebih semula jadi (bukan sekadar zig-zag pendek).
  */
 export function generateRiverNetwork(river: RiverNetwork, maxSegments: number): Segment[] {
 	const center = directionFromThetaY(river.center.theta, river.center.y);
@@ -565,16 +600,16 @@ export function generateRiverNetwork(river: RiverNetwork, maxSegments: number): 
 	const rng = seededRng(river.seed);
 	const segments: Segment[] = [];
 
-	const steps = 5;
+	const steps = 7;
 	let width = 0.012;
-	const widthGrowth = 1.24;
+	const widthGrowth = 1.19;
 	let [lu, lv] = river.from;
 	const [tu, tv] = river.to;
 
 	for (let s = 0; s < steps && segments.length < maxSegments; s++) {
 		const t = (s + 1) / steps;
-		const targetU = river.from[0] + (tu - river.from[0]) * t + (rng() - 0.5) * 0.045;
-		const targetV = river.from[1] + (tv - river.from[1]) * t + (rng() - 0.5) * 0.045;
+		const targetU = river.from[0] + (tu - river.from[0]) * t + (rng() - 0.5) * 0.055;
+		const targetV = river.from[1] + (tv - river.from[1]) * t + (rng() - 0.5) * 0.055;
 		segments.push({ a: localToDir(center, u, v, lu, lv), b: localToDir(center, u, v, targetU, targetV), width });
 
 		if (s === Math.floor(steps / 2) && segments.length < maxSegments) {
