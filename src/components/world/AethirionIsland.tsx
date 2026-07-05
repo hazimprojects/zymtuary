@@ -166,6 +166,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandProps) {
 	const groupRef = useRef<THREE.Group>(null);
+	const dirVec = useMemo(() => new THREE.Vector3(), []);
+	const alignQuat = useMemo(() => new THREE.Quaternion(), []);
+	const spinQuat = useMemo(() => new THREE.Quaternion(), []);
 
 	const rockGeometries = useMemo(
 		() => ISLAND_SPECS.map((s) => buildMesaGeometry(s.topRadius, s.bottomRadius, s.height, s.seed)),
@@ -259,14 +262,24 @@ export default function AethirionIsland({ atmosphereBlendRef }: AethirionIslandP
 
 		if (groupRef.current) {
 			groupRef.current.position.set(ring * Math.sin(theta) * altitude, y * altitude, ring * Math.cos(theta) * altitude);
-			// Putar mengufuk (paksi-Y) sahaja — bukan senget/goyang (paksi-Z),
-			// supaya pulau kekal "atas" konsisten macam ada gravity sendiri
-			// (rujukan: jungle sentiasa di atas, air terjun sentiasa jatuh ke
-			// bawah, tidak kira di mana pulau ini hanyut mengelilingi globe).
-			groupRef.current.rotation.y = t * 0.12;
+			// Ikut gravity Zymtuary: teras planet menarik jasad pulau, jadi hujung
+			// tirus (bawah tempatan) MESTI menghadap teras globe, bukan "bawah"
+			// dunia yang tetap. +Y tempatan (permukaan jungle rata) diselaraskan
+			// ke arah radial KELUAR drpd teras (sama konvensyen objek permukaan),
+			// supaya hujung tirus sentiasa menghala ke teras tidak kira di mana
+			// pulau ini hanyut. Putaran paksi-Y dikekalkan sbg putaran tempatan
+			// (disaputkan SEBELUM penjajaran) supaya ia berputar di sekeliling
+			// paksi tirus sendiri, bukan paksi dunia.
+			dirVec.copy(groupRef.current.position).normalize();
+			alignQuat.setFromUnitVectors(UP, dirVec);
+			spinQuat.setFromAxisAngle(UP, t * 0.12);
+			groupRef.current.quaternion.copy(alignQuat).multiply(spinQuat);
 		}
 
-		waterfallTexture.offset.y -= delta * 0.6;
+		// Air mengalir dari hujung tirus (dekat mesa) ke bawah menuju kabus —
+		// offset.y BERTAMBAH supaya corak cerah (dekat mesa) beranjak ke v
+		// rendah (dekat kabus) dari semasa ke semasa, iaitu jatuh, bukan naik.
+		waterfallTexture.offset.y += delta * 0.6;
 
 		for (let i = 0; i < mistPuffs.length; i++) {
 			const p = mistPuffs[i];
