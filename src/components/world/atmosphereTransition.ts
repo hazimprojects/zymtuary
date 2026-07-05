@@ -14,6 +14,24 @@ export const ATMOSPHERE_FOG = {
 	inner: '#8fc4ea',
 } as const;
 
+/**
+ * Tona langit ikut hemisfera — hanya kelihatan dari DALAM atmosfera (shell
+ * & inner sahaja; angkasa jauh kekal universal). Luminara cerah/ceria/
+ * hangat, Noctira redup/sejuk/melindungi, Equilara neutral tapi bervariasi
+ * (bukan sekadar purata linear Luminara-Noctira).
+ */
+export const HEMISPHERE_SKY = {
+	luminara: { shell: '#3d6e8f', inner: '#f0e2b0' },
+	noctira: { shell: '#0c1c30', inner: '#161f34' },
+	equilara: { shell: '#1a4a72', inner: '#7a93ac' },
+} as const;
+
+export const HEMISPHERE_FOG = {
+	luminara: '#e8d9a0',
+	noctira: '#0c111e',
+	equilara: '#8fc4ea',
+} as const;
+
 function clamp01(t: number): number {
 	return Math.min(1, Math.max(0, t));
 }
@@ -58,19 +76,54 @@ export function getAtmosphereBlend(distance: number): number {
 	return 0.75 + t * 0.25;
 }
 
-export function getSkyColor(blend: number): THREE.Color {
+/**
+ * Blend 3-zon ikut arah-y kamera (bukan cuma purata linear Luminara↔Noctira)
+ * — Equilara ialah zon sendiri di tengah (|y| kecil), bukan sekadar
+ * pertengahan warna dua hemisfera lain, supaya "neutral tapi bervariasi".
+ */
+function hemisphereBlend(
+	hemisphereY: number,
+	colors: { luminara: string; noctira: string; equilara: string },
+): [number, number, number] {
+	const equilara = hexToRgb(colors.equilara);
+	if (hemisphereY >= 0) {
+		const t = smoothstep(0, 0.55, hemisphereY);
+		return lerpRgbTuple(equilara, hexToRgb(colors.luminara), t);
+	}
+	const t = smoothstep(0, 0.55, -hemisphereY);
+	return lerpRgbTuple(equilara, hexToRgb(colors.noctira), t);
+}
+
+function lerpRgbTuple(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+	return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+/** @param hemisphereY arah-y kamera dinormalisasi (-1 Noctira, 0 Equilara, 1
+ * Luminara) — tona hemisfera hanya ketara apabila blend (kedalaman
+ * atmosfera) cukup tinggi, sepadan dgn "kelihatan dari dalam atmosfera". */
+export function getSkyColor(blend: number, hemisphereY: number): THREE.Color {
 	const space = hexToRgb(ATMOSPHERE_SKY.space);
 	const approach = hexToRgb(ATMOSPHERE_SKY.approach);
-	const shell = hexToRgb(ATMOSPHERE_SKY.shell);
-	const inner = hexToRgb(ATMOSPHERE_SKY.inner);
+	const shell = hemisphereBlend(hemisphereY, {
+		luminara: HEMISPHERE_SKY.luminara.shell,
+		noctira: HEMISPHERE_SKY.noctira.shell,
+		equilara: HEMISPHERE_SKY.equilara.shell,
+	});
+	const inner = hemisphereBlend(hemisphereY, {
+		luminara: HEMISPHERE_SKY.luminara.inner,
+		noctira: HEMISPHERE_SKY.noctira.inner,
+		equilara: HEMISPHERE_SKY.equilara.inner,
+	});
 
 	if (blend <= 0.35) return lerpRgb(space, approach, blend / 0.35);
 	if (blend <= 0.75) return lerpRgb(approach, shell, (blend - 0.35) / 0.4);
 	return lerpRgb(shell, inner, (blend - 0.75) / 0.25);
 }
 
-export function getFogColor(blend: number): THREE.Color {
-	return lerpRgb(hexToRgb(ATMOSPHERE_FOG.space), hexToRgb(ATMOSPHERE_FOG.inner), blend);
+export function getFogColor(blend: number, hemisphereY: number): THREE.Color {
+	const space = hexToRgb(ATMOSPHERE_FOG.space);
+	const inner = hemisphereBlend(hemisphereY, HEMISPHERE_FOG);
+	return lerpRgb(space, inner, blend);
 }
 
 export function getFogRange(blend: number): { near: number; far: number } {

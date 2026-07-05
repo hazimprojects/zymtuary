@@ -67,8 +67,8 @@ function makeBranchGeometry(from: THREE.Vector3, to: THREE.Vector3): THREE.Buffe
 	return g;
 }
 
-function mergeBranches(from: THREE.Vector3, targets: THREE.Vector3[]): THREE.BufferGeometry {
-	const pieces = targets.map((t) => makeBranchGeometry(from, t));
+function mergeBranchPairs(pairs: [THREE.Vector3, THREE.Vector3][]): THREE.BufferGeometry {
+	const pieces = pairs.map(([from, to]) => makeBranchGeometry(from, to));
 	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
 	for (const p of pieces) p.dispose();
 	return merged;
@@ -104,13 +104,20 @@ export default function HeartbloomTree({ atmosphereBlendRef }: HeartbloomTreePro
 
 	const tier1Geo = useMemo(() => mergeClumps(tier1Clumps), [tier1Clumps]);
 	const tier2Geo = useMemo(() => mergeClumps(tier2Clumps), [tier2Clumps]);
+	// Dahan tingkat-bawah dari puncak batang, DAN satu "tunjang dalaman"
+	// naik menerusi rumpun tingkat-bawah terus ke dahan tingkat-atas — supaya
+	// kanopi atas kekal tersambung/disokong secara visual, bukan terapung
+	// berasingan tanpa apa-apa menyambungkannya ke pokok.
 	const branchGeo = useMemo(() => {
-		const from = new THREE.Vector3(0, TRUNK_H + 0.03, 0);
-		return mergeBranches(
-			from,
-			tier1Clumps.map((c) => c.position.clone().multiplyScalar(0.72)),
-		);
-	}, [tier1Clumps]);
+		const trunkTop = new THREE.Vector3(0, TRUNK_H + 0.03, 0);
+		const tier2StalkTop = new THREE.Vector3(0, TRUNK_H + 0.19, 0);
+		const pairs: [THREE.Vector3, THREE.Vector3][] = [
+			[trunkTop, tier2StalkTop],
+			...tier1Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [trunkTop, c.position.clone().multiplyScalar(0.72)]),
+			...tier2Clumps.map((c): [THREE.Vector3, THREE.Vector3] => [tier2StalkTop, c.position.clone().multiplyScalar(0.7)]),
+		];
+		return mergeBranchPairs(pairs);
+	}, [tier1Clumps, tier2Clumps]);
 
 	const trunkMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#5a3d24', flatShading: true, roughness: 0.85, transparent: true, opacity: 0 }),

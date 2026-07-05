@@ -56,6 +56,10 @@ function radialSpot(
  * icosahedron) diskala tak seragam + putaran rawak setiap instance untuk
  * variasi bentuk, elakkan jitter per-verteks yang mahal pada bilangan besar. */
 function densityForRock(feature: LandmarkFeature): number {
+	// ringMode (banjaran/benteng gegelang) sudah ada relief+warna batu
+	// sendiri drpd shader — serakan cakera penuh di sini akan menutupi
+	// lembah/puncak yg dikelilinginya (cth. tasik Heartbloom) dgn batu.
+	if (feature.ringMode) return 0;
 	if (feature.type === 'mountain') return 220;
 	if (feature.type === 'arid') return 180;
 	return 0;
@@ -177,6 +181,7 @@ type CloudPuff = {
  * bersegi. Beberapa puff bertindih rapat setiap "gumpalan" untuk kesan
  * pekat, terapung rendah dan hanyut perlahan (bukan naik ke langit). */
 function densityForCloud(feature: LandmarkFeature): number {
+	if (feature.ringMode) return 0;
 	if (feature.type === 'mountain') return 5;
 	if (feature.type === 'green' || feature.type === 'tree') return 4;
 	return 0;

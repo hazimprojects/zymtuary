@@ -140,7 +140,8 @@ export function GlobeScene({
 		}
 
 		const fog = getFogRange(blend);
-		fogColor.current = getFogColor(blend);
+		const hemisphereY = camera.position.y / (camera.position.length() || 1);
+		fogColor.current = getFogColor(blend, hemisphereY);
 		if (scene.fog instanceof THREE.Fog) {
 			scene.fog.color.copy(fogColor.current);
 			scene.fog.near = fog.near;

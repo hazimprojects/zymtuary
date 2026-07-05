@@ -10,18 +10,19 @@ type ObsidianHollowStormProps = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-// Sepadan dgn heightScale 'obsidian-hollow' (1.45) pada terrainHeight —
-// awan gelap terapung di atas puncak yg dinaikkan, bukan pada GLOBE_RADIUS asas.
-const PEAK_BUMP = 0.1 * 1.45;
+// MESTI sepadan dgn heightScale 'obsidian-hollow' (4.2) di worldGlobeConfig.ts
+// — awan gelap terapung di atas puncak yg dinaikkan drastik, bukan pada
+// GLOBE_RADIUS asas.
+const PEAK_BUMP = 0.1 * 4.2;
 
 type Puff = { offset: THREE.Vector3; phase: number };
 
 function buildPuffs(): Puff[] {
 	const rng = seededRng(9911);
-	return Array.from({ length: 18 }, () => {
+	return Array.from({ length: 32 }, () => {
 		const angle = rng() * Math.PI * 2;
-		const r = rng() * 0.09;
-		const offset = new THREE.Vector3(Math.cos(angle) * r, 0.11 + rng() * 0.05, Math.sin(angle) * r);
+		const r = rng() * 0.14;
+		const offset = new THREE.Vector3(Math.cos(angle) * r, 0.16 + rng() * 0.07, Math.sin(angle) * r);
 		return { offset, phase: rng() };
 	});
 }
@@ -31,11 +32,11 @@ function buildPuffs(): Puff[] {
  * bentuknya, supaya murah dari segi prestasi. */
 function buildBoltGeometry(): THREE.BufferGeometry {
 	const rng = seededRng(4471);
-	const points: THREE.Vector3[] = [new THREE.Vector3(0, 0.14, 0)];
+	const points: THREE.Vector3[] = [new THREE.Vector3(0, 0.18, 0)];
 	const steps = 5;
 	for (let i = 0; i < steps; i++) {
 		const cur = points[points.length - 1];
-		points.push(new THREE.Vector3(cur.x + (rng() - 0.5) * 0.035, cur.y - 0.14 / steps, cur.z + (rng() - 0.5) * 0.035));
+		points.push(new THREE.Vector3(cur.x + (rng() - 0.5) * 0.04, cur.y - 0.18 / steps, cur.z + (rng() - 0.5) * 0.04));
 	}
 
 	const segments: THREE.BufferGeometry[] = [];
@@ -55,13 +56,31 @@ function buildBoltGeometry(): THREE.BufferGeometry {
 	return merged;
 }
 
-type StrikeState = { mode: 'idle' | 'on' | 'off'; flashesRemaining: number; timer: number };
+// Jadual kilat DITENTUKAN oleh masa berlalu sahaja (bukan mesin keadaan
+// mutable) — elak sebarang risiko "tersekat" dalam satu keadaan (cth. kekal
+// menyala macam tongkat statik). Sesuatu masa sentiasa sama ada terang atau
+// gelap, dikira semula setiap bingkai drpd clock.elapsedTime % CYCLE.
+const CYCLE = 8;
+const FLASH_WINDOWS: [number, number][] = [
+	[0, 0.06],
+	[0.12, 0.17],
+	[0.24, 0.32],
+];
+
+function isBoltVisible(elapsed: number): boolean {
+	const t = elapsed % CYCLE;
+	for (const [start, end] of FLASH_WINDOWS) {
+		if (t >= start && t < end) return true;
+	}
+	return false;
+}
 
 /**
  * Ribut di puncak Obsidian Hollow — kepulan awan gelap terapung (teknik
  * sprite sama dgn TerrainProps) + kilat zigzag yang sabung-menyabung
- * sekali sekala (beberapa denyar pantas, diam lama, ulang), gema "berawan
- * gelap dan petir" yang diminta utk puncak gunung PALING TINGGI di Noctira.
+ * sekali sekala (kluster denyar pantas setiap ~8 saat, bukan menyala
+ * berterusan), gema "berawan gelap dan petir" utk puncak gunung PALING
+ * TINGGI di Noctira.
  */
 export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHollowStormProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('obsidian-hollow')), []);
@@ -78,9 +97,7 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 	const boltMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#cfe8ff', transparent: true, opacity: 0 }), []);
 	const boltLightRef = useRef<THREE.PointLight>(null);
 
-	const strike = useRef<StrikeState>({ mode: 'idle', flashesRemaining: 0, timer: 3 + Math.random() * 5 });
-
-	useFrame(({ clock }, delta) => {
+	useFrame(({ clock }) => {
 		for (let i = 0; i < puffs.length; i++) {
 			const p = puffs[i];
 			const bob = Math.sin(clock.elapsedTime * 0.2 + p.phase * Math.PI * 2) * 0.006;
@@ -100,30 +117,10 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 			cloudMatRef.current.visible = cloudMatRef.current.opacity > 0.01;
 		}
 
-		const s = strike.current;
-		s.timer -= delta;
-		if (s.mode === 'idle') {
-			boltMat.opacity = 0;
-			if (s.timer <= 0 && target > 0.1) {
-				s.mode = 'on';
-				s.flashesRemaining = 2 + Math.floor(Math.random() * 3);
-				s.timer = 0.05 + Math.random() * 0.06;
-			}
-		} else if (s.mode === 'on') {
-			boltMat.opacity = 1;
-			if (s.timer <= 0) {
-				s.flashesRemaining -= 1;
-				s.mode = s.flashesRemaining > 0 ? 'off' : 'idle';
-				s.timer = s.mode === 'off' ? 0.05 + Math.random() * 0.05 : 4 + Math.random() * 6;
-			}
-		} else {
-			boltMat.opacity = 0;
-			if (s.timer <= 0) {
-				s.mode = 'on';
-				s.timer = 0.04 + Math.random() * 0.06;
-			}
-		}
-		if (boltLightRef.current) boltLightRef.current.intensity = boltMat.opacity * 3.5;
+		const visible = target > 0.1 && isBoltVisible(clock.elapsedTime);
+		boltMat.opacity = visible ? 1 : 0;
+		boltMat.visible = visible;
+		if (boltLightRef.current) boltLightRef.current.intensity = visible ? 3.5 : 0;
 	});
 
 	return (
@@ -134,9 +131,9 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 				</bufferGeometry>
 				<pointsMaterial
 					ref={cloudMatRef}
-					size={0.09}
+					size={0.1}
 					map={texture}
-					color="#2a2a30"
+					color="#242429"
 					transparent
 					opacity={0}
 					depthWrite={false}
@@ -146,7 +143,7 @@ export default function ObsidianHollowStorm({ atmosphereBlendRef }: ObsidianHoll
 			</points>
 			<group position={cloudCenter} quaternion={quaternion}>
 				<mesh geometry={boltGeo} material={boltMat} />
-				<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, 0.07, 0]} />
+				<pointLight ref={boltLightRef} color="#cfe8ff" intensity={0} distance={0.6} position={[0, 0.09, 0]} />
 			</group>
 		</group>
 	);
