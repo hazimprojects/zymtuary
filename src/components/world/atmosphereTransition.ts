@@ -15,27 +15,58 @@ export const ATMOSPHERE_FOG = {
 } as const;
 
 /**
- * Tona langit ikut hemisfera — identiti TIGA ALAM ABADI (bukan kitaran masa):
- * Luminara = SIANG abadi (langit emas cerah, matahari menyerlah, nebula
- * tersembunyi), Noctira = MALAM abadi (gelap; cakerawala Aethernals kelihatan
- * dari tanah — lihat CosmicBackdrop hemiVis), Equilara = SENJA abadi (ufuk
- * hangat beralih ke biru sejuk, separa berbintang). 'inner' = tona dekat
- * permukaan, 'shell' = tona lebih tinggi ke arah zenit.
+ * Sistem cuaca SIANG/MALAM per-Spheral. Setiap alam ada watak siang & malam
+ * TERSENDIRI (bukan sekadar terang/gelap sejagat) — dipandu kitaran masa
+ * (getDayFactor) DAN hemisfera (arah-y kamera). 'inner' = tona dekat
+ * permukaan, 'shell' = tona ke arah zenit.
+ *
+ *  Luminara siang "Solar Bloom"  : emas terang, tenggelamkan nebula.
+ *  Luminara malam "Stellar Drift": emas → perak lembut, nebula halus muncul.
+ *  Noctira  siang "Void Tempest" : ungu-magenta tebal dramatik (bukan gelap).
+ *  Noctira  malam "Ashen Gale"   : ungu-kelabu tenang, bintang paling terang.
+ *  Equilara siang "Meridian Hush": emas↔ungu bertukar, teal jambatan.
+ *  Equilara malam "Twilight Conv.": senja tak pernah gelap penuh.
  */
-export const HEMISPHERE_SKY = {
-	// Siang: ufuk emas terang → biru langit siang hangat di atas.
-	luminara: { shell: '#6ea6cc', inner: '#f6e6b0' },
-	// Malam: sangat gelap — nebula Aethernals (CosmicBackdrop) jadi bintang utama.
-	noctira: { shell: '#070f1e', inner: '#0e1626' },
-	// Senja: ufuk jingga-mawar hangat → biru-nila sejuk di atas (seam siang/malam).
-	equilara: { shell: '#2a3f68', inner: '#d08a66' },
+export const HEMISPHERE_SKY_DAY = {
+	luminara: { shell: '#7fb2da', inner: '#f8e8b0' }, // Solar Bloom
+	noctira: { shell: '#3a1e50', inner: '#5a2e64' }, // Void Tempest
+	equilara: { shell: '#3f7080', inner: '#c89a86' }, // Meridian Hush
 } as const;
 
-export const HEMISPHERE_FOG = {
-	luminara: '#ecdca4', // kabus siang hangat keemasan
-	noctira: '#070d18', // kabus malam gelap (biar nebula menyerlah)
-	equilara: '#b58a7a', // kabus senja jingga-kelabu lembut
+export const HEMISPHERE_SKY_NIGHT = {
+	luminara: { shell: '#34405e', inner: '#b4b4c0' }, // Stellar Drift (perak)
+	noctira: { shell: '#100c1a', inner: '#1e1a2c' }, // Ashen Gale (gelap, bintang menyerlah)
+	equilara: { shell: '#2c3a58', inner: '#6a5a72' }, // Twilight Convergence (tak pernah gelap penuh)
 } as const;
+
+export const HEMISPHERE_FOG_DAY = {
+	luminara: '#ecdca4',
+	noctira: '#3a2444', // kabus ribut ungu Void Tempest
+	equilara: '#b58a7a',
+} as const;
+
+export const HEMISPHERE_FOG_NIGHT = {
+	luminara: '#a8a4b4', // perak lembut
+	noctira: '#0a0e1a', // gelap — biar nebula menyerlah
+	equilara: '#5a5064', // senja muted, tak hitam
+} as const;
+
+/** Tempoh satu kitaran siang+malam penuh (saat). */
+export const DAY_NIGHT_CYCLE_SECONDS = 200;
+
+/** 0 = malam penuh, 1 = siang penuh — kitaran lancar (cos). Ofset fasa 0.35
+ * supaya muat-naik pertama bermula waktu SIANG (dayFactor≈0.79), bukan malam
+ * gelap. */
+export function getDayFactor(elapsed: number): number {
+	const phase = (elapsed / DAY_NIGHT_CYCLE_SECONDS + 0.35) % 1;
+	return 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+}
+
+/** Hampiran subuh/senja — 1 di tengah peralihan (dayFactor≈0.5), 0 di siang/
+ * malam penuh. Utk cuaca istimewa Equilara (Pertembungan) & seam warna. */
+export function getDawnDuskFactor(dayFactor: number): number {
+	return clamp01(1 - Math.abs(dayFactor - 0.5) * 2);
+}
 
 function clamp01(t: number): number {
 	return Math.min(1, Math.max(0, t));
@@ -105,32 +136,70 @@ function lerpRgbTuple(a: [number, number, number], b: [number, number, number], 
 	return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
-/** @param hemisphereY arah-y kamera dinormalisasi (-1 Noctira, 0 Equilara, 1
- * Luminara) — tona hemisfera hanya ketara apabila blend (kedalaman
- * atmosfera) cukup tinggi, sepadan dgn "kelihatan dari dalam atmosfera". */
-export function getSkyColor(blend: number, hemisphereY: number): THREE.Color {
+/** Blend skalar 3-zon (sama corak dgn hemisphereBlend tapi utk nombor). */
+function hemiScalar(hemisphereY: number, luminara: number, noctira: number, equilara: number): number {
+	if (hemisphereY >= 0) return equilara + (luminara - equilara) * smoothstep(0, 0.55, hemisphereY);
+	return equilara + (noctira - equilara) * smoothstep(0, 0.55, -hemisphereY);
+}
+
+/** Tona hemisfera dilerp antara jadual MALAM & SIANG ikut dayFactor. */
+function hemisphereBlendDayNight(
+	hemisphereY: number,
+	dayFactor: number,
+	dayCols: { luminara: string; noctira: string; equilara: string },
+	nightCols: { luminara: string; noctira: string; equilara: string },
+): [number, number, number] {
+	const day = hemisphereBlend(hemisphereY, dayCols);
+	const night = hemisphereBlend(hemisphereY, nightCols);
+	return lerpRgbTuple(night, day, dayFactor);
+}
+
+/** @param hemisphereY arah-y kamera (-1 Noctira, 0 Equilara, 1 Luminara)
+ * @param dayFactor 0 malam, 1 siang (getDayFactor). Setiap alam ada watak
+ * siang/malam tersendiri. Lalai 0.7 (sedikit siang) utk pemanggil tanpa masa
+ * (cth. latar CSS fallback sebelum canvas). */
+export function getSkyColor(blend: number, hemisphereY: number, dayFactor = 0.7): THREE.Color {
 	const space = hexToRgb(ATMOSPHERE_SKY.space);
 	const approach = hexToRgb(ATMOSPHERE_SKY.approach);
-	const shell = hemisphereBlend(hemisphereY, {
-		luminara: HEMISPHERE_SKY.luminara.shell,
-		noctira: HEMISPHERE_SKY.noctira.shell,
-		equilara: HEMISPHERE_SKY.equilara.shell,
-	});
-	const inner = hemisphereBlend(hemisphereY, {
-		luminara: HEMISPHERE_SKY.luminara.inner,
-		noctira: HEMISPHERE_SKY.noctira.inner,
-		equilara: HEMISPHERE_SKY.equilara.inner,
-	});
+	const shell = hemisphereBlendDayNight(
+		hemisphereY,
+		dayFactor,
+		{ luminara: HEMISPHERE_SKY_DAY.luminara.shell, noctira: HEMISPHERE_SKY_DAY.noctira.shell, equilara: HEMISPHERE_SKY_DAY.equilara.shell },
+		{ luminara: HEMISPHERE_SKY_NIGHT.luminara.shell, noctira: HEMISPHERE_SKY_NIGHT.noctira.shell, equilara: HEMISPHERE_SKY_NIGHT.equilara.shell },
+	);
+	const inner = hemisphereBlendDayNight(
+		hemisphereY,
+		dayFactor,
+		{ luminara: HEMISPHERE_SKY_DAY.luminara.inner, noctira: HEMISPHERE_SKY_DAY.noctira.inner, equilara: HEMISPHERE_SKY_DAY.equilara.inner },
+		{ luminara: HEMISPHERE_SKY_NIGHT.luminara.inner, noctira: HEMISPHERE_SKY_NIGHT.noctira.inner, equilara: HEMISPHERE_SKY_NIGHT.equilara.inner },
+	);
 
 	if (blend <= 0.35) return lerpRgb(space, approach, blend / 0.35);
 	if (blend <= 0.75) return lerpRgb(approach, shell, (blend - 0.35) / 0.4);
 	return lerpRgb(shell, inner, (blend - 0.75) / 0.25);
 }
 
-export function getFogColor(blend: number, hemisphereY: number): THREE.Color {
+export function getFogColor(blend: number, hemisphereY: number, dayFactor = 0.7): THREE.Color {
 	const space = hexToRgb(ATMOSPHERE_FOG.space);
-	const inner = hemisphereBlend(hemisphereY, HEMISPHERE_FOG);
+	const inner = hemisphereBlendDayNight(hemisphereY, dayFactor, HEMISPHERE_FOG_DAY, HEMISPHERE_FOG_NIGHT);
 	return lerpRgb(space, inner, blend);
+}
+
+/** Keterlihatan nebula Aethernals DALAM atmosfera ikut alam & masa (spec):
+ *  Luminara: siang tersembunyi (0), malam halus (~0.42).
+ *  Noctira : siang jelas Void Tempest (~0.72), malam paling penuh Ashen Gale (~1).
+ *  Equilara: separa sentiasa (~0.32 siang, ~0.5 malam) — tak pernah hilang penuh. */
+export function getNebulaAtmosphereVisibility(hemisphereY: number, dayFactor: number): number {
+	const lum = THREE.MathUtils.lerp(0.42, 0.0, dayFactor);
+	const noc = THREE.MathUtils.lerp(1.0, 0.72, dayFactor);
+	const equ = THREE.MathUtils.lerp(0.5, 0.32, dayFactor);
+	return hemiScalar(hemisphereY, lum, noc, equ);
+}
+
+/** Pendaraban cahaya permukaan ikut masa — malam lebih malap, tapi tidak
+ * gelap gulita (0.5) supaya objek kekal terbaca. */
+export function getDaylight(dayFactor: number): number {
+	return THREE.MathUtils.lerp(0.5, 1.0, dayFactor);
 }
 
 export function getFogRange(blend: number): { near: number; far: number } {
