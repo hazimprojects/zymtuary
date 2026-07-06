@@ -172,7 +172,7 @@ function hash(s: string): number {
  * Kedudukan sengaja diseimbangkan antara dua hemisfera (setiap satu ada
  * rekahan api/ais, gunung, air, dan kawasan hijau) ikut arahan reka bentuk.
  */
-export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat' | 'kota';
+export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat' | 'kota' | 'meadow';
 
 const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	fissure: 0,
@@ -184,6 +184,7 @@ const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	tree: 6,
 	selat: 7,
 	kota: 8,
+	meadow: 9,
 };
 
 export type LandmarkFeature = {
@@ -260,34 +261,40 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// "puncak" ragged), mendedahkan warna kosmik asas (bukan hijau) sbg
 	// tompok gelap — sesuai utk gunung berbatu, TAPI salah utk lantai hutan
 	// lebat yg patut sentiasa hijau berterusan.
-	// innerExclusion=0.065 (sekadar melepasi tebing tasik 'padang-bunga-tasik'
-	// radius 0.055) elak batu/bunga terletak di atas air — selebihnya padang
-	// (dr 0.065 keluar) penuh dgn bunga/rumput. treeRingInner=0.14 tertumpu
-	// hutan pd jalur SEMPIT berdekatan banjaran gunung (radius*0.95=0.19,
-	// jadi jalur hutan cuma 0.14-0.19) — bukan taburan genap merentasi
-	// keseluruhan padang spt pusingan sebelum ini (punca hutan "terapung"
-	// di tengah, tak sentuh gunung). treeCount diturunkan sepadan dgn luas
-	// jalur yg jauh lebih kecil drpd cakera penuh (elak terlalu padat).
-	// flowers=true tambah kluster bunga liar KECIL (TerrainProps.tsx).
+	// type 'meadow' (bukan 'green' generik) — warna rumput hijau CERAH
+	// tersendiri (globeShader.ts featureColor) supaya kontras jelas dgn
+	// 'green' kekabur-kuning biasa (cth. hutan-senja). type 'meadow' juga
+	// TIDAK termasuk dlm senarai type layak batu (densityForRock,
+	// TerrainProps.tsx) — jadi tiada batu besar terserak langsung di sini
+	// ("buang batu besar"), tapi KEKAL dlm senarai layak kabus (densityForCloud)
+	// supaya suasana kabus lembut tak hilang.
+	// innerExclusion=0.09 (sekadar melepasi tebing tasik 'padang-bunga-tasik'
+	// radius 0.075) elak bunga terletak di atas air — selebihnya padang
+	// (dr 0.09 keluar) penuh dgn bunga liar (flowers=true, kiraan banyak —
+	// TerrainProps.tsx). treeRingInner=0.14 tertumpu hutan pd jalur SEMPIT
+	// berdekatan banjaran gunung (radius*0.95=0.19, jadi jalur hutan cuma
+	// 0.14-0.19) — bukan taburan genap merentasi keseluruhan padang.
 	{
 		id: 'padang-bunga',
 		nama: 'Padang Bunga',
-		type: 'green',
+		type: 'meadow',
 		theta: deg(320),
 		y: 0.45,
 		radius: 0.2,
 		heightScale: 1.4,
-		innerExclusion: 0.065,
+		innerExclusion: 0.09,
 		treeRingInner: 0.14,
 		treeCount: 1600,
 		flowers: true,
 	},
-	// Tasik kecil di TENGAH padang bunga (gema Elythrean Bloomfields — "di
-	// tengah ada tasik") — sama teknik dgn Heartbloom (ciri 'water' kecil
-	// diletak SELEPAS ciri hijau induk dlm array supaya warna air menang
-	// pd blend berhampiran pusat; radius jauh lebih kecil drpd padang-bunga
-	// supaya rumput/bunga/hutan tetap kelihatan di sekelilingnya).
-	{ id: 'padang-bunga-tasik', nama: 'Tasik Padang Bunga', type: 'water', theta: deg(320), y: 0.45, radius: 0.055, heightScale: 1.6 },
+	// Tasik di TENGAH padang bunga (gema Elythrean Bloomfields — "di tengah
+	// ada tasik") — sama teknik dgn Heartbloom (ciri 'water' diletak SELEPAS
+	// ciri padang induk dlm array supaya warna air menang pd blend
+	// berhampiran pusat). Jejari dibesarkan drpd 0.055→0.075 supaya benar2
+	// kelihatan sbg tasik (bukan sekadar tompok gelap kecil), kekal jauh
+	// lebih kecil drpd padang-bunga (0.2) supaya rumput/bunga/hutan tetap
+	// kelihatan di sekelilingnya.
+	{ id: 'padang-bunga-tasik', nama: 'Tasik Padang Bunga', type: 'water', theta: deg(320), y: 0.45, radius: 0.075, heightScale: 1.8 },
 	// Banjaran gunung kecil MENGELILINGI padang bunga — "gunung di tepi"
 	// hutan, bukan padang terapung rata tanpa sempadan fizikal.
 	{

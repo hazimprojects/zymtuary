@@ -137,7 +137,10 @@ function buildFlowerSpots(): FlowerSpot[] {
 		const center = directionFromThetaY(feature.theta, feature.y);
 		const { u, v } = tangentBasis(center);
 		const rng = seededRng(feature.theta * 600 + feature.y * 5000 + 707);
-		const count = 90;
+		// "bunga-bunga yang banyak" — dinaikkan drpd 90 asal, terutama krn
+		// batu besar dah dibuang (padang-bunga kini type 'meadow', tak
+		// termasuk dlm senarai layak batu) & ada lebih ruang lapang.
+		const count = 260;
 		const outerR = feature.radius * 0.9;
 		const innerFrac = Math.min(0.98, (feature.innerExclusion ?? 0) * 0.8 / outerR);
 
@@ -250,7 +253,7 @@ type CloudPuff = {
 function densityForCloud(feature: LandmarkFeature): number {
 	if (feature.ringMode) return 0;
 	if (feature.type === 'mountain') return 5;
-	if (feature.type === 'green' || feature.type === 'tree') return 4;
+	if (feature.type === 'green' || feature.type === 'tree' || feature.type === 'meadow') return 4;
 	return 0;
 }
 
@@ -277,7 +280,7 @@ function buildCloudPuffs(): CloudPuff[] {
 			// atas permukaan, jadi baseHeight rendah (0.03-0.08) sebelum ini
 			// bertindih/di bawah kanopi utk kawasan hutan. Gunung kekal rendah
 			// (kabus kaki bukit), hutan/pokok dinaikkan dgn ketara.
-			const isForestCloud = feature.type === 'green' || feature.type === 'tree';
+			const isForestCloud = feature.type === 'green' || feature.type === 'tree' || feature.type === 'meadow';
 			for (let p = 0; p < puffsInClump; p++) {
 				const ou = cu + (rng() - 0.5) * 0.05;
 				const ov = cv + (rng() - 0.5) * 0.05;
