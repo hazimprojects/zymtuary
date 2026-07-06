@@ -270,14 +270,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// jadi PUSAT Luminara (bukan sekadar "jauh drpd Equilara") supaya 3 biome
 	// Primal cahaya (Elythrean Bloomfields/padang-bunga, Abythralis Grotto,
 	// Freylyn Terraces — akan datang) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan lagi 0.92→0.97 (kolatitud ~14° drpd kutub) selepas pengguna
-	// tunjuk tangkapan skrin sebenar — ruang kosong berhampiran kutub masih
-	// besar pd y=0.92. Disahkan dgn kamera ResponsiveCamera diarah SECARA
-	// SEMENTARA terus ke kutub (bukan drag interaktif — drag menyebabkan
-	// headless Chromium crash dlm persekitaran ini) — cincin benteng Heartbloom
-	// kekal LICIN sepenuhnya walau begitu dekat dgn kutub sebenar, tiada kelim/
-	// artifak. Margin jarak sudut ke semua jiran turut bertambah baik lagi
-	// (semua > 0.37 rad).
+	// y dinaikkan lagi 0.97→0.99 (kolatitud ~8° drpd kutub) atas permintaan
+	// pengguna utk lebih dekat lagi drpd pusingan sebelum ini. Disahkan dgn
+	// kamera ResponsiveCamera diarah SECARA SEMENTARA terus ke kutub (bukan
+	// drag interaktif — drag menyebabkan headless Chromium crash dlm
+	// persekitaran ini) — cincin benteng Heartbloom kekal LICIN sepenuhnya
+	// walau sedekat ini dgn kutub sebenar, tiada kelim/artifak. Margin jarak
+	// sudut ke semua jiran turut bertambah baik lagi (semua > 0.32 rad).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
 	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
@@ -285,13 +284,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tasik. Type 'water' — lembah ini tasik, bukan hutan (pokok gergasi
 	// tunggal dilayan berasingan dlm HeartbloomTree.tsx, bukan hutan lebat
 	// Vegetation.tsx).
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.97, radius: 0.1, heightScale: 2.8 },
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.99, radius: 0.1, heightScale: 2.8 },
 	{
 		id: 'heartbloom-benteng',
 		nama: 'Benteng Gunung Heartbloom',
 		type: 'mountain',
 		theta: deg(100),
-		y: 0.97,
+		y: 0.99,
 		radius: 0.22,
 		ringWidth: 0.055,
 		ringMode: true,
@@ -304,12 +303,12 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// jadi PUSAT Noctira (bukan sekadar "jauh drpd Equilara") supaya 3 biome
 	// Primal bayang (Vorynth Wood/hutan-senja, Gorrathic Badlands/padang-pasir,
 	// Thalyssan Depths/tasik-gelap) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan (magnitud) lagi -0.92→-0.97 (kolatitud ~14° drpd kutub) sama
+	// y dinaikkan (magnitud) lagi -0.97→-0.99 (kolatitud ~8° drpd kutub) sama
 	// sebab & kaedah pengesahan spt Heartbloom Isle di atas — banjaran ragged
-	// + urat kristal kekal licin & jelas walau begitu dekat dgn kutub sebenar
+	// + urat kristal kekal licin & jelas walau sedekat ini dgn kutub sebenar
 	// (kamera diarah terus ke kutub utk pengesahan visual). Margin jarak sudut
 	// ke semua jiran (termasuk Padang Pasir yg paling rapat) turut bertambah
-	// baik lagi (0.246→0.389 rad).
+	// baik lagi (0.389→0.485 rad).
 	// Gunung berbatu RAGGED (raggedness pecahkan simetri bulat sempurna jadi
 	// beberapa puncak tidak sekata + rabung), BUKAN kon tunggal generik licin
 	// — dgn urat kristal ungu-biru berdenyar menuruni cerun drpd puncak
@@ -325,7 +324,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.97,
+		y: -0.99,
 		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
 		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
 		// dramatik tapi tidak keterlaluan nipis.
@@ -341,7 +340,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Banjaran Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.97,
+		y: -0.99,
 		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
 		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
 		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
