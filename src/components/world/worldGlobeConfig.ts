@@ -333,20 +333,24 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
 	// Freylyn Terraces — biome Primal cahaya ke-3 (gema Codex: "air
 	// berkilau seperti kaca cair", rumah Gleefyns/naluri PLAY), gema rujukan
-	// Pamukkale/Baishuitai. Diletak di jurang teta terbesar Luminara (~123°,
-	// antara Mendari teta 37° & Pulau Ascendari teta 160°) — disahkan via
-	// carian jarak sudut margin selamat >10° drpd SEMUA jiran (paling
-	// rapat: Selat Equilara Utara). type 'terraces' baharu (globeShader.ts)
-	// beri corak gegelang putih travertine/turquoise berlorek + anjakan
-	// tinggi berperingkat halus, bukan sekadar warna rata. treeRingInner
-	// tumpukan pokok aksen jarang ke tepi luar sahaja (gema pokok di tepi
-	// teres dlm gambar rujukan), bukan hutan lebat.
+	// Pamukkale/Baishuitai. theta 90° dikekalkan (jurang teta terbesar
+	// Luminara, antara Mendari teta 37° & Pulau Ascendari teta 160°); y
+	// dinaikkan 0.45→0.85 (jauh drpd sempadan Equilara ~0.28, lebih dalam
+	// ke Luminara) atas permintaan pengguna supaya lebih hampir Heartbloom
+	// Isle (jarak ~70°→~38°, setanding jarak Elythrean Bloomfields &
+	// Abythralis Grotto ke Heartbloom). Disahkan via carian jarak sudut —
+	// margin selamat kekal >13° drpd SEMUA jiran (paling rapat: Mendari &
+	// Heartbloom sendiri). type 'terraces' (globeShader.ts) beri corak
+	// gegelang putih travertine/turquoise berlorek + anjakan tinggi
+	// berperingkat halus, bukan sekadar warna rata. treeRingInner tumpukan
+	// pokok aksen jarang ke tepi luar sahaja (gema pokok di tepi teres dlm
+	// gambar rujukan), bukan hutan lebat.
 	{
 		id: 'freylyn-terraces',
 		nama: 'Freylyn Terraces',
 		type: 'terraces',
 		theta: deg(90),
-		y: 0.45,
+		y: 0.85,
 		radius: 0.22,
 		treeRingInner: 0.15,
 		treeCount: 500,
