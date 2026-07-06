@@ -80,8 +80,11 @@ function buildRockSpots(): PropSpot[] {
 		const rng = seededRng(feature.theta * 500 + feature.y * 3000 + count);
 		const warm = feature.y > 0;
 
+		const innerFrac = Math.min(0.98, (feature.innerExclusion ?? 0) / (feature.radius * 0.92));
 		for (let i = 0; i < count; i++) {
-			const r = Math.sqrt(rng()) * feature.radius * 0.92;
+			// innerFrac>0 elak batu terserak di atas tasik kecil di tengah
+			// (cth. padang-bunga) — sama teknik gegelang dgn Vegetation.tsx.
+			const r = Math.sqrt(innerFrac * innerFrac + rng() * (1 - innerFrac * innerFrac)) * feature.radius * 0.92;
 			const angle = rng() * Math.PI * 2;
 			const lu = Math.cos(angle) * r;
 			const lv = Math.sin(angle) * r;
@@ -91,6 +94,63 @@ function buildRockSpots(): PropSpot[] {
 			const scale = new THREE.Vector3(s * (0.75 + rng() * 0.55), s * (0.5 + rng() * 0.4), s * (0.75 + rng() * 0.55));
 			const tiltAxis = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).normalize();
 			spots.push(radialSpot(dir, 0.003, scale, rng() * Math.PI * 2, warm, (rng() - 0.5) * 0.7, tiltAxis));
+		}
+	}
+	return spots;
+}
+
+type FlowerSpot = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number; color: THREE.Color };
+
+const FLOWER_COLORS = ['#f2e2a0', '#e8a8c4', '#c9a0e0', '#ffffff'] as const;
+
+/** Satu kluster bunga liar — tangkai nipis + kuntum kecil di hujung.
+ * Geometri KONGSI (satu template), warna & saiz beza per-instance via
+ * instanceColor (teknik sama dgn Vegetation.tsx) supaya padang nampak
+ * pelbagai warna bunga, bukan satu warna rata berulang. */
+function makeFlowerClusterGeometry(): THREE.BufferGeometry {
+	const stem = new THREE.CylinderGeometry(0.001, 0.0015, 0.012, 4);
+	stem.translate(0, 0.006, 0);
+	const bloom = new THREE.IcosahedronGeometry(0.0055, 0);
+	bloom.translate(0, 0.014, 0);
+	// PENTING: Cylinder berindeks lalai, Icosahedron tak berindeks —
+	// toNonIndexed() KEDUA-DUA dahulu elak mergeBufferGeometries gagal
+	// senyap (pengajaran drpd bug MendariTownscape.tsx round terdahulu).
+	const nonIndexed = [stem, bloom].map((g) => g.toNonIndexed());
+	const merged = mergeBufferGeometries(nonIndexed, false);
+	if (!merged) throw new Error('makeFlowerClusterGeometry: mergeBufferGeometries gagal');
+	const toDispose = new Set([stem, bloom, ...nonIndexed]);
+	for (const g of toDispose) g.dispose();
+	return merged;
+}
+
+/** Kluster bunga liar diserak dlm gegelang [innerExclusion, radius] — elak
+ * bunga di atas tasik (jika ada) tapi kekal merata sisa padang, termasuk
+ * bertindih sedikit dgn zon hutan (peralihan padang→hutan yg semula jadi). */
+function buildFlowerSpots(): FlowerSpot[] {
+	const spots: FlowerSpot[] = [];
+	for (const feature of LANDMARK_FEATURES) {
+		if (!feature.flowers) continue;
+
+		const center = directionFromThetaY(feature.theta, feature.y);
+		const { u, v } = tangentBasis(center);
+		const rng = seededRng(feature.theta * 600 + feature.y * 5000 + 707);
+		const count = 90;
+		const outerR = feature.radius * 0.9;
+		const innerFrac = Math.min(0.98, (feature.innerExclusion ?? 0) * 0.8 / outerR);
+
+		for (let i = 0; i < count; i++) {
+			const rho = Math.sqrt(innerFrac * innerFrac + rng() * (1 - innerFrac * innerFrac));
+			const angle = rng() * Math.PI * 2;
+			const r = rho * outerR;
+			const lu = Math.cos(angle) * r;
+			const lv = Math.sin(angle) * r;
+			const dir = new THREE.Vector3(...localToDir(center, u, v, lu, lv));
+			const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.003);
+			const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+			quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
+			const scale = 0.7 + rng() * 0.8;
+			const color = new THREE.Color(FLOWER_COLORS[Math.floor(rng() * FLOWER_COLORS.length)]);
+			spots.push({ position, quaternion, scale, color });
 		}
 	}
 	return spots;
@@ -300,6 +360,8 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 	const rockSpots = useMemo(() => buildRockSpots(), []);
 	const crystalSpots = useMemo(() => buildCrystalSpots(), []);
 	const cloudPuffs = useMemo(() => buildCloudPuffs(), []);
+	const flowerSpots = useMemo(() => buildFlowerSpots(), []);
+	const flowerGeo = useMemo(() => makeFlowerClusterGeometry(), []);
 
 	const rockWarmMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#7a6a58', flatShading: true, roughness: 0.95, transparent: true, opacity: 0 }),
@@ -344,9 +406,14 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 		[],
 	);
 
+	const flowerMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 0.6, transparent: true, opacity: 0 }),
+		[],
+	);
+
 	const materials = useMemo(
-		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat],
-		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat],
+		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat],
+		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat],
 	);
 
 	useFrame(({ clock }) => {
@@ -408,6 +475,22 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 					`crystal-${variant}-${warm ? 'warm' : 'cold'}`,
 				),
 			)}
+			{flowerSpots.length > 0 ? (
+				<instancedMesh
+					args={[flowerGeo, flowerMat, flowerSpots.length]}
+					ref={(mesh) => {
+						if (!mesh) return;
+						const m = new THREE.Matrix4();
+						flowerSpots.forEach((spot, i) => {
+							m.compose(spot.position, spot.quaternion, new THREE.Vector3(spot.scale, spot.scale, spot.scale));
+							mesh.setMatrixAt(i, m);
+							mesh.setColorAt(i, spot.color);
+						});
+						mesh.instanceMatrix.needsUpdate = true;
+						if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+					}}
+				/>
+			) : null}
 			<CloudLayer puffs={warmCloudPuffs} texture={cloudTexture} color="#fff6e6" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
 			<CloudLayer puffs={coldCloudPuffs} texture={cloudTexture} color="#eaf4ff" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
 		</group>

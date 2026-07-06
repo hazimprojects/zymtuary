@@ -214,6 +214,15 @@ export type LandmarkFeature = {
 	 * bulat sempurna jadi beberapa "puncak" tidak sekata + rabung berbatu
 	 * (gunung ragged, bukan kon tunggal generik). */
 	raggedness?: number;
+	/** Jejari (radian) zon tengah yg DIKECUALIKAN drpd serakan pokok/batu
+	 * (Vegetation.tsx/TerrainProps.tsx) — utk ciri yg ada tasik kecil di
+	 * tengah supaya pokok/batu tidak tumbuh di atas air. 0/tiada = lalai
+	 * (tiada pengecualian, kelakuan asal). */
+	innerExclusion?: number;
+	/** Jika benar, kluster bunga liar kecil diserak merata ciri ini
+	 * (TerrainProps.tsx) — padang rumput berbunga, bukan sekadar warna
+	 * tanah rata. */
+	flowers?: boolean;
 };
 
 export function deg(d: number): number {
@@ -241,7 +250,29 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// "puncak" ragged), mendedahkan warna kosmik asas (bukan hijau) sbg
 	// tompok gelap — sesuai utk gunung berbatu, TAPI salah utk lantai hutan
 	// lebat yg patut sentiasa hijau berterusan.
-	{ id: 'padang-bunga', nama: 'Padang Bunga', type: 'green', theta: deg(320), y: 0.45, radius: 0.2, heightScale: 1.4 },
+	// innerExclusion=0.09 elak pokok/batu tumbuh di atas tasik kecil
+	// 'padang-bunga-tasik' di tengah (radius 0.055 + jidar) — hutan jadi
+	// tertumpu ke gegelang luar berdekatan banjaran gunung, bukan taburan
+	// genap merentasi keseluruhan padang. flowers=true tambah kluster bunga
+	// liar (TerrainProps.tsx) supaya "padang bunga" benar2 berbunga, bukan
+	// sekadar warna tanah hijau-kuning rata.
+	{
+		id: 'padang-bunga',
+		nama: 'Padang Bunga',
+		type: 'green',
+		theta: deg(320),
+		y: 0.45,
+		radius: 0.2,
+		heightScale: 1.4,
+		innerExclusion: 0.09,
+		flowers: true,
+	},
+	// Tasik kecil di TENGAH padang bunga (gema Elythrean Bloomfields — "di
+	// tengah ada tasik") — sama teknik dgn Heartbloom (ciri 'water' kecil
+	// diletak SELEPAS ciri hijau induk dlm array supaya warna air menang
+	// pd blend berhampiran pusat; radius jauh lebih kecil drpd padang-bunga
+	// supaya rumput/bunga/hutan tetap kelihatan di sekelilingnya).
+	{ id: 'padang-bunga-tasik', nama: 'Tasik Padang Bunga', type: 'water', theta: deg(320), y: 0.45, radius: 0.055, heightScale: 1.6 },
 	// Banjaran gunung kecil MENGELILINGI padang bunga — "gunung di tepi"
 	// hutan, bukan padang terapung rata tanpa sempadan fizikal.
 	{
