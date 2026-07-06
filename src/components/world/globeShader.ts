@@ -183,9 +183,12 @@ float terrainHeight(vec3 n) {
 		} else if (t < 7.5) {
 			// Selat Equilara — lembangan cetek sama macam air biasa.
 			h -= falloff * 0.03 * heightScale;
-		} else {
+		} else if (t < 8.5) {
 			// Mendari — plaza/jalan rata, bonjolan halus sahaja.
 			h += falloff * 0.012 * heightScale;
+		} else {
+			// Padang rumput (meadow) — sama lembut spt 'green' generik.
+			h += falloff * 0.014 * heightScale;
 		}
 	}
 
@@ -356,7 +359,10 @@ vec3 featureColor(float t, float lat) {
 		float bridgeWarm = smoothstep(-0.2, 0.2, lat);
 		return mix(vec3(0.08, 0.4, 0.56), vec3(0.16, 0.56, 0.5), bridgeWarm);
 	}
-	return vec3(0.68, 0.56, 0.34); // Mendari — jalan batu pasir keemasan
+	if (t < 8.5) return vec3(0.68, 0.56, 0.34); // Mendari — jalan batu pasir keemasan
+	// Padang rumput (meadow) — hijau rumput CERAH tersendiri, kontras jelas
+	// dgn 'hijau' generik kekabur-kuning (cth. hutan-senja).
+	return mix(vec3(0.1, 0.28, 0.14), vec3(0.24, 0.6, 0.22), warm);
 }
 
 /** Mercu tanda liar (gunung/air/hijau/gurun/teres/pokok) — rekahan diasingkan
@@ -503,11 +509,18 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
 			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
-		} else {
+		} else if (t < 8.5) {
 			// Mendari — speckle merah jambu (bougainvillea) berselang jalan emas.
 			float speckle = smoothstep(0.74, 0.9, fbm2(n * 32.0 + dir * 7.0));
 			col = mix(col, fc, mask * 0.8);
 			col += speckle * mask * vec3(0.95, 0.55, 0.7) * 0.5;
+		} else {
+			// Padang rumput (meadow) — hijau rata dgn variasi tona halus
+			// (helaian rumput), TANPA speckle warna lain (bunga sebenar
+			// dilayan sbg objek 3D berasingan dlm TerrainProps.tsx).
+			float bladeNoise = fbm2(n * 30.0 + dir * 8.0) - 0.5;
+			col = mix(col, fc, mask * 0.82);
+			col += bladeNoise * mask * 0.05;
 		}
 	}
 	return col;
