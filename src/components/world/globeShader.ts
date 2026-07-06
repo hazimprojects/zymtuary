@@ -377,9 +377,10 @@ vec3 featureColor(float t, float lat) {
 		// dgn 'hijau' generik kekabur-kuning (cth. hutan-senja).
 		return mix(vec3(0.1, 0.28, 0.14), vec3(0.24, 0.6, 0.22), warm);
 	}
-	// Freylyn Terraces — travertine putih pucat (gema Pamukkale/Baishuitai),
-	// BUKAN oren spt Teres Air Panas — biome berlainan.
-	return vec3(0.86, 0.88, 0.85);
+	// Freylyn Terraces — kini air terjun rendah berbatu licin (bukan lagi
+	// travertine Pamukkale), jadi lantai sekeliling batu kelabu-hangat lembap,
+	// bukan putih pucat.
+	return vec3(0.46, 0.44, 0.4);
 }
 
 /** Mercu tanda liar (gunung/air/hijau/gurun/teres/pokok) — rekahan diasingkan
@@ -539,8 +540,8 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col = mix(col, fc, mask * 0.82);
 			col += bladeNoise * mask * 0.05;
 		} else {
-			// Freylyn Terraces — lantai travertine pucat rata sahaja, TANPA
-			// corak gegelang (teres/kolam sebenar kini objek 3D berasingan
+			// Freylyn Terraces — lantai batu-lembap rata sahaja, TANPA corak
+			// gegelang (air terjun & batu sebenar kini objek 3D berasingan
 			// dlm FreylynTerraces.tsx, letak terus di atas lantai ini).
 			float tone = fbm2(n * 24.0 + dir * 6.0) - 0.5;
 			col = mix(col, fc, mask * 0.8);
