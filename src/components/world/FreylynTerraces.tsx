@@ -6,20 +6,20 @@ import { buildSpriteTexture } from './FeatureParticles';
 
 type FreylynTerracesProps = {
 	/** Sama seperti landmark lain — struktur kekal separa kelihatan dari
-	 * orbit (mercu tanda), butiran (kilauan) hanya bila rapat. */
+	 * orbit (mercu tanda), butiran (kilauan/kabus) hanya bila rapat. */
 	atmosphereBlendRef: React.MutableRefObject<number>;
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
 
 /**
- * Reka bentuk lama guna cincin sepusat (konsentrik) — rupanya spt "pastri
- * berlapis" / UFO bulat simetri, BUKAN spt rujukan sebenar (Pamukkale/
- * Baishuitai). Teres sebenar ialah BANJARAN kolam kecil tak sekata yg
- * melimpah menuruni cerun dlm SATU arah, berlorek/berlekuk organik, bukan
- * bulatan sepusat sekeliling satu pusat. Reka semula ikut "baris" (rows)
- * menuruni cerun (arah Z tempatan), setiap baris ada beberapa kolam
- * berasingan bentuk blob tak sekata (elips + gangguan harmonik sudut).
+ * Freylyn Terraces kini AIR TERJUN RENDAH BERBATU LICIN — bukan lagi teres
+ * travertine Pamukkale/Baishuitai (3 pusingan cuba betulkan struktur
+ * bertingkat itu tapi sentiasa nampak "tergantung": sfera dasar globe amat
+ * rendah-poligon, ~48-64 segmen keliling 360°, tak mampu papar bonjolan
+ * bukit sekecil radius 0.22 rad dgn tepat). Reka bentuk baharu duduk RATA
+ * di aras tanah — spt prop batu biasa (TerrainProps.tsx) — jadi TIADA
+ * bonjolan bukit diperlukan langsung, elak seluruh kelas isu embed/floating.
  */
 function buildBlobBoundary(rng: () => number, irregularity: number): (theta: number) => number {
 	const a1 = irregularity * (0.55 + rng() * 0.45);
@@ -29,15 +29,12 @@ function buildBlobBoundary(rng: () => number, irregularity: number): (theta: num
 	return (theta: number) => 1 + a1 * Math.cos(theta + p1) + a2 * Math.cos(2 * theta + p2);
 }
 
-/** Silinder rendah/sederhana-poli diperturbasi per-sudut + skala elips —
- * teknik sama dgn buildMesaGeometry (AethirionIsland.tsx) tapi jejari x/z
- * berasingan supaya blob boleh jadi bujur (bukan bulat genap). */
 function buildBlobGeometry(
 	radiusX: number,
 	radiusZ: number,
 	height: number,
 	boundaryFn: (theta: number) => number,
-	segments = 10,
+	segments = 12,
 ): THREE.BufferGeometry {
 	const geo = new THREE.CylinderGeometry(1, 1, height, segments, 1, false);
 	const pos = geo.attributes.position;
@@ -53,115 +50,92 @@ function buildBlobGeometry(
 	return geo;
 }
 
-type RowDef = { z: number; width: number; cells: number; yTop: number };
-
-// 5 baris menuruni cerun (z meningkat = makin ke hadapan/rendah), makin
-// lebar & makin ramai kolam ke bawah — gema rujukan (teres jenis kipas
-// yg melebar semasa turun bukit).
-const ROWS: RowDef[] = [
-	{ z: -0.065, width: 0.075, cells: 2, yTop: 0.044 },
-	{ z: -0.03, width: 0.11, cells: 3, yTop: 0.033 },
-	{ z: 0.008, width: 0.145, cells: 3, yTop: 0.022 },
-	{ z: 0.048, width: 0.17, cells: 4, yTop: 0.011 },
-	{ z: 0.088, width: 0.185, cells: 4, yTop: 0 },
-];
-
-const RIM_HEIGHT = 0.016;
-const POOL_HEIGHT = 0.008;
-const POOL_SCALE = 0.78;
-const CELL_RADIUS_Z = 0.042;
-
-// DUA pusingan lepas cuba "lekatkan pada bukit" dgn menaikkan bonjolan
-// SHADER (terrainHeight) & mengimbangi anjakan di sini — gagal sebab sfera
-// dasar amat rendah-poligon (~48-64 segmen keliling 360°), jadi ciri
-// sekecil radius 0.22 rad ini cuma merangkumi 2-3 verteks sepanjang
-// diameternya; ketinggian yg dikira scr matematik (berterusan) tak dpt
-// dipaparkan dgn tepat pd verteks jarang itu — cth punca "tergantung" kekal
-// walau dah diimbangi. Shader kini kekal RATA/lembut (globeShader.ts), &
-// BUKIT dibina 100% di sini sbg objek pepejal (skirt/sokongan warna
-// tanah/batu di bawah setiap baris, menyambung terus ke y=0 — permukaan
-// sfera asas), supaya keseluruhan struktur (baris + bukit) satu unit
-// bersambung, TIADA jurang, tanpa perlu teka ketinggian sfera langsung.
-type Cell = {
-	rimGeo: THREE.BufferGeometry;
-	poolGeo: THREE.BufferGeometry;
-	x: number;
-	y: number;
-	z: number;
-	radiusX: number;
-	radiusZ: number;
-};
-
-function buildCells(): Cell[] {
-	const cells: Cell[] = [];
-	ROWS.forEach((row, ri) => {
-		const cellRadiusX = (row.width / Math.max(row.cells, 1)) * 0.62;
-		for (let ci = 0; ci < row.cells; ci++) {
-			const rng = seededRng(4400 + ri * 97 + ci * 13);
-			const t = row.cells > 1 ? ci / (row.cells - 1) : 0.5;
-			let x = THREE.MathUtils.lerp(-row.width / 2 + cellRadiusX * 0.7, row.width / 2 - cellRadiusX * 0.7, t);
-			x += (rng() - 0.5) * cellRadiusX * 0.3;
-			const z = row.z + (rng() - 0.5) * 0.01;
-			const y = row.yTop + (rng() - 0.5) * 0.003;
-			const rimBoundary = buildBlobBoundary(rng, 0.22);
-			const rimGeo = buildBlobGeometry(cellRadiusX, CELL_RADIUS_Z, RIM_HEIGHT, rimBoundary, 10);
-			const poolBoundary = buildBlobBoundary(rng, 0.16);
-			const poolGeo = buildBlobGeometry(
-				cellRadiusX * POOL_SCALE,
-				CELL_RADIUS_Z * POOL_SCALE,
-				POOL_HEIGHT,
-				poolBoundary,
-				10,
-			);
-			cells.push({ rimGeo, poolGeo, x, y, z, radiusX: cellRadiusX, radiusZ: CELL_RADIUS_Z });
-		}
-	});
-	return cells;
-}
-
-type HillSupport = { geo: THREE.BufferGeometry; x: number; y: number; z: number };
-
-/** Sokongan pepejal warna tanah/batu di bawah SETIAP baris, dari y=0
- * (permukaan sfera asas) naik ke row.yTop — bahagian tumpang-tindih antara
- * baris berturutan (radiusZ > jarak antara baris) supaya jadi SATU cerun
- * bersambung, bukan blok berasingan. Inilah "bukit" sebenar — dibina 100%
- * di sini, bukan bergantung pd anjakan shader. */
-function buildHillSupports(): HillSupport[] {
-	return ROWS.map((row, ri) => {
-		const rng = seededRng(9900 + ri * 53);
-		const boundary = buildBlobBoundary(rng, 0.16);
-		const radiusX = row.width * 0.68;
-		const radiusZ = CELL_RADIUS_Z * 1.55;
-		// Tinggi ditolak RIM_HEIGHT supaya puncak sokongan flush dgn DASAR
-		// rak kolam (bukan menonjol melepasi/menutup rak), spt asas bukit yg
-		// betul2 menyokong tepi bawah setiap baris.
-		const height = Math.max(row.yTop - RIM_HEIGHT, 0.006);
-		const geo = buildBlobGeometry(radiusX, radiusZ, height, boundary, 12);
-		return { geo, x: 0, y: height / 2, z: row.z };
-	});
-}
-
-type SparkleSpot = { position: THREE.Vector3 };
-
-/** Kilauan lembut atas kolam — "air berkilau seperti kaca cair" (Codex). */
-function buildSparkleSpots(cells: Cell[]): SparkleSpot[] {
-	const rng = seededRng(6601);
-	const spots: SparkleSpot[] = [];
-	for (const cell of cells) {
-		if (rng() < 0.65) {
-			const count = 1 + Math.floor(rng() * 2);
-			for (let i = 0; i < count; i++) {
-				const ox = (rng() - 0.5) * cell.radiusX * 0.9;
-				const oz = (rng() - 0.5) * cell.radiusZ * 0.9;
-				spots.push({ position: new THREE.Vector3(cell.x + ox, cell.y - POOL_HEIGHT * 0.3, cell.z + oz) });
-			}
-		}
+/** Batu SUNGAI licin — ikosahedron diperturbasi lembut (bukan tajam/berkelim
+ * spt batu gunung berapi), guna smooth-shading (bukan flatShading) supaya
+ * benar2 terbaca "licin" spt batu digilap air, kontras dgn batu tajam biasa. */
+function buildBoulderGeometry(radius: number, seed: number, squash: number): THREE.BufferGeometry {
+	const geo = new THREE.IcosahedronGeometry(radius, 1);
+	const rng = seededRng(seed);
+	const pos = geo.attributes.position;
+	for (let i = 0; i < pos.count; i++) {
+		const x = pos.getX(i);
+		const y = pos.getY(i);
+		const z = pos.getZ(i);
+		const len = Math.hypot(x, y, z) || 1;
+		const bump = 1 + (rng() - 0.5) * 0.2;
+		pos.setXYZ(i, x * bump, y * bump * squash, z * bump);
 	}
-	return spots;
+	pos.needsUpdate = true;
+	geo.computeVertexNormals();
+	return geo;
 }
 
-/** Tekstur jalur air terjun menegak — teknik sama dgn AethirionIsland.tsx
- * (legap dekat atas, pudar ke bawah, jalur rawak). */
+// Rak atas kecil (mata air) berbeza aras drpd kelompok bawah (tempat air
+// jatuh & terkumpul) — jatuhan air RENDAH sengaja (bukan menara tinggi
+// spt teres lama) supaya seluruh struktur kekal dekat aras tanah.
+const UPPER_Y = 0.05;
+const BASE_Y = 0.006;
+
+type Boulder = { geo: THREE.BufferGeometry; x: number; y: number; z: number; rotation: [number, number, number] };
+
+function buildBoulders(): Boulder[] {
+	const rng = seededRng(3100);
+	const boulders: Boulder[] = [];
+	const upperSpots: Array<[number, number]> = [
+		[-0.032, -0.026],
+		[0.012, -0.032],
+		[0.04, -0.016],
+	];
+	upperSpots.forEach(([x, z], i) => {
+		const r = 0.024 + rng() * 0.012;
+		boulders.push({
+			geo: buildBoulderGeometry(r, 3200 + i * 17, 0.7 + rng() * 0.2),
+			x,
+			y: UPPER_Y + r * 0.35,
+			z,
+			rotation: [rng() * Math.PI, rng() * Math.PI, rng() * Math.PI],
+		});
+	});
+	const lowerSpots: Array<[number, number]> = [
+		[-0.062, 0.026],
+		[-0.028, 0.046],
+		[0.018, 0.042],
+		[0.052, 0.02],
+		[0.068, 0.048],
+		[-0.05, 0.064],
+		[0.012, 0.07],
+	];
+	lowerSpots.forEach(([x, z], i) => {
+		const r = 0.028 + rng() * 0.018;
+		boulders.push({
+			geo: buildBoulderGeometry(r, 3400 + i * 19, 0.62 + rng() * 0.25),
+			x,
+			y: BASE_Y + r * 0.4,
+			z,
+			rotation: [rng() * Math.PI, rng() * Math.PI, rng() * Math.PI],
+		});
+	});
+	return boulders;
+}
+
+/** Kolam kecil di rak atas (mata air) — sumber air terjun. */
+function buildSourcePool(): { geo: THREE.BufferGeometry; x: number; y: number; z: number } {
+	const rng = seededRng(4501);
+	const boundary = buildBlobBoundary(rng, 0.2);
+	const geo = buildBlobGeometry(0.026, 0.02, 0.008, boundary, 12);
+	return { geo, x: -0.006, y: UPPER_Y + 0.002, z: -0.024 };
+}
+
+/** Kolam utama di kaki air terjun — tempat air jatuh & terkumpul, gema
+ * "air berkilau seperti kaca cair" (Codex). */
+function buildBasePool(): { geo: THREE.BufferGeometry; x: number; y: number; z: number } {
+	const rng = seededRng(4601);
+	const boundary = buildBlobBoundary(rng, 0.18);
+	const geo = buildBlobGeometry(0.058, 0.05, 0.009, boundary, 14);
+	return { geo, x: 0.006, y: BASE_Y + 0.001, z: 0.05 };
+}
+
+/** Tekstur jalur air terjun menegak — teknik sama dgn AethirionIsland.tsx. */
 function buildCascadeTexture(): THREE.CanvasTexture {
 	const w = 16;
 	const h = 128;
@@ -185,55 +159,19 @@ function buildCascadeTexture(): THREE.CanvasTexture {
 	return tex;
 }
 
-type CascadeSpot = { x: number; y: number; z: number; width: number; height: number };
+type MistSpot = { position: THREE.Vector3 };
 
-/** Panel air melimpah rendah antara setiap pasangan baris — gantung tegak
- * (normal +Z), letak DoubleSide supaya arah menghadap x tak penting. */
-function buildCascadeSpots(): CascadeSpot[] {
-	const spots: CascadeSpot[] = [];
-	for (let i = 0; i < ROWS.length - 1; i++) {
-		const a = ROWS[i];
-		const b = ROWS[i + 1];
-		const drop = a.yTop - b.yTop;
-		if (drop < 0.002) continue;
-		spots.push({
-			x: 0,
-			y: (a.yTop + b.yTop) / 2,
-			z: (a.z + b.z) / 2 + CELL_RADIUS_Z * 0.35,
-			width: Math.min(a.width, b.width) * 0.7,
-			height: drop + 0.006,
-		});
+/** Kabus/kilauan halus dekat kaki air terjun (tempat air menghempas). */
+function buildMistSpots(): MistSpot[] {
+	const rng = seededRng(6701);
+	const spots: MistSpot[] = [];
+	for (let i = 0; i < 10; i++) {
+		const x = (rng() - 0.5) * 0.07;
+		const z = 0.01 + rng() * 0.03;
+		const y = BASE_Y + 0.01 + rng() * 0.03;
+		spots.push({ position: new THREE.Vector3(x, y, z) });
 	}
 	return spots;
-}
-
-// Baris terakhir (ROWS[4]) sudah berada pd y=0 (aras kaki bukit/permukaan
-// sfera) — kolam kutipan diletak SEBERES-DEKAT mungkin dgn tepinya (bukan
-// jauh terpisah spt pusingan lepas, yg tinggalkan jurang kosong "tergantung"
-// antara struktur & kolam) supaya air terjun pendek ini terus menyambung
-// drpd tepi baris terakhir ke kolam, lalu melimpah ke tasik sekeliling
-// (ciri shader 'freylyn-terraces-tasik') yg jauh lebih luar.
-const LAST_ROW = ROWS[ROWS.length - 1];
-const COLLECTION_Z = LAST_ROW.z + CELL_RADIUS_Z + 0.045;
-const COLLECTION_DROP = 0.012;
-
-function buildOverflowCascade(): CascadeSpot {
-	return {
-		x: 0,
-		y: LAST_ROW.yTop - COLLECTION_DROP / 2,
-		z: (LAST_ROW.z + CELL_RADIUS_Z + COLLECTION_Z) / 2,
-		width: LAST_ROW.width * 0.5,
-		height: COLLECTION_DROP + 0.006,
-	};
-}
-
-/** Kolam kutipan cetek di kaki cerun — tempat limpahan terkumpul sebelum
- * bercantum dgn tasik sekeliling (ciri shader 'freylyn-terraces-tasik'). */
-function buildCollectionPool(): { geo: THREE.BufferGeometry; y: number; z: number } {
-	const rng = seededRng(8801);
-	const boundary = buildBlobBoundary(rng, 0.2);
-	const geo = buildBlobGeometry(0.078, 0.055, 0.01, boundary, 12);
-	return { geo, y: LAST_ROW.yTop - COLLECTION_DROP, z: COLLECTION_Z };
 }
 
 export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesProps) {
@@ -241,46 +179,29 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.004), [dir]);
 
-	const cells = useMemo(() => buildCells(), []);
-	const hillSupports = useMemo(() => buildHillSupports(), []);
-	const sparkleSpots = useMemo(() => buildSparkleSpots(cells), [cells]);
-	const cascadeSpots = useMemo(() => [...buildCascadeSpots(), buildOverflowCascade()], []);
-	const collectionPool = useMemo(() => buildCollectionPool(), []);
-	const sparkleTexture = useMemo(() => buildSpriteTexture(), []);
+	const boulders = useMemo(() => buildBoulders(), []);
+	const sourcePool = useMemo(() => buildSourcePool(), []);
+	const basePool = useMemo(() => buildBasePool(), []);
+	const mistSpots = useMemo(() => buildMistSpots(), []);
+	const mistTexture = useMemo(() => buildSpriteTexture(), []);
 	const cascadeTexture = useMemo(() => buildCascadeTexture(), []);
-	const sparklePositions = useMemo(() => {
-		const arr = new Float32Array(sparkleSpots.length * 3);
-		sparkleSpots.forEach((s, i) => {
+	const mistPositions = useMemo(() => {
+		const arr = new Float32Array(mistSpots.length * 3);
+		mistSpots.forEach((s, i) => {
 			arr[i * 3] = s.position.x;
 			arr[i * 3 + 1] = s.position.y;
 			arr[i * 3 + 2] = s.position.z;
 		});
 		return arr;
-	}, [sparkleSpots]);
+	}, [mistSpots]);
 
-	const hillMat = useMemo(
+	const rockMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				// Warna tanah/batu hangat sepadan dgn dirt sekeliling (Luminara) —
-				// bukit ini mesti berbaur dgn tanah sedia ada, bukan nampak asing.
-				color: '#a8703c',
-				flatShading: true,
-				roughness: 0.92,
-				transparent: true,
-				opacity: 0,
-			}),
-		[],
-	);
-	const shelfMat = useMemo(
-		() =>
-			new THREE.MeshStandardMaterial({
-				// Putih-krem CERAH dgn emissive halus — pastikan ia terbaca sbg
-				// travertine putih walau di bawah ambient sejuk scene ini.
-				color: '#faf6ec',
-				emissive: '#e8dfc8',
-				emissiveIntensity: 0.3,
-				flatShading: true,
-				roughness: 0.65,
+				// Kelabu-hangat lembap, smoothShading (bukan flatShading) — batu
+				// sungai digilap air, licin, bukan tajam/berkelim spt batu gunung.
+				color: '#6b6258',
+				roughness: 0.42,
 				transparent: true,
 				opacity: 0,
 			}),
@@ -312,80 +233,66 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 			}),
 		[cascadeTexture],
 	);
-	const sparkleMat = useMemo(
+	const mistMat = useMemo(
 		() =>
 			new THREE.PointsMaterial({
-				size: 0.026,
-				map: sparkleTexture,
-				color: '#eafffa',
+				size: 0.03,
+				map: mistTexture,
+				color: '#ffffff',
 				transparent: true,
 				opacity: 0,
 				depthWrite: false,
 				sizeAttenuation: true,
 				blending: THREE.AdditiveBlending,
 			}),
-		[sparkleTexture],
+		[mistTexture],
 	);
 
-	const landmarkMats = useMemo(() => [hillMat, shelfMat, poolMat], [hillMat, shelfMat, poolMat]);
+	const landmarkMats = useMemo(() => [rockMat, poolMat], [rockMat, poolMat]);
 	const detailMats = useMemo(() => [cascadeMat], [cascadeMat]);
 
 	useFrame(({ clock }) => {
 		const blend = atmosphereBlendRef.current;
 		const near = THREE.MathUtils.clamp((blend - 0.15) / 0.35, 0, 1);
 
-		// Struktur teres kekal separa kelihatan dari orbit (lantai 0.55) —
-		// mercu tanda biome, sama spt Heartbloom/Ascendari.
+		// Struktur kekal separa kelihatan dari orbit (lantai 0.55) — mercu
+		// tanda biome, sama spt Heartbloom/Ascendari.
 		const landmarkTarget = THREE.MathUtils.lerp(0.55, 1, near);
 		for (const mat of landmarkMats) {
 			mat.opacity = THREE.MathUtils.lerp(mat.opacity, landmarkTarget, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 		for (const mat of detailMats) {
-			// Dinaikkan drpd 0.7 — limpahan air mesti kelihatan jelas (permintaan
-			// pengguna), bukan jalur telus nyaris tak nampak.
 			mat.opacity = THREE.MathUtils.lerp(mat.opacity, near * 0.9, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 
 		poolMat.emissiveIntensity = 0.4 * (0.8 + 0.2 * Math.sin(clock.elapsedTime * 0.8));
-		// Tanda "+=" (bukan "-=") — arah tatal mesti nampak air mengalir dari
-		// ATAS (kolam) ke BAWAH (kaki cerun), bukan songsang (permintaan
-		// pengguna: aliran air kelihatan songsang pd pusingan lepas).
+		// "+=" (bukan "-=") — aliran mesti kelihatan dari ATAS (kolam mata air)
+		// ke BAWAH (kolam utama), bukan songsang.
 		cascadeTexture.offset.y += 0.5 * 0.016;
 
-		sparkleMat.opacity = near * 0.55 * (0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.2));
-		sparkleMat.visible = sparkleMat.opacity > 0.01;
+		mistMat.opacity = near * 0.5 * (0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.4));
+		mistMat.visible = mistMat.opacity > 0.01;
 	});
 
 	return (
 		<group position={position} quaternion={quaternion}>
-			{hillSupports.map((h, i) => (
-				<mesh key={i} geometry={h.geo} material={hillMat} position={[h.x, h.y, h.z]} />
+			{boulders.map((b, i) => (
+				<mesh key={i} geometry={b.geo} material={rockMat} position={[b.x, b.y, b.z]} rotation={b.rotation} />
 			))}
-			{cells.map((cell, i) => (
-				<group key={i}>
-					<mesh geometry={cell.rimGeo} material={shelfMat} position={[cell.x, cell.y - RIM_HEIGHT / 2, cell.z]} />
-					<mesh
-						geometry={cell.poolGeo}
-						material={poolMat}
-						position={[cell.x, cell.y - 0.002 - POOL_HEIGHT / 2, cell.z]}
-					/>
-				</group>
-			))}
-			{cascadeSpots.map((c, i) => (
-				<mesh key={i} position={[c.x, c.y, c.z]} material={cascadeMat}>
-					<planeGeometry args={[c.width, c.height, 1, 4]} />
-				</mesh>
-			))}
-			<mesh geometry={collectionPool.geo} material={poolMat} position={[0, collectionPool.y, collectionPool.z]} />
-			{sparkleSpots.length > 0 ? (
-				<points material={sparkleMat}>
+			<mesh geometry={sourcePool.geo} material={poolMat} position={[sourcePool.x, sourcePool.y, sourcePool.z]} />
+			<mesh geometry={basePool.geo} material={poolMat} position={[basePool.x, basePool.y, basePool.z]} />
+			<mesh position={[0, (UPPER_Y + BASE_Y) / 2, -0.006]} material={cascadeMat}>
+				<planeGeometry args={[0.05, UPPER_Y - BASE_Y + 0.01, 1, 4]} />
+			</mesh>
+			{mistSpots.length > 0 ? (
+				<points material={mistMat}>
 					<bufferGeometry>
 						<bufferAttribute
 							attach="attributes-position"
-							args={[sparklePositions, 3]}
-							count={sparklePositions.length / 3}
+							args={[mistPositions, 3]}
+							count={mistPositions.length / 3}
 							itemSize={3}
 						/>
 					</bufferGeometry>

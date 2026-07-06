@@ -332,48 +332,41 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// bangunan, bukan tertinggal kecil drpd footprint 3D.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
 	// Freylyn Terraces — biome Primal cahaya ke-3 (gema Codex: "air
-	// berkilau seperti kaca cair", rumah Gleefyns/naluri PLAY), gema rujukan
-	// Pamukkale/Baishuitai. theta 90° dikekalkan (jurang teta terbesar
-	// Luminara, antara Mendari teta 37° & Pulau Ascendari teta 160°); y
-	// dinaikkan 0.45→0.85 (jauh drpd sempadan Equilara ~0.28, lebih dalam
-	// ke Luminara) atas permintaan pengguna supaya lebih hampir Heartbloom
-	// Isle (jarak ~70°→~38°, setanding jarak Elythrean Bloomfields &
-	// Abythralis Grotto ke Heartbloom). Disahkan via carian jarak sudut —
-	// margin selamat kekal >13° drpd SEMUA jiran (paling rapat: Mendari &
-	// Heartbloom sendiri). type 'terraces' (globeShader.ts) beri corak
-	// gegelang putih travertine/turquoise berlorek + anjakan tinggi
-	// berperingkat halus, bukan sekadar warna rata. treeRingInner tumpukan
-	// pokok aksen jarang ke tepi luar sahaja (gema pokok di tepi teres dlm
-	// gambar rujukan), bukan hutan lebat.
+	// berkilau seperti kaca cair", rumah Gleefyns/naluri PLAY). theta 90°
+	// dikekalkan (jurang teta terbesar Luminara, antara Mendari teta 37° &
+	// Pulau Ascendari teta 160°); y 0.85 (jauh drpd sempadan Equilara ~0.28,
+	// hampir Heartbloom Isle). BUKAN lagi gaya teres travertine Pamukkale —
+	// selepas beberapa pusingan struktur teres bertingkat sentiasa nampak
+	// "tergantung" (sfera dasar globe amat rendah-poligon, tak mampu papar
+	// bonjolan bukit sekecil ini dgn tepat), permintaan pengguna: tukar jadi
+	// air terjun rendah berbatu licin — struktur jauh lebih rendah/ringkas,
+	// duduk terus di aras tanah (FreylynTerraces.tsx), jadi tak lagi
+	// bergantung pd bonjolan terrain langsung. Jejari dikecilkan (0.22→0.12)
+	// sepadan dgn skala ciri baharu yg jauh lebih kecil drpd teres lama.
 	{
 		id: 'freylyn-terraces',
 		nama: 'Freylyn Terraces',
 		type: 'terraces',
 		theta: deg(90),
 		y: 0.85,
-		radius: 0.22,
-		treeRingInner: 0.15,
-		treeCount: 500,
+		radius: 0.12,
+		treeRingInner: 0.08,
+		treeCount: 260,
 	},
-	// Tasik yg mengelilingi kaki bukit Freylyn Terraces (permintaan pengguna:
-	// air dari kolam teres patut mengalir ke bawah & melimpah jadi tasik
-	// mengelilingi gunung teres, spt air terjun) — teknik SAMA dgn
-	// heartbloom-benteng (ringMode di bawah): gegelang 'water' pd jejari SUDUT
-	// sedikit lebih besar drpd radius teres sendiri (0.22), supaya lantai
-	// terrain benar2 lekuk jadi lembangan tasik yg mengelilingi (bukan tompok
-	// air rata), dgn jalur pokok (treeRingInner 0.15-0.22 pd ciri terraces di
-	// atas) tumbuh di antara tepi teres & tepi tasik. Disahkan margin jarak
-	// sudut drpd SEMUA jiran kekal >5° (paling rapat: benteng Heartbloom).
+	// Kolam kecil di kaki air terjun (gantian tasik gegelang besar teres lama)
+	// — jejari dikecilkan sepadan dgn skala ciri baharu, kekal ringMode
+	// (teknik sama dgn heartbloom-benteng) supaya lantai terrain benar2 lekuk
+	// jadi lembangan kecil, bukan tompok air rata.
 	{
 		id: 'freylyn-terraces-tasik',
 		nama: 'Tasik Freylyn',
 		type: 'water',
 		theta: deg(90),
 		y: 0.85,
-		radius: 0.26,
-		ringWidth: 0.035,
+		radius: 0.145,
+		ringWidth: 0.02,
 		ringMode: true,
-		heightScale: 1.3,
+		heightScale: 1.1,
 	},
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
 	// theta 310° dikekalkan (arah menuju Elythrean Bloomfields/padang-bunga,
