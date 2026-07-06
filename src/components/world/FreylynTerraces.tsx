@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLOBE_RADIUS, findLandmarkDirection, seededRng } from './worldGlobeConfig';
@@ -12,95 +12,116 @@ type FreylynTerracesProps = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Sempadan teres tak sekata (harmonik sudut, 2 gelombang) — elak bulatan
- * genap sempurna (pengajaran drpd Vegetation.tsx/MendariTownscape round
- * terdahulu), gema tepi kolam Pamukkale/Baishuitai yg berlekuk organik. */
-function buildTerraceBoundary(rng: () => number): (theta: number) => number {
-	const a1 = 0.09 + rng() * 0.06;
+/**
+ * Reka bentuk lama guna cincin sepusat (konsentrik) — rupanya spt "pastri
+ * berlapis" / UFO bulat simetri, BUKAN spt rujukan sebenar (Pamukkale/
+ * Baishuitai). Teres sebenar ialah BANJARAN kolam kecil tak sekata yg
+ * melimpah menuruni cerun dlm SATU arah, berlorek/berlekuk organik, bukan
+ * bulatan sepusat sekeliling satu pusat. Reka semula ikut "baris" (rows)
+ * menuruni cerun (arah Z tempatan), setiap baris ada beberapa kolam
+ * berasingan bentuk blob tak sekata (elips + gangguan harmonik sudut).
+ */
+function buildBlobBoundary(rng: () => number, irregularity: number): (theta: number) => number {
+	const a1 = irregularity * (0.55 + rng() * 0.45);
 	const p1 = rng() * Math.PI * 2;
-	const a2 = 0.045 + rng() * 0.05;
+	const a2 = irregularity * 0.45 * (0.4 + rng() * 0.6);
 	const p2 = rng() * Math.PI * 2;
 	return (theta: number) => 1 + a1 * Math.cos(theta + p1) + a2 * Math.cos(2 * theta + p2);
 }
 
-/** Silinder rendah-poli diperturbasi per-sudut ikut boundaryFn — teknik SAMA
- * dgn buildMesaGeometry (AethirionIsland.tsx): pusingkan CylinderGeometry
- * genap jadi bentuk "blob" tak sekata dgn menskalakan jejari setiap verteks
- * ikut sudutnya, bukan bina BufferGeometry dari kosong. */
-function buildTerraceTierGeometry(
-	radius: number,
+/** Silinder rendah/sederhana-poli diperturbasi per-sudut + skala elips —
+ * teknik sama dgn buildMesaGeometry (AethirionIsland.tsx) tapi jejari x/z
+ * berasingan supaya blob boleh jadi bujur (bukan bulat genap). */
+function buildBlobGeometry(
+	radiusX: number,
+	radiusZ: number,
 	height: number,
 	boundaryFn: (theta: number) => number,
-	segments = 24,
+	segments = 10,
 ): THREE.BufferGeometry {
-	const geo = new THREE.CylinderGeometry(radius, radius, height, segments, 1, false);
+	const geo = new THREE.CylinderGeometry(1, 1, height, segments, 1, false);
 	const pos = geo.attributes.position;
 	for (let i = 0; i < pos.count; i++) {
 		const x = pos.getX(i);
 		const z = pos.getZ(i);
-		const r = Math.hypot(x, z);
-		if (r < 0.0001) continue;
 		const angle = Math.atan2(z, x);
 		const factor = boundaryFn(angle);
-		pos.setXYZ(i, x * factor, pos.getY(i), z * factor);
+		pos.setXYZ(i, x * radiusX * factor, pos.getY(i), z * radiusZ * factor);
 	}
 	pos.needsUpdate = true;
 	geo.computeVertexNormals();
 	return geo;
 }
 
-type Tier = {
-	shelfGeo: THREE.BufferGeometry;
+type RowDef = { z: number; width: number; cells: number; yTop: number };
+
+// 5 baris menuruni cerun (z meningkat = makin ke hadapan/rendah), makin
+// lebar & makin ramai kolam ke bawah — gema rujukan (teres jenis kipas
+// yg melebar semasa turun bukit).
+const ROWS: RowDef[] = [
+	{ z: -0.065, width: 0.075, cells: 2, yTop: 0.044 },
+	{ z: -0.03, width: 0.11, cells: 3, yTop: 0.033 },
+	{ z: 0.008, width: 0.145, cells: 3, yTop: 0.022 },
+	{ z: 0.048, width: 0.17, cells: 4, yTop: 0.011 },
+	{ z: 0.088, width: 0.185, cells: 4, yTop: 0 },
+];
+
+const RIM_HEIGHT = 0.016;
+const POOL_HEIGHT = 0.008;
+const POOL_SCALE = 0.78;
+const CELL_RADIUS_Z = 0.042;
+
+type Cell = {
+	rimGeo: THREE.BufferGeometry;
 	poolGeo: THREE.BufferGeometry;
-	shelfY: number;
-	poolY: number;
+	x: number;
+	y: number;
+	z: number;
+	radiusX: number;
+	radiusZ: number;
 };
 
-const TIER_RADII = [0.2, 0.152, 0.112, 0.078] as const;
-const TIER_HEIGHT = 0.02;
-const POOL_HEIGHT = 0.009;
-// Kolam meliputi HAMPIR seluruh jejari tingkat sendiri (bibir putih nipis
-// sahaja di tepi) — pusingan terdahulu (0.76) hampir SAMA dgn nisbah
-// jejari antara tingkat berturutan, jadi tingkat atas menutupi hampir
-// SEMUA kolam tingkat bawah, tinggal jalur nipis sahaja. Gema rujukan:
-// kolam ialah elemen dominan, bukan batu.
-const POOL_SCALE = 0.92;
-const TIER_OVERLAP = 0.003;
-
-function buildTiers(): Tier[] {
-	const tiers: Tier[] = [];
-	let bottomY = 0;
-	for (let i = 0; i < TIER_RADII.length; i++) {
-		const rng = seededRng(4401 + i * 71);
-		const shelfBoundary = buildTerraceBoundary(rng);
-		const poolBoundary = buildTerraceBoundary(seededRng(5501 + i * 71));
-		const shelfGeo = buildTerraceTierGeometry(TIER_RADII[i], TIER_HEIGHT, shelfBoundary);
-		const poolGeo = buildTerraceTierGeometry(TIER_RADII[i] * POOL_SCALE, POOL_HEIGHT, poolBoundary);
-		const shelfY = bottomY + TIER_HEIGHT / 2;
-		const poolY = bottomY + TIER_HEIGHT - POOL_HEIGHT / 2 + 0.0015;
-		shelfGeo.translate(0, shelfY, 0);
-		poolGeo.translate(0, poolY, 0);
-		tiers.push({ shelfGeo, poolGeo, shelfY, poolY });
-		bottomY += TIER_HEIGHT - TIER_OVERLAP;
-	}
-	return tiers;
+function buildCells(): Cell[] {
+	const cells: Cell[] = [];
+	ROWS.forEach((row, ri) => {
+		const cellRadiusX = (row.width / Math.max(row.cells, 1)) * 0.62;
+		for (let ci = 0; ci < row.cells; ci++) {
+			const rng = seededRng(4400 + ri * 97 + ci * 13);
+			const t = row.cells > 1 ? ci / (row.cells - 1) : 0.5;
+			let x = THREE.MathUtils.lerp(-row.width / 2 + cellRadiusX * 0.7, row.width / 2 - cellRadiusX * 0.7, t);
+			x += (rng() - 0.5) * cellRadiusX * 0.3;
+			const z = row.z + (rng() - 0.5) * 0.01;
+			const y = row.yTop + (rng() - 0.5) * 0.003;
+			const rimBoundary = buildBlobBoundary(rng, 0.22);
+			const rimGeo = buildBlobGeometry(cellRadiusX, CELL_RADIUS_Z, RIM_HEIGHT, rimBoundary, 10);
+			const poolBoundary = buildBlobBoundary(rng, 0.16);
+			const poolGeo = buildBlobGeometry(
+				cellRadiusX * POOL_SCALE,
+				CELL_RADIUS_Z * POOL_SCALE,
+				POOL_HEIGHT,
+				poolBoundary,
+				10,
+			);
+			cells.push({ rimGeo, poolGeo, x, y, z, radiusX: cellRadiusX, radiusZ: CELL_RADIUS_Z });
+		}
+	});
+	return cells;
 }
 
-type SparkleSpot = { position: THREE.Vector3; phase: number };
+type SparkleSpot = { position: THREE.Vector3 };
 
 /** Kilauan lembut atas kolam — "air berkilau seperti kaca cair" (Codex). */
-function buildSparkleSpots(tiers: Tier[]): SparkleSpot[] {
+function buildSparkleSpots(cells: Cell[]): SparkleSpot[] {
 	const rng = seededRng(6601);
 	const spots: SparkleSpot[] = [];
-	for (let i = 0; i < tiers.length; i++) {
-		const count = 5 - i;
-		const r = TIER_RADII[i] * POOL_SCALE * 0.75;
-		for (let j = 0; j < count; j++) {
-			const angle = rng() * Math.PI * 2;
-			const rr = Math.sqrt(rng()) * r;
-			const x = Math.cos(angle) * rr;
-			const z = Math.sin(angle) * rr;
-			spots.push({ position: new THREE.Vector3(x, tiers[i].poolY + POOL_HEIGHT / 2 + 0.002, z), phase: rng() });
+	for (const cell of cells) {
+		if (rng() < 0.65) {
+			const count = 1 + Math.floor(rng() * 2);
+			for (let i = 0; i < count; i++) {
+				const ox = (rng() - 0.5) * cell.radiusX * 0.9;
+				const oz = (rng() - 0.5) * cell.radiusZ * 0.9;
+				spots.push({ position: new THREE.Vector3(cell.x + ox, cell.y - POOL_HEIGHT * 0.3, cell.z + oz) });
+			}
 		}
 	}
 	return spots;
@@ -131,25 +152,23 @@ function buildCascadeTexture(): THREE.CanvasTexture {
 	return tex;
 }
 
-type CascadeSpot = { position: THREE.Vector3; width: number; length: number };
+type CascadeSpot = { x: number; y: number; z: number; width: number; height: number };
 
-/** Beberapa jalur kecil air melimpah dari kolam atas ke bawah — di satu
- * sisi sahaja (bukan sekeliling), gema rujukan (air melimpah tepi teres). */
-function buildCascadeSpots(tiers: Tier[]): CascadeSpot[] {
-	const rng = seededRng(7701);
+/** Panel air melimpah rendah antara setiap pasangan baris — gantung tegak
+ * (normal +Z), letak DoubleSide supaya arah menghadap x tak penting. */
+function buildCascadeSpots(): CascadeSpot[] {
 	const spots: CascadeSpot[] = [];
-	for (let i = 0; i < tiers.length - 1; i++) {
-		const angle = 0.3 + rng() * 0.5;
-		const r = TIER_RADII[i + 1] * 0.85;
-		const x = Math.cos(angle) * r;
-		const z = Math.sin(angle) * r;
-		const dropTop = tiers[i + 1].poolY;
-		const dropBottom = tiers[i].poolY;
-		const length = dropTop - dropBottom;
+	for (let i = 0; i < ROWS.length - 1; i++) {
+		const a = ROWS[i];
+		const b = ROWS[i + 1];
+		const drop = a.yTop - b.yTop;
+		if (drop < 0.002) continue;
 		spots.push({
-			position: new THREE.Vector3(x, (dropTop + dropBottom) / 2, z),
-			width: 0.012 + rng() * 0.008,
-			length,
+			x: 0,
+			y: (a.yTop + b.yTop) / 2,
+			z: (a.z + b.z) / 2 + CELL_RADIUS_Z * 0.35,
+			width: Math.min(a.width, b.width) * 0.7,
+			height: drop + 0.006,
 		});
 	}
 	return spots;
@@ -160,18 +179,26 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
 	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.004), [dir]);
 
-	const tiers = useMemo(() => buildTiers(), []);
-	const sparkleSpots = useMemo(() => buildSparkleSpots(tiers), [tiers]);
-	const cascadeSpots = useMemo(() => buildCascadeSpots(tiers), [tiers]);
+	const cells = useMemo(() => buildCells(), []);
+	const sparkleSpots = useMemo(() => buildSparkleSpots(cells), [cells]);
+	const cascadeSpots = useMemo(() => buildCascadeSpots(), []);
 	const sparkleTexture = useMemo(() => buildSpriteTexture(), []);
 	const cascadeTexture = useMemo(() => buildCascadeTexture(), []);
+	const sparklePositions = useMemo(() => {
+		const arr = new Float32Array(sparkleSpots.length * 3);
+		sparkleSpots.forEach((s, i) => {
+			arr[i * 3] = s.position.x;
+			arr[i * 3 + 1] = s.position.y;
+			arr[i * 3 + 2] = s.position.z;
+		});
+		return arr;
+	}, [sparkleSpots]);
 
 	const shelfMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
 				// Putih-krem CERAH dgn emissive halus — pastikan ia terbaca sbg
-				// travertine putih walau di bawah ambient sejuk scene ini (round
-				// terdahulu, warna pucat '#f0ebe0' tanpa emissive terbias kelabu).
+				// travertine putih walau di bawah ambient sejuk scene ini.
 				color: '#faf6ec',
 				emissive: '#e8dfc8',
 				emissiveIntensity: 0.3,
@@ -185,8 +212,6 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 	const poolMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				// Turquoise lebih tepu/cerah (gema rujukan Pamukkale) — round
-				// terdahulu terlalu muted/gelap.
 				color: '#3ddcd2',
 				emissive: '#15948c',
 				emissiveIntensity: 0.4,
@@ -213,7 +238,7 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 	const sparkleMat = useMemo(
 		() =>
 			new THREE.PointsMaterial({
-				size: 0.028,
+				size: 0.026,
 				map: sparkleTexture,
 				color: '#eafffa',
 				transparent: true,
@@ -227,9 +252,6 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 
 	const landmarkMats = useMemo(() => [shelfMat, poolMat], [shelfMat, poolMat]);
 	const detailMats = useMemo(() => [cascadeMat], [cascadeMat]);
-
-	const sparklePositions = useMemo(() => new Float32Array(sparkleSpots.length * 3), [sparkleSpots.length]);
-	const sparkleGeomRef = useRef<THREE.BufferGeometry>(null);
 
 	useFrame(({ clock }) => {
 		const blend = atmosphereBlendRef.current;
@@ -250,36 +272,30 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 		poolMat.emissiveIntensity = 0.4 * (0.8 + 0.2 * Math.sin(clock.elapsedTime * 0.8));
 		cascadeTexture.offset.y -= 0.5 * 0.016;
 
-		for (let i = 0; i < sparkleSpots.length; i++) {
-			const s = sparkleSpots[i];
-			sparklePositions[i * 3] = s.position.x;
-			sparklePositions[i * 3 + 1] = s.position.y;
-			sparklePositions[i * 3 + 2] = s.position.z;
-		}
-		if (sparkleGeomRef.current) sparkleGeomRef.current.attributes.position.needsUpdate = true;
-		if (sparkleMat) {
-			const flicker = 0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.1);
-			sparkleMat.opacity = near * flicker * 0.8;
-			sparkleMat.visible = near > 0.01;
-		}
+		sparkleMat.opacity = near * 0.55 * (0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.2));
+		sparkleMat.visible = sparkleMat.opacity > 0.01;
 	});
 
 	return (
 		<group position={position} quaternion={quaternion}>
-			{tiers.map((tier, i) => (
+			{cells.map((cell, i) => (
 				<group key={i}>
-					<mesh geometry={tier.shelfGeo} material={shelfMat} />
-					<mesh geometry={tier.poolGeo} material={poolMat} />
+					<mesh geometry={cell.rimGeo} material={shelfMat} position={[cell.x, cell.y - RIM_HEIGHT / 2, cell.z]} />
+					<mesh
+						geometry={cell.poolGeo}
+						material={poolMat}
+						position={[cell.x, cell.y - 0.002 - POOL_HEIGHT / 2, cell.z]}
+					/>
 				</group>
 			))}
 			{cascadeSpots.map((c, i) => (
-				<mesh key={i} position={c.position} rotation={[0, Math.atan2(c.position.x, c.position.z), 0]} material={cascadeMat}>
-					<planeGeometry args={[c.width, c.length, 1, 4]} />
+				<mesh key={i} position={[c.x, c.y, c.z]} material={cascadeMat}>
+					<planeGeometry args={[c.width, c.height, 1, 4]} />
 				</mesh>
 			))}
 			{sparkleSpots.length > 0 ? (
 				<points material={sparkleMat}>
-					<bufferGeometry ref={sparkleGeomRef}>
+					<bufferGeometry>
 						<bufferAttribute
 							attach="attributes-position"
 							args={[sparklePositions, 3]}
