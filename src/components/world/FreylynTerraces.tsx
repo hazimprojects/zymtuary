@@ -31,7 +31,7 @@ function buildTerraceTierGeometry(
 	radius: number,
 	height: number,
 	boundaryFn: (theta: number) => number,
-	segments = 12,
+	segments = 24,
 ): THREE.BufferGeometry {
 	const geo = new THREE.CylinderGeometry(radius, radius, height, segments, 1, false);
 	const pos = geo.attributes.position;
@@ -57,9 +57,14 @@ type Tier = {
 };
 
 const TIER_RADII = [0.2, 0.152, 0.112, 0.078] as const;
-const TIER_HEIGHT = 0.017;
+const TIER_HEIGHT = 0.02;
 const POOL_HEIGHT = 0.009;
-const POOL_SCALE = 0.76;
+// Kolam meliputi HAMPIR seluruh jejari tingkat sendiri (bibir putih nipis
+// sahaja di tepi) — pusingan terdahulu (0.76) hampir SAMA dgn nisbah
+// jejari antara tingkat berturutan, jadi tingkat atas menutupi hampir
+// SEMUA kolam tingkat bawah, tinggal jalur nipis sahaja. Gema rujukan:
+// kolam ialah elemen dominan, bukan batu.
+const POOL_SCALE = 0.92;
 const TIER_OVERLAP = 0.003;
 
 function buildTiers(): Tier[] {
@@ -162,17 +167,31 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 	const cascadeTexture = useMemo(() => buildCascadeTexture(), []);
 
 	const shelfMat = useMemo(
-		() => new THREE.MeshStandardMaterial({ color: '#f0ebe0', flatShading: true, roughness: 0.75, transparent: true, opacity: 0 }),
+		() =>
+			new THREE.MeshStandardMaterial({
+				// Putih-krem CERAH dgn emissive halus — pastikan ia terbaca sbg
+				// travertine putih walau di bawah ambient sejuk scene ini (round
+				// terdahulu, warna pucat '#f0ebe0' tanpa emissive terbias kelabu).
+				color: '#faf6ec',
+				emissive: '#e8dfc8',
+				emissiveIntensity: 0.3,
+				flatShading: true,
+				roughness: 0.65,
+				transparent: true,
+				opacity: 0,
+			}),
 		[],
 	);
 	const poolMat = useMemo(
 		() =>
 			new THREE.MeshStandardMaterial({
-				color: '#5fcdc4',
-				emissive: '#1e7a72',
-				emissiveIntensity: 0.35,
+				// Turquoise lebih tepu/cerah (gema rujukan Pamukkale) — round
+				// terdahulu terlalu muted/gelap.
+				color: '#3ddcd2',
+				emissive: '#15948c',
+				emissiveIntensity: 0.4,
 				flatShading: true,
-				roughness: 0.2,
+				roughness: 0.15,
 				metalness: 0.1,
 				transparent: true,
 				opacity: 0,
@@ -228,7 +247,7 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 			mat.visible = mat.opacity > 0.01;
 		}
 
-		poolMat.emissiveIntensity = 0.35 * (0.8 + 0.2 * Math.sin(clock.elapsedTime * 0.8));
+		poolMat.emissiveIntensity = 0.4 * (0.8 + 0.2 * Math.sin(clock.elapsedTime * 0.8));
 		cascadeTexture.offset.y -= 0.5 * 0.016;
 
 		for (let i = 0; i < sparkleSpots.length; i++) {
