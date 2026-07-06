@@ -71,12 +71,29 @@ const POOL_HEIGHT = 0.008;
 const POOL_SCALE = 0.78;
 const CELL_RADIUS_Z = 0.042;
 
-// Mesti SEPADAN dgn pekali "falloff * X * heightScale" bagi type 'terraces'
-// dlm globeShader.ts (terrainHeight) pd falloff=1 (pusat ciri, heightScale
-// lalai 1) — permintaan pengguna: teres mesti melekat pada bukit sebenar,
-// bukan terapung di atas lantai rata. Tanpa ini asas struktur akan
-// tenggelam/terapung drpd permukaan bukit yg kini benar2 ditinggikan.
-const MOUND_RISE = 0.065;
+// Bukit di bawah teres ialah KUBAH (dome falloff ikut jarak SUDUT dari
+// pusat, bukan rata) — pusingan lepas guna SATU anjakan rata (MOUND_RISE)
+// utk seluruh struktur, jadi bahagian jauh dari pusat "tergantung" (bukit
+// sebenar sudah rendah di situ, tapi struktur masih diangkat penuh).
+// Fungsi ini meniru FORMULA SAMA dgn terrainHeight (globeShader.ts) —
+// radius/pekali MESTI sepadan dgn ciri 'freylyn-terraces' (worldGlobeConfig.ts)
+// & pekali type 'terraces' (globeShader.ts) — supaya setiap bahagian (baris,
+// air terjun, kolam kutipan) melekat pada ketinggian bukit SEBENAR pd
+// kedudukan x/z nya sendiri, bukan anjakan rata.
+const FEATURE_RADIUS = 0.22;
+const MOUND_PEAK = 0.065;
+
+function smoothstep01(t: number): number {
+	const c = THREE.MathUtils.clamp(t, 0, 1);
+	return c * c * (3 - 2 * c);
+}
+
+function moundRiseAt(x: number, z: number): number {
+	const angDist = Math.hypot(x, z) / GLOBE_RADIUS;
+	const t2 = angDist / FEATURE_RADIUS;
+	const domeFalloff = 1 - smoothstep01(t2);
+	return MOUND_PEAK * domeFalloff;
+}
 
 type Cell = {
 	rimGeo: THREE.BufferGeometry;
@@ -98,7 +115,7 @@ function buildCells(): Cell[] {
 			let x = THREE.MathUtils.lerp(-row.width / 2 + cellRadiusX * 0.7, row.width / 2 - cellRadiusX * 0.7, t);
 			x += (rng() - 0.5) * cellRadiusX * 0.3;
 			const z = row.z + (rng() - 0.5) * 0.01;
-			const y = row.yTop + (rng() - 0.5) * 0.003;
+			const y = row.yTop + moundRiseAt(x, z) + (rng() - 0.5) * 0.003;
 			const rimBoundary = buildBlobBoundary(rng, 0.22);
 			const rimGeo = buildBlobGeometry(cellRadiusX, CELL_RADIUS_Z, RIM_HEIGHT, rimBoundary, 10);
 			const poolBoundary = buildBlobBoundary(rng, 0.16);
@@ -170,10 +187,11 @@ function buildCascadeSpots(): CascadeSpot[] {
 		const b = ROWS[i + 1];
 		const drop = a.yTop - b.yTop;
 		if (drop < 0.002) continue;
+		const cascadeZ = (a.z + b.z) / 2 + CELL_RADIUS_Z * 0.35;
 		spots.push({
 			x: 0,
-			y: (a.yTop + b.yTop) / 2,
-			z: (a.z + b.z) / 2 + CELL_RADIUS_Z * 0.35,
+			y: (a.yTop + b.yTop) / 2 + moundRiseAt(0, cascadeZ),
+			z: cascadeZ,
 			width: Math.min(a.width, b.width) * 0.7,
 			height: drop + 0.006,
 		});
@@ -187,15 +205,21 @@ function buildCascadeSpots(): CascadeSpot[] {
 // tasik itu, spt air terjun, bukan berhenti tiba-tiba di tepi baris terakhir.
 const LAST_ROW = ROWS[ROWS.length - 1];
 const OVERFLOW_Z = LAST_ROW.z + CELL_RADIUS_Z + 0.09;
-const OVERFLOW_DROP = MOUND_RISE + 0.03;
+const COLLECTION_Z = OVERFLOW_Z + 0.06;
 
 function buildOverflowCascade(): CascadeSpot {
+	// Puncak air terjun limpahan bermula pd bukit (baris terakhir), hujung
+	// bawah bersambung pd aras kolam kutipan di kaki bukit — tinggi jalur
+	// ikut BEZA ketinggian bukit SEBENAR antara dua titik itu (bukan anjakan
+	// rata), supaya sentiasa menyambung betul dr atas ke bawah cerun.
+	const topY = LAST_ROW.yTop + moundRiseAt(0, LAST_ROW.z);
+	const bottomY = moundRiseAt(0, COLLECTION_Z) - 0.005;
 	return {
 		x: 0,
-		y: LAST_ROW.yTop - OVERFLOW_DROP / 2,
+		y: (topY + bottomY) / 2,
 		z: OVERFLOW_Z,
 		width: LAST_ROW.width * 0.5,
-		height: OVERFLOW_DROP,
+		height: topY - bottomY,
 	};
 }
 
@@ -205,13 +229,13 @@ function buildCollectionPool(): { geo: THREE.BufferGeometry; y: number; z: numbe
 	const rng = seededRng(8801);
 	const boundary = buildBlobBoundary(rng, 0.2);
 	const geo = buildBlobGeometry(0.078, 0.055, 0.01, boundary, 12);
-	return { geo, y: LAST_ROW.yTop - OVERFLOW_DROP - 0.005, z: OVERFLOW_Z + 0.06 };
+	return { geo, y: moundRiseAt(0, COLLECTION_Z) - 0.005, z: COLLECTION_Z };
 }
 
 export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('freylyn-terraces')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
-	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + MOUND_RISE + 0.004), [dir]);
+	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.004), [dir]);
 
 	const cells = useMemo(() => buildCells(), []);
 	const sparkleSpots = useMemo(() => buildSparkleSpots(cells), [cells]);
@@ -307,7 +331,10 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 		}
 
 		poolMat.emissiveIntensity = 0.4 * (0.8 + 0.2 * Math.sin(clock.elapsedTime * 0.8));
-		cascadeTexture.offset.y -= 0.5 * 0.016;
+		// Tanda "+=" (bukan "-=") — arah tatal mesti nampak air mengalir dari
+		// ATAS (kolam) ke BAWAH (kaki cerun), bukan songsang (permintaan
+		// pengguna: aliran air kelihatan songsang pd pusingan lepas).
+		cascadeTexture.offset.y += 0.5 * 0.016;
 
 		sparkleMat.opacity = near * 0.55 * (0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.2));
 		sparkleMat.visible = sparkleMat.opacity > 0.01;
