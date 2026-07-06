@@ -190,11 +190,13 @@ float terrainHeight(vec3 n) {
 			// Padang rumput (meadow) — sama lembut spt 'green' generik.
 			h += falloff * 0.014 * heightScale;
 		} else {
-			// Freylyn Terraces — lantai lembut rata sahaja; bentuk teres
-			// SEBENAR kini objek 3D berasingan (FreylynTerraces.tsx), bukan
-			// anjakan shader — elak lantai terrain "bertindih"/berlanggar dgn
-			// tepi tiub 3D yg diletak di atasnya.
-			h += falloff * 0.01 * heightScale;
+			// Freylyn Terraces — kini bukit/bonjolan SEBENAR (permintaan
+			// pengguna: teres mesti "melekat pada bukit/gunung", bukan lantai
+			// rata) — bentuk teres berperingkat sendiri kekal objek 3D
+			// berasingan (FreylynTerraces.tsx) yg diletak DI ATAS bukit ini;
+			// FreylynTerraces.tsx mengimbangi anjakan yg sama (MOUND_RISE)
+			// supaya asasnya sepadan dgn permukaan bukit, bukan terapung.
+			h += falloff * 0.065 * heightScale;
 		}
 	}
 

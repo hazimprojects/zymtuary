@@ -71,6 +71,13 @@ const POOL_HEIGHT = 0.008;
 const POOL_SCALE = 0.78;
 const CELL_RADIUS_Z = 0.042;
 
+// Mesti SEPADAN dgn pekali "falloff * X * heightScale" bagi type 'terraces'
+// dlm globeShader.ts (terrainHeight) pd falloff=1 (pusat ciri, heightScale
+// lalai 1) — permintaan pengguna: teres mesti melekat pada bukit sebenar,
+// bukan terapung di atas lantai rata. Tanpa ini asas struktur akan
+// tenggelam/terapung drpd permukaan bukit yg kini benar2 ditinggikan.
+const MOUND_RISE = 0.065;
+
 type Cell = {
 	rimGeo: THREE.BufferGeometry;
 	poolGeo: THREE.BufferGeometry;
@@ -174,14 +181,42 @@ function buildCascadeSpots(): CascadeSpot[] {
 	return spots;
 }
 
+// Baris terakhir (ROWS[4]) berakhir pd cerun bukit, JAUH sebelum tepi
+// jejari ciri 'freylyn-terraces-tasik' (tasik sekeliling) bermula — permintaan
+// pengguna: air patut kelihatan terus mengalir menuruni cerun & melimpah jadi
+// tasik itu, spt air terjun, bukan berhenti tiba-tiba di tepi baris terakhir.
+const LAST_ROW = ROWS[ROWS.length - 1];
+const OVERFLOW_Z = LAST_ROW.z + CELL_RADIUS_Z + 0.09;
+const OVERFLOW_DROP = MOUND_RISE + 0.03;
+
+function buildOverflowCascade(): CascadeSpot {
+	return {
+		x: 0,
+		y: LAST_ROW.yTop - OVERFLOW_DROP / 2,
+		z: OVERFLOW_Z,
+		width: LAST_ROW.width * 0.5,
+		height: OVERFLOW_DROP,
+	};
+}
+
+/** Kolam kutipan cetek di kaki cerun — tempat limpahan terkumpul sebelum
+ * bercantum dgn tasik sekeliling (ciri shader 'freylyn-terraces-tasik'). */
+function buildCollectionPool(): { geo: THREE.BufferGeometry; y: number; z: number } {
+	const rng = seededRng(8801);
+	const boundary = buildBlobBoundary(rng, 0.2);
+	const geo = buildBlobGeometry(0.078, 0.055, 0.01, boundary, 12);
+	return { geo, y: LAST_ROW.yTop - OVERFLOW_DROP - 0.005, z: OVERFLOW_Z + 0.06 };
+}
+
 export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesProps) {
 	const dir = useMemo(() => new THREE.Vector3(...findLandmarkDirection('freylyn-terraces')), []);
 	const quaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, dir), [dir]);
-	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + 0.004), [dir]);
+	const position = useMemo(() => dir.clone().multiplyScalar(GLOBE_RADIUS + MOUND_RISE + 0.004), [dir]);
 
 	const cells = useMemo(() => buildCells(), []);
 	const sparkleSpots = useMemo(() => buildSparkleSpots(cells), [cells]);
-	const cascadeSpots = useMemo(() => buildCascadeSpots(), []);
+	const cascadeSpots = useMemo(() => [...buildCascadeSpots(), buildOverflowCascade()], []);
+	const collectionPool = useMemo(() => buildCollectionPool(), []);
 	const sparkleTexture = useMemo(() => buildSpriteTexture(), []);
 	const cascadeTexture = useMemo(() => buildCascadeTexture(), []);
 	const sparklePositions = useMemo(() => {
@@ -265,7 +300,9 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 			mat.visible = mat.opacity > 0.01;
 		}
 		for (const mat of detailMats) {
-			mat.opacity = THREE.MathUtils.lerp(mat.opacity, near * 0.7, 0.05);
+			// Dinaikkan drpd 0.7 — limpahan air mesti kelihatan jelas (permintaan
+			// pengguna), bukan jalur telus nyaris tak nampak.
+			mat.opacity = THREE.MathUtils.lerp(mat.opacity, near * 0.9, 0.05);
 			mat.visible = mat.opacity > 0.01;
 		}
 
@@ -293,6 +330,7 @@ export default function FreylynTerraces({ atmosphereBlendRef }: FreylynTerracesP
 					<planeGeometry args={[c.width, c.height, 1, 4]} />
 				</mesh>
 			))}
+			<mesh geometry={collectionPool.geo} material={poolMat} position={[0, collectionPool.y, collectionPool.z]} />
 			{sparkleSpots.length > 0 ? (
 				<points material={sparkleMat}>
 					<bufferGeometry>

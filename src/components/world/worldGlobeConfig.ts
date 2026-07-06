@@ -355,6 +355,26 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		treeRingInner: 0.15,
 		treeCount: 500,
 	},
+	// Tasik yg mengelilingi kaki bukit Freylyn Terraces (permintaan pengguna:
+	// air dari kolam teres patut mengalir ke bawah & melimpah jadi tasik
+	// mengelilingi gunung teres, spt air terjun) — teknik SAMA dgn
+	// heartbloom-benteng (ringMode di bawah): gegelang 'water' pd jejari SUDUT
+	// sedikit lebih besar drpd radius teres sendiri (0.22), supaya lantai
+	// terrain benar2 lekuk jadi lembangan tasik yg mengelilingi (bukan tompok
+	// air rata), dgn jalur pokok (treeRingInner 0.15-0.22 pd ciri terraces di
+	// atas) tumbuh di antara tepi teres & tepi tasik. Disahkan margin jarak
+	// sudut drpd SEMUA jiran kekal >5° (paling rapat: benteng Heartbloom).
+	{
+		id: 'freylyn-terraces-tasik',
+		nama: 'Tasik Freylyn',
+		type: 'water',
+		theta: deg(90),
+		y: 0.85,
+		radius: 0.26,
+		ringWidth: 0.035,
+		ringMode: true,
+		heightScale: 1.3,
+	},
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
 	// theta 310° dikekalkan (arah menuju Elythrean Bloomfields/padang-bunga,
 	// theta 320°/y=0.45 — satu-satunya drpd 3 biome Primal cahaya yg sudah
