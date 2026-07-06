@@ -270,10 +270,12 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// jadi PUSAT Luminara (bukan sekadar "jauh drpd Equilara") supaya 3 biome
 	// Primal cahaya (Elythrean Bloomfields/padang-bunga, Abythralis Grotto,
 	// Freylyn Terraces — akan datang) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan drpd 0.78→0.82 (lebih dekat kutub, lebih "tengah") tapi
-	// masih di bawah ambang ~0.85 (dijauhkan drpd kutub sebenar sebab
-	// geometri sfera rendah-poligon paling terjejas berhampiran kutub —
-	// disahkan margin jarak sudut ke semua jiran kekal selamat pd y=0.82).
+	// y dinaikkan lagi 0.82→0.92 (kolatitud ~23° drpd kutub) selepas tinjauan
+	// tangkapan skrin sebenar pandangan tepat ke kutub (v3-3-luminara-pole.png,
+	// round terdahulu) mengesahkan permukaan sfera KEKAL LICIN tanpa kelim/
+	// artifak di kawasan berhampiran kutub — andaian awal "elak 0.85+"
+	// terlalu berhati-hati. Margin jarak sudut ke semua jiran turut BERTAMBAH
+	// baik pd y=0.92 (semua > 0.34 rad).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
 	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
@@ -281,13 +283,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tasik. Type 'water' — lembah ini tasik, bukan hutan (pokok gergasi
 	// tunggal dilayan berasingan dlm HeartbloomTree.tsx, bukan hutan lebat
 	// Vegetation.tsx).
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.82, radius: 0.1, heightScale: 2.8 },
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.92, radius: 0.1, heightScale: 2.8 },
 	{
 		id: 'heartbloom-benteng',
 		nama: 'Benteng Gunung Heartbloom',
 		type: 'mountain',
 		theta: deg(100),
-		y: 0.82,
+		y: 0.92,
 		radius: 0.22,
 		ringWidth: 0.055,
 		ringMode: true,
@@ -300,9 +302,11 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// jadi PUSAT Noctira (bukan sekadar "jauh drpd Equilara") supaya 3 biome
 	// Primal bayang (Vorynth Wood/hutan-senja, Gorrathic Badlands/padang-pasir,
 	// Thalyssan Depths/tasik-gelap) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan (magnitud) drpd -0.78→-0.82 sama sebab & ambang selamat spt
-	// Heartbloom Isle di atas — disahkan margin jarak sudut ke semua jiran
-	// (termasuk Padang Pasir yg paling rapat) kekal selamat pd y=-0.82.
+	// y dinaikkan (magnitud) lagi -0.82→-0.92 (kolatitud ~23° drpd kutub)
+	// sama sebab spt Heartbloom Isle di atas — tinjauan tangkapan skrin
+	// pandangan kutub sebenar mengesahkan sfera kekal licin di situ, & margin
+	// jarak sudut ke semua jiran (termasuk Padang Pasir yg paling rapat)
+	// turut bertambah baik pd y=-0.92 (0.067→0.246 rad).
 	// Gunung berbatu RAGGED (raggedness pecahkan simetri bulat sempurna jadi
 	// beberapa puncak tidak sekata + rabung), BUKAN kon tunggal generik licin
 	// — dgn urat kristal ungu-biru berdenyar menuruni cerun drpd puncak
@@ -318,7 +322,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.82,
+		y: -0.92,
 		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
 		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
 		// dramatik tapi tidak keterlaluan nipis.
@@ -334,7 +338,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Banjaran Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.82,
+		y: -0.92,
 		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
 		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
 		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
