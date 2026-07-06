@@ -537,7 +537,15 @@ export const FISSURE_CENTERS: FissureCenter[] = [
 	// y dijauhkan daripada kutub sfera (~0.95+) — geometri UV-sphere paling
 	// terjejas/tirus berhampiran kutub, menyebabkan anjakan verteks di situ
 	// membentuk kawah/lubang kelihatan pada sfera rendah-poligon.
-	{ id: 'ignisara-rekahan', nama: 'Rekahan Lava Ignisara', theta: deg(200), y: 0.72, radius: 0.22, seed: 17 },
+	// Ignisara Rekahan (skaligus Abythralis Grotto) — y dinaikkan 0.72→0.85
+	// (theta dikekalkan) atas permintaan pengguna: jauhkan sikit drpd Pulau
+	// Ascendari (jarak ~35°→~39°) & bertepatan lebih dekat dgn Heartbloom
+	// Isle (jarak ~47°→~35°), tanpa perlu ubah theta (kekal berdekatan
+	// kluster Gunung Berapi yg sedia ada bertindih sikit — rekahan & gunung
+	// guna sistem render berasingan, jadi bertindih dome tak jadi isu
+	// spt antara dua LANDMARK_FEATURES; margin ke SEMUA LANDMARK_FEATURES
+	// lain, termasuk Heartbloom sendiri, kekal selamat >10°).
+	{ id: 'ignisara-rekahan', nama: 'Rekahan Lava Ignisara', theta: deg(200), y: 0.85, radius: 0.22, seed: 17 },
 	{ id: 'nivira-rekahan', nama: 'Rekahan Ais Nivira', theta: deg(30), y: -0.72, radius: 0.22, seed: 42 },
 ];
 
