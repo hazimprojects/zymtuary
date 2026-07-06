@@ -266,23 +266,28 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tanah (jalan emas + speckle bougainvillea) meliputi kawasan sebenar
 	// bangunan, bukan tertinggal kecil drpd footprint 3D.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
-	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
+	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat), MESTI
+	// jadi PUSAT Luminara (bukan sekadar "jauh drpd Equilara") supaya 3 biome
+	// Primal cahaya (Elythrean Bloomfields/padang-bunga, Abythralis Grotto,
+	// Freylyn Terraces — akan datang) boleh dikelompokkan mengelilinginya.
+	// y dinaikkan drpd 0.78→0.82 (lebih dekat kutub, lebih "tengah") tapi
+	// masih di bawah ambang ~0.85 (dijauhkan drpd kutub sebenar sebab
+	// geometri sfera rendah-poligon paling terjejas berhampiran kutub —
+	// disahkan margin jarak sudut ke semua jiran kekal selamat pd y=0.82).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
 	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
 	// berasingan), pulau kecil tempat Pokok Heartbloom tumbuh di tengah
-	// tasik. Jauh ke dalam Luminara (y tinggi, jauh drpd Equilara), TAPI
-	// dijauhkan drpd kutub sebenar (~0.85+) sebab geometri sfera
-	// rendah-poligon paling terjejas berhampiran kutub. Type 'water' —
-	// lembah ini tasik, bukan hutan (pokok gergasi tunggal dilayan
-	// berasingan dlm HeartbloomTree.tsx, bukan hutan lebat Vegetation.tsx).
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.78, radius: 0.1, heightScale: 2.8 },
+	// tasik. Type 'water' — lembah ini tasik, bukan hutan (pokok gergasi
+	// tunggal dilayan berasingan dlm HeartbloomTree.tsx, bukan hutan lebat
+	// Vegetation.tsx).
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.82, radius: 0.1, heightScale: 2.8 },
 	{
 		id: 'heartbloom-benteng',
 		nama: 'Benteng Gunung Heartbloom',
 		type: 'mountain',
 		theta: deg(100),
-		y: 0.78,
+		y: 0.82,
 		radius: 0.22,
 		ringWidth: 0.055,
 		ringMode: true,
@@ -291,7 +296,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
-	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
+	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat), MESTI
+	// jadi PUSAT Noctira (bukan sekadar "jauh drpd Equilara") supaya 3 biome
+	// Primal bayang (Vorynth Wood/hutan-senja, Gorrathic Badlands/padang-pasir,
+	// Thalyssan Depths/tasik-gelap) boleh dikelompokkan mengelilinginya.
+	// y dinaikkan (magnitud) drpd -0.78→-0.82 sama sebab & ambang selamat spt
+	// Heartbloom Isle di atas — disahkan margin jarak sudut ke semua jiran
+	// (termasuk Padang Pasir yg paling rapat) kekal selamat pd y=-0.82.
 	// Gunung berbatu RAGGED (raggedness pecahkan simetri bulat sempurna jadi
 	// beberapa puncak tidak sekata + rabung), BUKAN kon tunggal generik licin
 	// — dgn urat kristal ungu-biru berdenyar menuruni cerun drpd puncak
@@ -307,7 +318,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.78,
+		y: -0.82,
 		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
 		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
 		// dramatik tapi tidak keterlaluan nipis.
@@ -323,7 +334,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Banjaran Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(280),
-		y: -0.78,
+		y: -0.82,
 		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
 		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
 		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
