@@ -190,12 +190,11 @@ float terrainHeight(vec3 n) {
 			// Padang rumput (meadow) — sama lembut spt 'green' generik.
 			h += falloff * 0.014 * heightScale;
 		} else {
-			// Freylyn Terraces — anjakan BERPERINGKAT halus (bukan kubah rata)
-			// supaya teres travertine ada bentuk 3D sebenar, sepadan corak
-			// gegelang warna dlm applyFeatures.
-			float angDist = acos(clamp(align, -1.0, 1.0));
-			float rings = 0.5 + 0.5 * sin(angDist * 30.0);
-			h += falloff * (0.006 + 0.01 * rings) * heightScale;
+			// Freylyn Terraces — lantai lembut rata sahaja; bentuk teres
+			// SEBENAR kini objek 3D berasingan (FreylynTerraces.tsx), bukan
+			// anjakan shader — elak lantai terrain "bertindih"/berlanggar dgn
+			// tepi tiub 3D yg diletak di atasnya.
+			h += falloff * 0.01 * heightScale;
 		}
 	}
 
@@ -534,16 +533,12 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col = mix(col, fc, mask * 0.82);
 			col += bladeNoise * mask * 0.05;
 		} else {
-			// Freylyn Terraces — gegelang travertine putih berselang kolam
-			// turquoise (gema Pamukkale/Baishuitai), dgn kilauan lembut ("air
-			// berkilau seperti kaca cair"). BUKAN corak Teres Air Panas (oren) —
-			// nisbah gegelang lebih rapat (30 vs 34) & warna kolam lebih terang.
-			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 30.0);
-			vec3 poolColor = vec3(0.42, 0.8, 0.76);
-			vec3 terraceColor = mix(poolColor, fc, rings);
-			float sparkle = smoothstep(0.84, 0.97, fbm2(n * 22.0 + vec3(uTime * 0.12, 0.0, 0.0)));
-			col = mix(col, terraceColor, mask * 0.85);
-			col += sparkle * mask * vec3(0.95, 1.0, 1.0) * 0.22;
+			// Freylyn Terraces — lantai travertine pucat rata sahaja, TANPA
+			// corak gegelang (teres/kolam sebenar kini objek 3D berasingan
+			// dlm FreylynTerraces.tsx, letak terus di atas lantai ini).
+			float tone = fbm2(n * 24.0 + dir * 6.0) - 0.5;
+			col = mix(col, fc, mask * 0.8);
+			col += tone * mask * 0.04;
 		}
 	}
 	return col;

@@ -36,6 +36,7 @@ import AscendariTower from './AscendariTower';
 import HeartbloomTree from './HeartbloomTree';
 import MendariTownscape from './MendariTownscape';
 import ObsidianHollowStorm from './ObsidianHollowStorm';
+import FreylynTerraces from './FreylynTerraces';
 
 const SPACE_AMB = new THREE.Color('#8aa0b0');
 const INNER_AMB = new THREE.Color('#c8d8e8');
@@ -219,6 +220,7 @@ export function GlobeScene({
 					onEnter={() => onEnterPortal?.('mendari')}
 				/>
 				<ObsidianHollowStorm atmosphereBlendRef={atmosphereBlend} />
+				<FreylynTerraces atmosphereBlendRef={atmosphereBlend} />
 				<FeatureParticles atmosphereBlendRef={atmosphereBlend} />
 			</group>
 
