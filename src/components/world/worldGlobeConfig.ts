@@ -320,17 +320,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// bangunan, bukan tertinggal kecil drpd footprint 3D.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
-	// Kedudukan diubah drpd pusingan lalu (theta 100°/y=0.99, kutub tepat)
-	// ke theta 310°/y=0.86 — dirapatkan ke arah Elythrean Bloomfields
-	// (padang-bunga, theta 320°/y=0.45) atas permintaan pengguna, memandangkan
-	// itulah SATU-SATUNYA drpd 3 biome Primal cahaya yg sudah wujud buat masa
-	// ini (Abythralis Grotto & Freylyn Terraces belum dibina). y diturunkan
-	// sedikit drpd 0.99 (bukan lagi kutub tepat) sebab jarak sudut minimum
-	// antara dua titik pd kolatitud amat berbeza (Heartbloom dekat kutub,
-	// Bloomfields y=0.45) tidak boleh dikurangkan hanya dgn putar theta —
-	// disahkan dgn carian grid (theta/y) memaksimumkan kedekatan ke
-	// Bloomfields tertakluk margin selamat >0.05 rad drpd SEMUA jiran
-	// Luminara lain (termasuk rekahan Ignisara & Selat Equilara Utara).
+	// theta 310° dikekalkan (arah menuju Elythrean Bloomfields/padang-bunga,
+	// theta 320°/y=0.45 — satu-satunya drpd 3 biome Primal cahaya yg sudah
+	// wujud). y dinaikkan sedikit 0.86→0.93 (pengguna rasa 0.86 "terlalu
+	// rapat") — jarak ke Bloomfields kini ~42° (dr ~33° sblm ini, dr ~140°
+	// asal sblm dirapatkan) — ruang bernafas lebih baik tapi kekal jauh
+	// lebih dekat drpd asal. Margin jarak sudut ke semua jiran Luminara lain
+	// turut bertambah selamat (>0.2 rad).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
 	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
@@ -338,13 +334,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tasik. Type 'water' — lembah ini tasik, bukan hutan (pokok gergasi
 	// tunggal dilayan berasingan dlm HeartbloomTree.tsx, bukan hutan lebat
 	// Vegetation.tsx).
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(310), y: 0.86, radius: 0.1, heightScale: 2.8 },
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(310), y: 0.93, radius: 0.1, heightScale: 2.8 },
 	{
 		id: 'heartbloom-benteng',
 		nama: 'Benteng Gunung Heartbloom',
 		type: 'mountain',
 		theta: deg(310),
-		y: 0.86,
+		y: 0.93,
 		radius: 0.22,
 		ringWidth: 0.055,
 		ringMode: true,
@@ -354,18 +350,12 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
 	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
-	// Kedudukan diubah drpd pusingan lalu (theta 280°/y=-0.99, kutub tepat)
-	// ke theta 172°/y=-0.895 — dirapatkan ke arah Thalyssan Depths
-	// (tasik-gelap, theta 150°/y=-0.55, lautan berjurang) atas permintaan
-	// pengguna, sama semangat dgn Heartbloom Isle→Elythrean Bloomfields di
-	// atas (satu-satunya drpd 3 biome Primal bayang yg sudah wujud). y
-	// diturunkan sedikit drpd -0.99 atas sebab sama (jarak sudut minimum
-	// antara kolatitud amat berbeza tak boleh dikurangkan hanya dgn theta)
-	// — disahkan dgn carian grid tertakluk margin selamat >0.05 rad drpd
-	// SEMUA jiran Noctira (termasuk rekahan Nivira, Selat Equilara Selatan,
-	// & pusat Sungai Kelabu). Kedudukan tidak lagi bertentangan tepat dgn
-	// Heartbloom Isle merentasi globe (theta 180°) — setiap satu kini
-	// bebas dirapatkan ke biome Primal sendiri.
+	// theta 172° dikekalkan (arah menuju Thalyssan Depths/tasik-gelap, theta
+	// 150°/y=-0.55, lautan berjurang — satu-satunya drpd 3 biome Primal
+	// bayang yg sudah wujud). y dinaikkan (magnitud) sedikit -0.895→-0.96
+	// (pengguna rasa "terlalu rapat") — jarak ke Thalyssan Depths kini ~42°
+	// (dr ~33° sblm ini, dr ~130° asal sblm dirapatkan). Margin jarak sudut
+	// ke semua jiran Noctira lain turut bertambah selamat (>0.2 rad).
 	// Gunung berbatu RAGGED (raggedness pecahkan simetri bulat sempurna jadi
 	// beberapa puncak tidak sekata + rabung), BUKAN kon tunggal generik licin
 	// — dgn urat kristal ungu-biru berdenyar menuruni cerun drpd puncak
@@ -377,7 +367,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(172),
-		y: -0.895,
+		y: -0.96,
 		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
 		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
 		// dramatik tapi tidak keterlaluan nipis.
@@ -393,7 +383,7 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		nama: 'Banjaran Obsidian Hollow',
 		type: 'mountain',
 		theta: deg(172),
-		y: -0.895,
+		y: -0.96,
 		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
 		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
 		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
