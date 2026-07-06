@@ -177,7 +177,7 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 	const spots: TreeSpot[] = [];
 
 	for (const feature of LANDMARK_FEATURES) {
-		const count = densityFor(feature);
+		const count = feature.treeCount ?? densityFor(feature);
 		if (count === 0) continue;
 
 		const center = directionFromThetaY(feature.theta, feature.y);
@@ -186,7 +186,10 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 		const warm = feature.y > 0;
 		const variantCount = warm ? LUMINARA_VARIANT_COUNT : NOCTIRA_VARIANT_COUNT;
 		const maxR = feature.radius * 0.95;
-		const patch = buildOrganicPatch(rng, count, maxR, feature.theta * 733 + feature.y * 991, feature.innerExclusion ?? 0);
+		// treeRingInner (bukan innerExclusion — itu utk batu/bunga elak
+		// tasik) tumpukan hutan pd jalur sempit berdekatan sempadan
+		// (cth. padang-bunga hutan dekat banjaran gunung).
+		const patch = buildOrganicPatch(rng, count, maxR, feature.theta * 733 + feature.y * 991, feature.treeRingInner ?? 0);
 
 		for (const p of patch) {
 			const dir = localToDir(center, u, v, p.u, p.v);
