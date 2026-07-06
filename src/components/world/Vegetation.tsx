@@ -130,15 +130,25 @@ function buildIrregularBoundary(rng: () => number): (theta: number) => number {
  * TEPAT tanpa gelung tolak-terima (rejection loop) yg boleh tak menentu,
  * & hasilnya tompok/jurang organik ikut kontur bunyi — bukan kluster
  * bulat kecil berulang (masalah pendekatan "pusat kluster" sebelum ini). */
-function buildOrganicPatch(rng: () => number, count: number, baseRadius: number, seed: number): { u: number; v: number }[] {
+function buildOrganicPatch(
+	rng: () => number,
+	count: number,
+	baseRadius: number,
+	seed: number,
+	innerR = 0,
+): { u: number; v: number }[] {
 	const boundary = buildIrregularBoundary(rng);
 	const oversample = 3;
 	const total = count * oversample;
 	const candidates: { u: number; v: number; w: number }[] = [];
 	for (let i = 0; i < total; i++) {
 		const theta = rng() * Math.PI * 2;
-		const rho = Math.sqrt(rng());
 		const localMax = baseRadius * boundary(theta);
+		// minFrac>0 KECUALIKAN zon tengah scr KERAS (bukan sekadar pemberat
+		// rendah) — sampel rho dlm gegelang [innerR, localMax] supaya tiada
+		// calon langsung terjana di dlm zon tengah (cth. tasik kecil).
+		const minFrac = Math.min(0.98, innerR / localMax);
+		const rho = Math.sqrt(minFrac * minFrac + rng() * (1 - minFrac * minFrac));
 		const u = Math.cos(theta) * rho * localMax;
 		const v = Math.sin(theta) * rho * localMax;
 		const n = fbm2D(u * 8 + 50, v * 8 + 50, seed);
@@ -176,7 +186,7 @@ function buildFeatureTreeSpots(): TreeSpot[] {
 		const warm = feature.y > 0;
 		const variantCount = warm ? LUMINARA_VARIANT_COUNT : NOCTIRA_VARIANT_COUNT;
 		const maxR = feature.radius * 0.95;
-		const patch = buildOrganicPatch(rng, count, maxR, feature.theta * 733 + feature.y * 991);
+		const patch = buildOrganicPatch(rng, count, maxR, feature.theta * 733 + feature.y * 991, feature.innerExclusion ?? 0);
 
 		for (const p of patch) {
 			const dir = localToDir(center, u, v, p.u, p.v);
