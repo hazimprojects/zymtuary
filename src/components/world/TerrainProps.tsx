@@ -237,6 +237,124 @@ function buildCrystalSpots(): PropSpot[] {
 	return spots;
 }
 
+/** Rekahan Ignisara sekali gus ialah Abythralis Grotto (Codex — "celah-celah
+ * gua yang menghubungkan Ignisara dengan Abythralis Grotto"), rumah
+ * Pyrauchs: "cahaya keemasan berkelip lembut dan air hangat mengalir di
+ * antara akar purba". Tiga lapisan ditambah KHUSUS di lokasi ini (bukan
+ * Rekahan Nivira — itu ais, lore berlainan) supaya identiti gua wujud
+ * bersama rekahan lava sedia ada, bukan menggantikannya. */
+const ABYTHRALIS_GROTTO_FISSURE_ID = 'ignisara-rekahan';
+
+function findAbythralisGrottoFissure() {
+	return FISSURE_CENTERS.find((f) => f.id === ABYTHRALIS_GROTTO_FISSURE_ID) ?? null;
+}
+
+type GlowSpot = { dir: THREE.Vector3; baseHeight: number; phase: number };
+
+/** Cahaya keemasan lembut berkelip — sprite sama teknik dgn kabus, tapi
+ * warna hangat keemasan & flicker lebih ketara (opacity berdenyut, bukan
+ * sekadar terapung), macam pijar Pyrauchs & lorong gua yg diterangi lembut. */
+function buildGrottoGlowSpots(): GlowSpot[] {
+	const fissure = findAbythralisGrottoFissure();
+	if (!fissure) return [];
+	const center = directionFromThetaY(fissure.theta, fissure.y);
+	const { u, v } = tangentBasis(center);
+	const rng = seededRng(fissure.seed * 53 + 11);
+	const spots: GlowSpot[] = [];
+	for (let i = 0; i < 26; i++) {
+		const r = Math.sqrt(rng()) * fissure.radius * 0.85;
+		const angle = rng() * Math.PI * 2;
+		const lu = Math.cos(angle) * r;
+		const lv = Math.sin(angle) * r;
+		const dir = new THREE.Vector3(...localToDir(center, u, v, lu, lv));
+		spots.push({ dir, baseHeight: 0.02 + rng() * 0.035, phase: rng() });
+	}
+	return spots;
+}
+
+type PoolSpot = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number };
+
+/** Kolam air hangat kecil terselit antara batu-batu rekahan — cakera rendah
+ * emas-amber, bukan tasik biasa (warna air standard terlalu sejuk/teal
+ * utk suasana gua bercahaya keemasan). */
+function buildGrottoPoolSpots(): PoolSpot[] {
+	const fissure = findAbythralisGrottoFissure();
+	if (!fissure) return [];
+	const center = directionFromThetaY(fissure.theta, fissure.y);
+	const { u, v } = tangentBasis(center);
+	const rng = seededRng(fissure.seed * 67 + 19);
+	const spots: PoolSpot[] = [];
+	for (let i = 0; i < 7; i++) {
+		const r = Math.sqrt(rng()) * fissure.radius * 0.7;
+		const angle = rng() * Math.PI * 2;
+		const lu = Math.cos(angle) * r;
+		const lv = Math.sin(angle) * r;
+		const dir = new THREE.Vector3(...localToDir(center, u, v, lu, lv));
+		const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.0035);
+		const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+		quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
+		const scale = 0.022 + rng() * 0.02;
+		spots.push({ position, quaternion, scale });
+	}
+	return spots;
+}
+
+function makeGrottoPoolGeometry(): THREE.BufferGeometry {
+	// Cakera rendah tak sekata (7 sisi, bukan bulatan genap) — kolam kecil
+	// semula jadi, bukan bentuk geometri sempurna.
+	const geo = new THREE.CylinderGeometry(1, 0.88, 0.05, 7);
+	return geo;
+}
+
+type RootSpot = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number };
+
+/** Akar purba melilit/menjalar antara batu — kluster tirus condong dari
+ * satu titik pangkal (teknik sama dgn makeCrystalClusterGeometry) tapi
+ * bentuk kayu bengkok, bukan kristal tirus tajam. */
+function makeAncientRootGeometry(seed: number): THREE.BufferGeometry {
+	const rng = seededRng(seed);
+	const rootCount = 3 + Math.floor(rng() * 2);
+	const pieces: THREE.BufferGeometry[] = [];
+	for (let i = 0; i < rootCount; i++) {
+		const len = 0.05 + rng() * 0.055;
+		const rBottom = 0.009 + rng() * 0.007;
+		const rTop = rBottom * 0.5;
+		const seg = new THREE.CylinderGeometry(rTop, rBottom, len, 5);
+		seg.translate(0, len / 2, 0);
+		seg.rotateX((rng() - 0.5) * 2.3);
+		seg.rotateZ((rng() - 0.5) * 2.3);
+		seg.translate((rng() - 0.5) * 0.018, 0, (rng() - 0.5) * 0.018);
+		pieces.push(seg);
+	}
+	const merged = mergeBufferGeometries(pieces, false) ?? pieces[0];
+	for (const p of pieces) p.dispose();
+	return merged;
+}
+
+const ROOT_VARIANT_COUNT = 3;
+
+function buildGrottoRootSpots(): RootSpot[] {
+	const fissure = findAbythralisGrottoFissure();
+	if (!fissure) return [];
+	const center = directionFromThetaY(fissure.theta, fissure.y);
+	const { u, v } = tangentBasis(center);
+	const rng = seededRng(fissure.seed * 83 + 29);
+	const spots: RootSpot[] = [];
+	for (let i = 0; i < 16; i++) {
+		const r = Math.sqrt(rng()) * fissure.radius * 0.95;
+		const angle = rng() * Math.PI * 2;
+		const lu = Math.cos(angle) * r;
+		const lv = Math.sin(angle) * r;
+		const dir = new THREE.Vector3(...localToDir(center, u, v, lu, lv));
+		const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.004);
+		const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+		quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
+		const scale = 0.7 + rng() * 0.7;
+		spots.push({ position, quaternion, scale });
+	}
+	return spots;
+}
+
 type CloudPuff = {
 	dir: THREE.Vector3;
 	baseHeight: number;
@@ -351,6 +469,65 @@ function CloudLayer({
 	);
 }
 
+/** Sama struktur dgn CloudLayer, tapi opacity BERDENYUT per-partikel
+ * (bukan sekadar fade masuk atmosfera sekali) — "berkelip lembut" cahaya
+ * Abythralis Grotto, bukan kabus terapung rata. */
+function GrottoGlowLayer({
+	spots,
+	texture,
+	atmosphereBlendRef,
+}: {
+	spots: GlowSpot[];
+	texture: THREE.Texture;
+	atmosphereBlendRef: React.MutableRefObject<number>;
+}) {
+	const positions = useMemo(() => new Float32Array(spots.length * 3), [spots.length]);
+	const geomRef = useRef<THREE.BufferGeometry>(null);
+	const materialRef = useRef<THREE.PointsMaterial>(null);
+	const blendRef = useRef(0);
+
+	useFrame(({ clock }) => {
+		for (let i = 0; i < spots.length; i++) {
+			const s = spots[i];
+			const bob = Math.sin(clock.elapsedTime * 0.3 + s.phase * Math.PI * 2) * 0.004;
+			const altitude = GLOBE_RADIUS + s.baseHeight + bob;
+			positions[i * 3] = s.dir.x * altitude;
+			positions[i * 3 + 1] = s.dir.y * altitude;
+			positions[i * 3 + 2] = s.dir.z * altitude;
+		}
+		if (geomRef.current) geomRef.current.attributes.position.needsUpdate = true;
+
+		const target = THREE.MathUtils.clamp((atmosphereBlendRef.current - 0.15) / 0.35, 0, 1);
+		blendRef.current = THREE.MathUtils.lerp(blendRef.current, target, 0.06);
+		if (materialRef.current) {
+			const flicker = 0.65 + 0.35 * Math.sin(clock.elapsedTime * 1.8);
+			materialRef.current.opacity = blendRef.current * flicker * 0.85;
+			materialRef.current.visible = blendRef.current > 0.01;
+		}
+	});
+
+	if (spots.length === 0) return null;
+
+	return (
+		<points>
+			<bufferGeometry ref={geomRef}>
+				<bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} itemSize={3} />
+			</bufferGeometry>
+			<pointsMaterial
+				ref={materialRef}
+				size={0.05}
+				map={texture}
+				color="#ffcf7a"
+				transparent
+				opacity={0}
+				depthWrite={false}
+				sizeAttenuation
+				blending={THREE.AdditiveBlending}
+			/>
+		</points>
+	);
+}
+
 function makeRockGeometry() {
 	return new THREE.IcosahedronGeometry(1, 0);
 }
@@ -368,6 +545,23 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 	const cloudPuffs = useMemo(() => buildCloudPuffs(), []);
 	const flowerSpots = useMemo(() => buildFlowerSpots(), []);
 	const flowerGeo = useMemo(() => makeFlowerClusterGeometry(), []);
+
+	// Abythralis Grotto (di lokasi Rekahan Ignisara) — cahaya keemasan,
+	// kolam air hangat, akar purba.
+	const grottoGlowSpots = useMemo(() => buildGrottoGlowSpots(), []);
+	const grottoPoolSpots = useMemo(() => buildGrottoPoolSpots(), []);
+	const grottoPoolGeo = useMemo(() => makeGrottoPoolGeometry(), []);
+	const grottoRootSpots = useMemo(() => buildGrottoRootSpots(), []);
+	const grottoRootGeoVariants = useMemo(
+		() => Array.from({ length: ROOT_VARIANT_COUNT }, (_, i) => makeAncientRootGeometry(601 + i * 41)),
+		[],
+	);
+	const grottoRootByVariant = useMemo(() => {
+		const rng = seededRng(701);
+		const groups: RootSpot[][] = Array.from({ length: ROOT_VARIANT_COUNT }, () => []);
+		for (const spot of grottoRootSpots) groups[Math.floor(rng() * ROOT_VARIANT_COUNT)].push(spot);
+		return groups;
+	}, [grottoRootSpots]);
 
 	const rockWarmMat = useMemo(
 		() => new THREE.MeshStandardMaterial({ color: '#7a6a58', flatShading: true, roughness: 0.95, transparent: true, opacity: 0 }),
@@ -417,9 +611,28 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 		[],
 	);
 
+	const grottoPoolMat = useMemo(
+		() =>
+			new THREE.MeshStandardMaterial({
+				color: '#e8b34a',
+				emissive: '#a8621a',
+				emissiveIntensity: 0.5,
+				flatShading: true,
+				roughness: 0.25,
+				metalness: 0.15,
+				transparent: true,
+				opacity: 0,
+			}),
+		[],
+	);
+	const grottoRootMat = useMemo(
+		() => new THREE.MeshStandardMaterial({ color: '#6b4a2a', flatShading: true, roughness: 0.9, transparent: true, opacity: 0 }),
+		[],
+	);
+
 	const materials = useMemo(
-		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat],
-		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat],
+		() => [rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat, grottoPoolMat, grottoRootMat],
+		[rockWarmMat, rockColdMat, crystalWarmMat, crystalColdMat, flowerMat, grottoPoolMat, grottoRootMat],
 	);
 
 	useFrame(({ clock }) => {
@@ -432,6 +645,7 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 		const pulse = 1.0 + 0.18 * Math.sin(clock.elapsedTime * 1.6);
 		crystalWarmMat.emissiveIntensity = 1.1 * pulse;
 		crystalColdMat.emissiveIntensity = 1.1 * (2.0 - pulse);
+		grottoPoolMat.emissiveIntensity = 0.5 * (0.75 + 0.25 * Math.sin(clock.elapsedTime * 1.2));
 	});
 
 	const warmRocks = useMemo(() => rockSpots.filter((s) => s.warm), [rockSpots]);
@@ -497,6 +711,38 @@ export default function TerrainProps({ atmosphereBlendRef }: TerrainPropsProps) 
 					}}
 				/>
 			) : null}
+			{grottoPoolSpots.length > 0 ? (
+				<instancedMesh
+					args={[grottoPoolGeo, grottoPoolMat, grottoPoolSpots.length]}
+					ref={(mesh) => {
+						if (!mesh) return;
+						const m = new THREE.Matrix4();
+						grottoPoolSpots.forEach((spot, i) => {
+							m.compose(spot.position, spot.quaternion, new THREE.Vector3(spot.scale, 1, spot.scale));
+							mesh.setMatrixAt(i, m);
+						});
+						mesh.instanceMatrix.needsUpdate = true;
+					}}
+				/>
+			) : null}
+			{grottoRootByVariant.map((spots, variant) =>
+				spots.length > 0 ? (
+					<instancedMesh
+						key={`grotto-root-${variant}`}
+						args={[grottoRootGeoVariants[variant], grottoRootMat, spots.length]}
+						ref={(mesh) => {
+							if (!mesh) return;
+							const m = new THREE.Matrix4();
+							spots.forEach((spot, i) => {
+								m.compose(spot.position, spot.quaternion, new THREE.Vector3(spot.scale, spot.scale, spot.scale));
+								mesh.setMatrixAt(i, m);
+							});
+							mesh.instanceMatrix.needsUpdate = true;
+						}}
+					/>
+				) : null,
+			)}
+			<GrottoGlowLayer spots={grottoGlowSpots} texture={cloudTexture} atmosphereBlendRef={atmosphereBlendRef} />
 			<CloudLayer puffs={warmCloudPuffs} texture={cloudTexture} color="#fff6e6" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
 			<CloudLayer puffs={coldCloudPuffs} texture={cloudTexture} color="#eaf4ff" size={0.075} atmosphereBlendRef={atmosphereBlendRef} />
 		</group>
