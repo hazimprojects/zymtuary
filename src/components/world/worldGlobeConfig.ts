@@ -319,17 +319,18 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tanah (jalan emas + speckle bougainvillea) meliputi kawasan sebenar
 	// bangunan, bukan tertinggal kecil drpd footprint 3D.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
-	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat), MESTI
-	// jadi PUSAT Luminara (bukan sekadar "jauh drpd Equilara") supaya 3 biome
-	// Primal cahaya (Elythrean Bloomfields/padang-bunga, Abythralis Grotto,
-	// Freylyn Terraces — akan datang) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan lagi 0.97→0.99 (kolatitud ~8° drpd kutub) atas permintaan
-	// pengguna utk lebih dekat lagi drpd pusingan sebelum ini. Disahkan dgn
-	// kamera ResponsiveCamera diarah SECARA SEMENTARA terus ke kutub (bukan
-	// drag interaktif — drag menyebabkan headless Chromium crash dlm
-	// persekitaran ini) — cincin benteng Heartbloom kekal LICIN sepenuhnya
-	// walau sedekat ini dgn kutub sebenar, tiada kelim/artifak. Margin jarak
-	// sudut ke semua jiran turut bertambah baik lagi (semua > 0.32 rad).
+	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
+	// Kedudukan diubah drpd pusingan lalu (theta 100°/y=0.99, kutub tepat)
+	// ke theta 310°/y=0.86 — dirapatkan ke arah Elythrean Bloomfields
+	// (padang-bunga, theta 320°/y=0.45) atas permintaan pengguna, memandangkan
+	// itulah SATU-SATUNYA drpd 3 biome Primal cahaya yg sudah wujud buat masa
+	// ini (Abythralis Grotto & Freylyn Terraces belum dibina). y diturunkan
+	// sedikit drpd 0.99 (bukan lagi kutub tepat) sebab jarak sudut minimum
+	// antara dua titik pd kolatitud amat berbeza (Heartbloom dekat kutub,
+	// Bloomfields y=0.45) tidak boleh dikurangkan hanya dgn putar theta —
+	// disahkan dgn carian grid (theta/y) memaksimumkan kedekatan ke
+	// Bloomfields tertakluk margin selamat >0.05 rad drpd SEMUA jiran
+	// Luminara lain (termasuk rekahan Ignisara & Selat Equilara Utara).
 	// Lembah tasik DALAM (heightScale menaikkan kedalaman lembangan
 	// standard), dilindungi benteng gunung ganang berbentuk GEGELANG
 	// (ringMode — terrain sebenar yg ditinggikan, bukan objek batu
@@ -337,13 +338,13 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tasik. Type 'water' — lembah ini tasik, bukan hutan (pokok gergasi
 	// tunggal dilayan berasingan dlm HeartbloomTree.tsx, bukan hutan lebat
 	// Vegetation.tsx).
-	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(100), y: 0.99, radius: 0.1, heightScale: 2.8 },
+	{ id: 'heartbloom', nama: 'Heartbloom Isle', type: 'water', theta: deg(310), y: 0.86, radius: 0.1, heightScale: 2.8 },
 	{
 		id: 'heartbloom-benteng',
 		nama: 'Benteng Gunung Heartbloom',
 		type: 'mountain',
-		theta: deg(100),
-		y: 0.99,
+		theta: deg(310),
+		y: 0.86,
 		radius: 0.22,
 		ringWidth: 0.055,
 		ringMode: true,
@@ -352,32 +353,31 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// Pulau Ascendari — pulau besar berbatu tempat menara Ascendari berdiri
 	// (struktur 3D menara dilayan berasingan dalam AscendariTower.tsx).
 	{ id: 'ascendari-pulau', nama: 'Pulau Ascendari', type: 'mountain', theta: deg(160), y: 0.5, radius: 0.15 },
-	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat), MESTI
-	// jadi PUSAT Noctira (bukan sekadar "jauh drpd Equilara") supaya 3 biome
-	// Primal bayang (Vorynth Wood/hutan-senja, Gorrathic Badlands/padang-pasir,
-	// Thalyssan Depths/tasik-gelap) boleh dikelompokkan mengelilinginya.
-	// y dinaikkan (magnitud) lagi -0.97→-0.99 (kolatitud ~8° drpd kutub) sama
-	// sebab & kaedah pengesahan spt Heartbloom Isle di atas — banjaran ragged
-	// + urat kristal kekal licin & jelas walau sedekat ini dgn kutub sebenar
-	// (kamera diarah terus ke kutub utk pengesahan visual). Margin jarak sudut
-	// ke semua jiran (termasuk Padang Pasir yg paling rapat) turut bertambah
-	// baik lagi (0.389→0.485 rad).
+	// Obsidian Hollow — tempat kelahiran Umbryalis (Codex Zaman Keempat).
+	// Kedudukan diubah drpd pusingan lalu (theta 280°/y=-0.99, kutub tepat)
+	// ke theta 172°/y=-0.895 — dirapatkan ke arah Thalyssan Depths
+	// (tasik-gelap, theta 150°/y=-0.55, lautan berjurang) atas permintaan
+	// pengguna, sama semangat dgn Heartbloom Isle→Elythrean Bloomfields di
+	// atas (satu-satunya drpd 3 biome Primal bayang yg sudah wujud). y
+	// diturunkan sedikit drpd -0.99 atas sebab sama (jarak sudut minimum
+	// antara kolatitud amat berbeza tak boleh dikurangkan hanya dgn theta)
+	// — disahkan dgn carian grid tertakluk margin selamat >0.05 rad drpd
+	// SEMUA jiran Noctira (termasuk rekahan Nivira, Selat Equilara Selatan,
+	// & pusat Sungai Kelabu). Kedudukan tidak lagi bertentangan tepat dgn
+	// Heartbloom Isle merentasi globe (theta 180°) — setiap satu kini
+	// bebas dirapatkan ke biome Primal sendiri.
 	// Gunung berbatu RAGGED (raggedness pecahkan simetri bulat sempurna jadi
 	// beberapa puncak tidak sekata + rabung), BUKAN kon tunggal generik licin
 	// — dgn urat kristal ungu-biru berdenyar menuruni cerun drpd puncak
 	// berais. heightScale amat besar supaya puncak melepasi altitud biasa
-	// descent (0.05-0.55) — "melebihi lapisan langit". Kedudukan
-	// bertentangan dgn Heartbloom Isle merentasi globe (theta 180° berbeza,
-	// y disongsangkan) — sama semangat dgn Ignisara/Nivira yang
-	// bertentangan, tapi TIDAK berkongsi lokasi sebenar dgn mana-mana
-	// rekahan. Banjaran lebih rendah mengelilingi: 'obsidian-hollow-banjaran'
-	// (ringMode) di bawah.
+	// descent (0.05-0.55) — "melebihi lapisan langit". Banjaran lebih
+	// rendah mengelilingi: 'obsidian-hollow-banjaran' (ringMode) di bawah.
 	{
 		id: 'obsidian-hollow',
 		nama: 'Obsidian Hollow',
 		type: 'mountain',
-		theta: deg(280),
-		y: -0.99,
+		theta: deg(172),
+		y: -0.895,
 		// Kaki gunung dilebarkan (0.15 -> 0.2) & puncak direndahkan sedikit
 		// (7.5 -> 6) drpd pusingan sebelum ini — nisbah tinggi:lebar kekal
 		// dramatik tapi tidak keterlaluan nipis.
@@ -392,8 +392,8 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		id: 'obsidian-hollow-banjaran',
 		nama: 'Banjaran Obsidian Hollow',
 		type: 'mountain',
-		theta: deg(280),
-		y: -0.99,
+		theta: deg(172),
+		y: -0.895,
 		// Direnggangkan & ditinggikan drpd pusingan sebelum ini (radius
 		// 0.26->0.34, heightScale 0.5->0.75, ringWidth 0.06->0.09) supaya
 		// banjaran kecil sekeliling lebih JELAS kelihatan, bukan sekadar
