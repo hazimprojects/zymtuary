@@ -214,11 +214,21 @@ export type LandmarkFeature = {
 	 * bulat sempurna jadi beberapa "puncak" tidak sekata + rabung berbatu
 	 * (gunung ragged, bukan kon tunggal generik). */
 	raggedness?: number;
-	/** Jejari (radian) zon tengah yg DIKECUALIKAN drpd serakan pokok/batu
-	 * (Vegetation.tsx/TerrainProps.tsx) — utk ciri yg ada tasik kecil di
-	 * tengah supaya pokok/batu tidak tumbuh di atas air. 0/tiada = lalai
+	/** Jejari (radian) zon tengah yg DIKECUALIKAN drpd serakan batu/bunga
+	 * (TerrainProps.tsx) — utk ciri yg ada tasik kecil di tengah supaya
+	 * batu/bunga tidak terletak di atas air. Kekal kecil (sekadar melepasi
+	 * tebing tasik) — bunga/rumput patut penuhi selebihnya. 0/tiada = lalai
 	 * (tiada pengecualian, kelakuan asal). */
 	innerExclusion?: number;
+	/** Jejari (radian) DALAM tempat gegelang hutan bermula (Vegetation.tsx)
+	 * — hutan tertumpu pd jalur SEMPIT [treeRingInner, radius*0.95] dekat
+	 * banjaran gunung, bukan taburan genap merentasi seluruh padang.
+	 * Tiada/0 = kelakuan asal (organic patch merentasi keseluruhan radius). */
+	treeRingInner?: number;
+	/** Kiraan pokok khusus utk ciri ini, menggantikan densityFor() generik
+	 * (Vegetation.tsx) — perlu bila jalur hutan (treeRingInner) jauh lebih
+	 * sempit drpd cakera penuh, supaya ketumpatan tidak keterlaluan padat. */
+	treeCount?: number;
 	/** Jika benar, kluster bunga liar kecil diserak merata ciri ini
 	 * (TerrainProps.tsx) — padang rumput berbunga, bukan sekadar warna
 	 * tanah rata. */
@@ -250,12 +260,15 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// "puncak" ragged), mendedahkan warna kosmik asas (bukan hijau) sbg
 	// tompok gelap — sesuai utk gunung berbatu, TAPI salah utk lantai hutan
 	// lebat yg patut sentiasa hijau berterusan.
-	// innerExclusion=0.09 elak pokok/batu tumbuh di atas tasik kecil
-	// 'padang-bunga-tasik' di tengah (radius 0.055 + jidar) — hutan jadi
-	// tertumpu ke gegelang luar berdekatan banjaran gunung, bukan taburan
-	// genap merentasi keseluruhan padang. flowers=true tambah kluster bunga
-	// liar (TerrainProps.tsx) supaya "padang bunga" benar2 berbunga, bukan
-	// sekadar warna tanah hijau-kuning rata.
+	// innerExclusion=0.065 (sekadar melepasi tebing tasik 'padang-bunga-tasik'
+	// radius 0.055) elak batu/bunga terletak di atas air — selebihnya padang
+	// (dr 0.065 keluar) penuh dgn bunga/rumput. treeRingInner=0.14 tertumpu
+	// hutan pd jalur SEMPIT berdekatan banjaran gunung (radius*0.95=0.19,
+	// jadi jalur hutan cuma 0.14-0.19) — bukan taburan genap merentasi
+	// keseluruhan padang spt pusingan sebelum ini (punca hutan "terapung"
+	// di tengah, tak sentuh gunung). treeCount diturunkan sepadan dgn luas
+	// jalur yg jauh lebih kecil drpd cakera penuh (elak terlalu padat).
+	// flowers=true tambah kluster bunga liar KECIL (TerrainProps.tsx).
 	{
 		id: 'padang-bunga',
 		nama: 'Padang Bunga',
@@ -264,7 +277,9 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 		y: 0.45,
 		radius: 0.2,
 		heightScale: 1.4,
-		innerExclusion: 0.09,
+		innerExclusion: 0.065,
+		treeRingInner: 0.14,
+		treeCount: 1600,
 		flowers: true,
 	},
 	// Tasik kecil di TENGAH padang bunga (gema Elythrean Bloomfields — "di

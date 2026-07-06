@@ -108,10 +108,13 @@ const FLOWER_COLORS = ['#f2e2a0', '#e8a8c4', '#c9a0e0', '#ffffff'] as const;
  * instanceColor (teknik sama dgn Vegetation.tsx) supaya padang nampak
  * pelbagai warna bunga, bukan satu warna rata berulang. */
 function makeFlowerClusterGeometry(): THREE.BufferGeometry {
-	const stem = new THREE.CylinderGeometry(0.001, 0.0015, 0.012, 4);
-	stem.translate(0, 0.006, 0);
-	const bloom = new THREE.IcosahedronGeometry(0.0055, 0);
-	bloom.translate(0, 0.014, 0);
+	// Saiz sengaja SANGAT kecil — aksen rumput/bunga tanah, BUKAN pokok mini.
+	// Tinggi puncak ~0.008 pd skala 1 (~1/3 tinggi pokok terkecil di
+	// Vegetation.tsx yg kini ~0.014+ selepas pembesaran pokok round terdahulu).
+	const stem = new THREE.CylinderGeometry(0.0004, 0.0006, 0.005, 4);
+	stem.translate(0, 0.0025, 0);
+	const bloom = new THREE.IcosahedronGeometry(0.0022, 0);
+	bloom.translate(0, 0.0057, 0);
 	// PENTING: Cylinder berindeks lalai, Icosahedron tak berindeks —
 	// toNonIndexed() KEDUA-DUA dahulu elak mergeBufferGeometries gagal
 	// senyap (pengajaran drpd bug MendariTownscape.tsx round terdahulu).
@@ -148,7 +151,7 @@ function buildFlowerSpots(): FlowerSpot[] {
 			const position = dir.clone().multiplyScalar(GLOBE_RADIUS + 0.003);
 			const quaternion = new THREE.Quaternion().setFromUnitVectors(UP, dir);
 			quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, rng() * Math.PI * 2));
-			const scale = 0.7 + rng() * 0.8;
+			const scale = 0.6 + rng() * 0.5;
 			const color = new THREE.Color(FLOWER_COLORS[Math.floor(rng() * FLOWER_COLORS.length)]);
 			spots.push({ position, quaternion, scale, color });
 		}
