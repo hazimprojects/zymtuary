@@ -186,9 +186,16 @@ float terrainHeight(vec3 n) {
 		} else if (t < 8.5) {
 			// Mendari — plaza/jalan rata, bonjolan halus sahaja.
 			h += falloff * 0.012 * heightScale;
-		} else {
+		} else if (t < 9.5) {
 			// Padang rumput (meadow) — sama lembut spt 'green' generik.
 			h += falloff * 0.014 * heightScale;
+		} else {
+			// Freylyn Terraces — anjakan BERPERINGKAT halus (bukan kubah rata)
+			// supaya teres travertine ada bentuk 3D sebenar, sepadan corak
+			// gegelang warna dlm applyFeatures.
+			float angDist = acos(clamp(align, -1.0, 1.0));
+			float rings = 0.5 + 0.5 * sin(angDist * 30.0);
+			h += falloff * (0.006 + 0.01 * rings) * heightScale;
 		}
 	}
 
@@ -360,9 +367,14 @@ vec3 featureColor(float t, float lat) {
 		return mix(vec3(0.08, 0.4, 0.56), vec3(0.16, 0.56, 0.5), bridgeWarm);
 	}
 	if (t < 8.5) return vec3(0.68, 0.56, 0.34); // Mendari — jalan batu pasir keemasan
-	// Padang rumput (meadow) — hijau rumput CERAH tersendiri, kontras jelas
-	// dgn 'hijau' generik kekabur-kuning (cth. hutan-senja).
-	return mix(vec3(0.1, 0.28, 0.14), vec3(0.24, 0.6, 0.22), warm);
+	if (t < 9.5) {
+		// Padang rumput (meadow) — hijau rumput CERAH tersendiri, kontras jelas
+		// dgn 'hijau' generik kekabur-kuning (cth. hutan-senja).
+		return mix(vec3(0.1, 0.28, 0.14), vec3(0.24, 0.6, 0.22), warm);
+	}
+	// Freylyn Terraces — travertine putih pucat (gema Pamukkale/Baishuitai),
+	// BUKAN oren spt Teres Air Panas — biome berlainan.
+	return vec3(0.86, 0.88, 0.85);
 }
 
 /** Mercu tanda liar (gunung/air/hijau/gurun/teres/pokok) — rekahan diasingkan
@@ -514,13 +526,24 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			float speckle = smoothstep(0.74, 0.9, fbm2(n * 32.0 + dir * 7.0));
 			col = mix(col, fc, mask * 0.8);
 			col += speckle * mask * vec3(0.95, 0.55, 0.7) * 0.5;
-		} else {
+		} else if (t < 9.5) {
 			// Padang rumput (meadow) — hijau rata dgn variasi tona halus
 			// (helaian rumput), TANPA speckle warna lain (bunga sebenar
 			// dilayan sbg objek 3D berasingan dlm TerrainProps.tsx).
 			float bladeNoise = fbm2(n * 30.0 + dir * 8.0) - 0.5;
 			col = mix(col, fc, mask * 0.82);
 			col += bladeNoise * mask * 0.05;
+		} else {
+			// Freylyn Terraces — gegelang travertine putih berselang kolam
+			// turquoise (gema Pamukkale/Baishuitai), dgn kilauan lembut ("air
+			// berkilau seperti kaca cair"). BUKAN corak Teres Air Panas (oren) —
+			// nisbah gegelang lebih rapat (30 vs 34) & warna kolam lebih terang.
+			float rings = 0.5 + 0.5 * sin(acos(clamp(align, -1.0, 1.0)) * 30.0);
+			vec3 poolColor = vec3(0.42, 0.8, 0.76);
+			vec3 terraceColor = mix(poolColor, fc, rings);
+			float sparkle = smoothstep(0.84, 0.97, fbm2(n * 22.0 + vec3(uTime * 0.12, 0.0, 0.0)));
+			col = mix(col, terraceColor, mask * 0.85);
+			col += sparkle * mask * vec3(0.95, 1.0, 1.0) * 0.22;
 		}
 	}
 	return col;

@@ -172,7 +172,18 @@ function hash(s: string): number {
  * Kedudukan sengaja diseimbangkan antara dua hemisfera (setiap satu ada
  * rekahan api/ais, gunung, air, dan kawasan hijau) ikut arahan reka bentuk.
  */
-export type LandmarkType = 'fissure' | 'mountain' | 'water' | 'green' | 'arid' | 'hotspring' | 'tree' | 'selat' | 'kota' | 'meadow';
+export type LandmarkType =
+	| 'fissure'
+	| 'mountain'
+	| 'water'
+	| 'green'
+	| 'arid'
+	| 'hotspring'
+	| 'tree'
+	| 'selat'
+	| 'kota'
+	| 'meadow'
+	| 'terraces';
 
 const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	fissure: 0,
@@ -185,6 +196,7 @@ const LANDMARK_TYPE_CODE: Record<LandmarkType, number> = {
 	selat: 7,
 	kota: 8,
 	meadow: 9,
+	terraces: 10,
 };
 
 export type LandmarkFeature = {
@@ -319,6 +331,26 @@ export const LANDMARK_FEATURES: LandmarkFeature[] = [
 	// tanah (jalan emas + speckle bougainvillea) meliputi kawasan sebenar
 	// bangunan, bukan tertinggal kecil drpd footprint 3D.
 	{ id: 'mendari-kota', nama: 'Mendari', type: 'kota', theta: 0.65, y: 0.62, radius: 0.22 },
+	// Freylyn Terraces — biome Primal cahaya ke-3 (gema Codex: "air
+	// berkilau seperti kaca cair", rumah Gleefyns/naluri PLAY), gema rujukan
+	// Pamukkale/Baishuitai. Diletak di jurang teta terbesar Luminara (~123°,
+	// antara Mendari teta 37° & Pulau Ascendari teta 160°) — disahkan via
+	// carian jarak sudut margin selamat >10° drpd SEMUA jiran (paling
+	// rapat: Selat Equilara Utara). type 'terraces' baharu (globeShader.ts)
+	// beri corak gegelang putih travertine/turquoise berlorek + anjakan
+	// tinggi berperingkat halus, bukan sekadar warna rata. treeRingInner
+	// tumpukan pokok aksen jarang ke tepi luar sahaja (gema pokok di tepi
+	// teres dlm gambar rujukan), bukan hutan lebat.
+	{
+		id: 'freylyn-terraces',
+		nama: 'Freylyn Terraces',
+		type: 'terraces',
+		theta: deg(90),
+		y: 0.45,
+		radius: 0.22,
+		treeRingInner: 0.15,
+		treeCount: 500,
+	},
 	// Heartbloom Isle — tempat kelahiran Auryalis (Codex Zaman Keempat).
 	// theta 310° dikekalkan (arah menuju Elythrean Bloomfields/padang-bunga,
 	// theta 320°/y=0.45 — satu-satunya drpd 3 biome Primal cahaya yg sudah
