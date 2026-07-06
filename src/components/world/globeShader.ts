@@ -190,13 +190,17 @@ float terrainHeight(vec3 n) {
 			// Padang rumput (meadow) — sama lembut spt 'green' generik.
 			h += falloff * 0.014 * heightScale;
 		} else {
-			// Freylyn Terraces — kini bukit/bonjolan SEBENAR (permintaan
-			// pengguna: teres mesti "melekat pada bukit/gunung", bukan lantai
-			// rata) — bentuk teres berperingkat sendiri kekal objek 3D
-			// berasingan (FreylynTerraces.tsx) yg diletak DI ATAS bukit ini;
-			// FreylynTerraces.tsx mengimbangi anjakan yg sama (MOUND_RISE)
-			// supaya asasnya sepadan dgn permukaan bukit, bukan terapung.
-			h += falloff * 0.065 * heightScale;
+			// Freylyn Terraces — cubaan menaikkan bonjolan SHADER di sini
+			// (pusingan lepas) gagal: sfera dasar amat rendah-poligon (~48-64
+			// segmen keliling 360°), jadi ciri sekecil radius 0.22 rad (~12°)
+			// cuma merangkumi 2-3 verteks sebenar sepanjang diameternya — bonjolan
+			// yg dikira scr matematik (berterusan) TIDAK dpt dipaparkan dgn
+			// tepat pd verteks jarang itu, punca ketaksepadanan berterusan dgn
+			// pengimbangan JS (FreylynTerraces.tsx cuba teka ketinggian yg
+			// sfera tak mampu papar dgn tepat). Lantai kekal rata/lembut sahaja
+			// di sini — bukit SEBENAR kini dibina 100% sbg objek 3D dlm
+			// FreylynTerraces.tsx sendiri (kawalan penuh, tiada tekaan).
+			h += falloff * 0.01 * heightScale;
 		}
 	}
 
