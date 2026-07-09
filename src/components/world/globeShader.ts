@@ -128,7 +128,13 @@ float distToSegment(vec3 p, vec3 a, vec3 b) {
  * sesungguhnya, bukan sekadar warna dicat di atas sfera licin.
  */
 float terrainHeight(vec3 n) {
+	// Relief asas 2 skala: gelombang benua luas + kedutan halus (kini benar2
+	// kelihatan pd mesh medium-poly 96/144 segmen). Amplitud kedutan halus
+	// SENGAJA kecil (±0.002) — semua prop 3D (pokok/batu/kota) diletak pd
+	// GLOBE_RADIUS + ofset rata TANPA pampasan terrain, jadi amplitud besar
+	// akan buat prop terapung/tenggelam.
 	float h = (fbm2(n * 6.0) - 0.5) * 0.014;
+	h += (fbm2(n * 16.0 + vec3(2.3)) - 0.5) * 0.004;
 
 	for (int i = 0; i < MAX_FEATURES; i++) {
 		if (i >= uFeatureCount) break;
@@ -142,21 +148,21 @@ float terrainHeight(vec3 n) {
 		float outerReach = ringMode ? (radius + ringWidth * 2.0) : radius;
 		if (align < cos(outerReach * 1.7)) continue;
 
+		// Jarak sudut dikira SEKALI (dikongsi semua cabang di bawah).
+		float angDist = acos(clamp(align, -1.0, 1.0));
+
 		float falloff;
 		if (ringMode) {
 			// Banjaran/benteng gunung berbentuk GEGELANG — tinggi pada jejari
 			// sudut ~radius sahaja (bukan kubah penuh dari pusat), supaya
 			// bacaannya "terrain ditinggikan mengelilingi lembah/puncak".
-			float angDist = acos(clamp(align, -1.0, 1.0));
 			falloff = 1.0 - smoothstep(0.0, ringWidth, abs(angDist - radius));
 		} else {
 			// Jarak SUDUT sebenar (bukan align/cos yg pekat berhampiran pusat —
 			// cos() kekal hampir 1 sepanjang sebahagian besar jejari lalu jatuh
 			// mendadak dekat tepi, punca bentuk "gemuk"/mesa rata berdinding
 			// tegak walaupun dgn peakSharpness). Guna t linear ikut jarak sudut
-			// supaya cerun sekata merentasi KESELURUHAN jejari (masih peralihan
-			// LEBAR, elak artifak cincin/tangga sfera rendah-poligon).
-			float angDist = acos(clamp(align, -1.0, 1.0));
+			// supaya cerun sekata merentasi KESELURUHAN jejari.
 			float t2 = clamp(angDist / radius, 0.0, 1.0);
 			float domeFalloff = 1.0 - smoothstep(0.0, 1.0, t2);
 			// peakSharpness > 1 menajamkan lagi puncak jadi tirus/runcing; < 1
@@ -169,37 +175,52 @@ float terrainHeight(vec3 n) {
 		falloff *= raggedMultiplier(n, dir, radius, uFeatureRaggedness[i]);
 
 		if (t < 1.5) {
-			// heightScale > 1 utk gunung yang mesti "paling tinggi" (cth.
-			// Obsidian Hollow) berbanding gunung biasa jenis sama.
+			// Gunung sebenar: kubah asas + RABUNG "ridged noise" (1-|2n-1|,
+			// dikuasa-dua utk rabung tajam) — banjaran bukit kaki & rabung
+			// menuruni cerun spt gunung sebenar, bukan kon licin generik.
+			// heightScale > 1 utk gunung yang mesti "paling tinggi".
+			float ridged = 1.0 - abs(2.0 * fbm2(n * 15.0 + dir * 4.0) - 1.0);
 			h += falloff * 0.1 * heightScale;
+			h += falloff * ridged * ridged * 0.03 * heightScale;
 		} else if (t < 2.5) {
-			// heightScale > 1 utk lembangan yang mesti lebih DALAM (cth.
-			// lembah tasik Heartbloom Isle) berbanding air biasa.
+			// Lembangan air berperingkat spt laut sebenar: pesisir cetek
+			// landai di tepi, jatuh lebih dalam ke arah tengah (pentas benua
+			// → lantai laut). heightScale > 1 utk lembangan lebih DALAM.
 			h -= falloff * 0.03 * heightScale;
+			h -= smoothstep(0.55, 1.0, falloff) * 0.014 * heightScale;
+		} else if (t < 3.5) {
+			// Tanah hijau berbukit-bukau lembut (rolling hills) — amplitud
+			// kecil sebab hutan/pokok prop 3D duduk di sini.
+			h += falloff * (0.014 + (fbm2(n * 14.0 + dir * 2.0) - 0.5) * 0.006) * heightScale;
+		} else if (t < 4.5) {
+			// Gurun: DUN pasir berarah — gelombang sinus sepanjang satu arah
+			// tangen tetap (angin satu hala), fasa diganggu fbm supaya rabung
+			// dun melengkung organik, bukan jalur lurus sempurna.
+			vec3 duneTangent = normalize(cross(dir, vec3(0.0, 1.0, 0.31)));
+			float duneWave = sin(dot(n, duneTangent) * 140.0 + fbm2(n * 5.0) * 3.0);
+			h += falloff * (0.008 + (0.5 + 0.5 * duneWave) * 0.012) * heightScale;
 		} else if (t < 5.5) {
-			h += falloff * 0.014 * heightScale;
+			// Teres air panas: relief GEGELANG berperingkat halus (tangga
+			// mineral) selari dgn corak warna gegelang dlm applyFeatures.
+			float rings = 0.5 + 0.5 * sin(angDist * 34.0);
+			h += falloff * (0.008 + rings * 0.009) * heightScale;
 		} else if (t < 6.5) {
 			h += falloff * 0.075 * heightScale;
 		} else if (t < 7.5) {
-			// Selat Equilara — lembangan cetek sama macam air biasa.
+			// Selat Equilara — lembangan berperingkat sama spt air.
 			h -= falloff * 0.03 * heightScale;
+			h -= smoothstep(0.55, 1.0, falloff) * 0.014 * heightScale;
 		} else if (t < 8.5) {
-			// Mendari — plaza/jalan rata, bonjolan halus sahaja.
+			// Mendari — plaza/jalan rata, bonjolan halus sahaja (bangunan 3D
+			// MendariTownscape duduk di atas — mesti kekal rata).
 			h += falloff * 0.012 * heightScale;
 		} else if (t < 9.5) {
-			// Padang rumput (meadow) — sama lembut spt 'green' generik.
-			h += falloff * 0.014 * heightScale;
+			// Padang rumput (meadow) — beralun amat lembut (prop bunga/pokok).
+			h += falloff * (0.014 + (fbm2(n * 12.0 + dir * 3.0) - 0.5) * 0.004) * heightScale;
 		} else {
-			// Freylyn Terraces — cubaan menaikkan bonjolan SHADER di sini
-			// (pusingan lepas) gagal: sfera dasar amat rendah-poligon (~48-64
-			// segmen keliling 360°), jadi ciri sekecil radius 0.22 rad (~12°)
-			// cuma merangkumi 2-3 verteks sebenar sepanjang diameternya — bonjolan
-			// yg dikira scr matematik (berterusan) TIDAK dpt dipaparkan dgn
-			// tepat pd verteks jarang itu, punca ketaksepadanan berterusan dgn
-			// pengimbangan JS (FreylynTerraces.tsx cuba teka ketinggian yg
-			// sfera tak mampu papar dgn tepat). Lantai kekal rata/lembut sahaja
-			// di sini — bukit SEBENAR kini dibina 100% sbg objek 3D dlm
-			// FreylynTerraces.tsx sendiri (kawalan penuh, tiada tekaan).
+			// Freylyn Terraces — lantai rata/lembut sahaja (struktur air
+			// terjun berbatu ialah objek 3D dlm FreylynTerraces.tsx yg duduk
+			// terus di aras tanah; jangan tambah bonjolan di sini).
 			h += falloff * 0.01 * heightScale;
 		}
 	}
@@ -233,7 +254,9 @@ vec3 computeDisplacedNormal(vec3 n, float h0) {
 	vec3 upRef = abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
 	vec3 tu = normalize(cross(upRef, n));
 	vec3 tv = cross(n, tu);
-	float eps = 0.015;
+	// eps dikecilkan (0.015 → 0.01) sepadan mesh medium-poly — normal kini
+	// menangkap rabung gunung/dun halus yg baru ditambah dlm terrainHeight.
+	float eps = 0.01;
 
 	vec3 n1 = normalize(n + tu * eps);
 	vec3 n2 = normalize(n + tv * eps);
@@ -255,6 +278,8 @@ ${sharedGlsl}
 
 varying vec3 vObjectNormal;
 varying vec3 vViewDir;
+varying vec3 vSphereNormal;
+varying float vElevation;
 
 void main() {
 	vec3 n = normalize(normal);
@@ -262,6 +287,11 @@ void main() {
 	vec3 displaced = position + normal * disp;
 
 	vObjectNormal = computeDisplacedNormal(n, disp);
+	// Normal sfera ASAS + elevasi mentah dihantar ke fragment — untuk
+	// pewarnaan berasaskan cerun (batu terdedah pd cerun curam) & altitud
+	// (lembangan gelap-lembap, tanah tinggi pucat) spt muka bumi sebenar.
+	vSphereNormal = n;
+	vElevation = disp;
 	vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
 	vViewDir = normalize(cameraPosition - worldPos.xyz);
 	gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -286,6 +316,8 @@ uniform vec3 uRiverBColor;
 
 varying vec3 vObjectNormal;
 varying vec3 vViewDir;
+varying vec3 vSphereNormal;
+varying float vElevation;
 
 float fbm(vec3 p) {
 	float v = 0.0;
@@ -337,6 +369,11 @@ vec3 mythicSurface(vec3 n, float detailBoost) {
 	col = mix(col, col * vec3(0.9, 0.97, 1.06), (1.0 - tone) * 0.24 * noctMask);
 	col = mix(col, col * vec3(0.92, 1.05, 1.02), tone * 0.2 * overlap);
 
+	// Butiran tanah halus (grain) — tekstur mikro yg buat permukaan terbaca
+	// spt tanah/batu sebenar dan bukan gradien licin, terutama dari dekat.
+	float grain = fbm(pw * 5.6 + 11.0);
+	col *= 0.95 + grain * 0.1;
+
 	return col;
 }
 
@@ -359,9 +396,13 @@ vec3 hazeLayer(vec3 n, float proximity, out float density) {
 vec3 featureColor(float t, float lat) {
 	float warm = step(0.0, lat);
 	if (t < 1.5) return mix(vec3(0.09, 0.08, 0.11), vec3(0.22, 0.12, 0.08), warm); // gunung
-	if (t < 2.5) return mix(vec3(0.02, 0.05, 0.1), vec3(0.16, 0.42, 0.38), warm); // air
-	if (t < 3.5) return mix(vec3(0.08, 0.2, 0.13), vec3(0.42, 0.48, 0.16), warm); // hijau
-	if (t < 4.5) return vec3(0.5, 0.42, 0.28); // padang pasir
+	// Air: lebih DALAM/tepu (navy sejuk vs teal-laut hangat) — gradien
+	// kedalaman sebenar dilukis dlm applyFeatures (cetek→dalam).
+	if (t < 2.5) return mix(vec3(0.012, 0.045, 0.11), vec3(0.05, 0.3, 0.34), warm); // air
+	// Hijau: hutan sejuk gelap-lumut vs savana hangat hijau-zaitun — lebih
+	// dekat dgn warna tumbuhan sebenar (klorofil gelap, bukan hijau neon).
+	if (t < 3.5) return mix(vec3(0.06, 0.17, 0.09), vec3(0.3, 0.4, 0.13), warm); // hijau
+	if (t < 4.5) return vec3(0.58, 0.47, 0.29); // padang pasir — pasir hangat
 	if (t < 5.5) return vec3(0.85, 0.42, 0.08); // teres air panas
 	if (t < 6.5) return vec3(0.3, 0.42, 0.15); // pokok Heartbloom
 	if (t < 7.5) {
@@ -438,11 +479,17 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 		vec3 fc = featureColor(t, n.y);
 
 		if (t < 1.5) {
-			// Badlands/gunung batu — ridge + rekahan tanah halus (garis gelap
-			// tajam) supaya permukaan batu terasa retak, bukan rata licin.
+			// Gunung dgn ZON ALTITUD spt banjaran sebenar: kaki berhutan
+			// (hijau-perang) → batu tengah → batu tinggi pucat kelabu, dgn
+			// ridge + rekahan tanah halus supaya permukaan terasa retak.
 			float ridge = 0.7 + 0.3 * fbm2(n * 12.0 + dir * 2.0);
 			float groundCrack = smoothstep(0.78, 0.9, fbm2(n * 34.0 + dir * 9.0));
-			col = mix(col, fc * ridge, mask * 0.8);
+			float alt = 1.0 - slopeT; // 0 = kaki, 1 = puncak (ring: 1 di rabung)
+			vec3 footCol = mix(fc, vec3(0.14, 0.19, 0.09), 0.5);
+			vec3 highCol = mix(fc, vec3(0.46, 0.44, 0.46), 0.55);
+			vec3 rockCol = mix(footCol, fc, smoothstep(0.12, 0.42, alt));
+			rockCol = mix(rockCol, highCol, smoothstep(0.55, 0.85, alt));
+			col = mix(col, rockCol * ridge, mask * 0.82);
 			col = mix(col, fc * 0.35, mask * groundCrack * 0.6);
 			if (uFeatureSnowCap[i] > 0.5) {
 				// slopeT (bukan align mutlak) — kekal betul walau berapa kecil
@@ -473,8 +520,25 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 				col += veinColor * veinLine * mask * veinPulse * 0.6;
 			}
 		} else if (t < 2.5) {
+			// Laut/tasik spt sebenar: jalur PASIR pantai di tepi terluar →
+			// buih pantai putih → air cetek terang (pirus) → air dalam gelap
+			// di tengah — gradien kedalaman ikut mask (0 tepi, 1 pusat).
+			// Jalur pasir/buih HANYA utk lembangan kubah biasa — pd tasik
+			// gegelang (ringMode) yg sempit, jalur ini jadi garis kontur
+			// kasar berganda (tepi dalam + luar), bukan pantai.
+			vec3 shallowCol = mix(fc * 1.6, vec3(0.3, 0.68, 0.62), 0.4);
+			vec3 waterCol = mix(shallowCol, fc * 0.5, smoothstep(0.14, 0.85, mask));
+			if (!ringMode) {
+				float sand = smoothstep(0.004, 0.045, mask) * (1.0 - smoothstep(0.045, 0.12, mask));
+				col = mix(col, vec3(0.62, 0.53, 0.36), sand * 0.55);
+				col = mix(col, waterCol, smoothstep(0.07, 0.28, mask) * 0.86);
+				float foam = smoothstep(0.05, 0.1, mask) * (1.0 - smoothstep(0.1, 0.17, mask));
+				foam *= 0.6 + 0.4 * sin(uTime * 0.9 + fbm2(n * 30.0) * 12.0);
+				col = mix(col, vec3(0.85, 0.92, 0.92), foam * 0.4);
+			} else {
+				col = mix(col, waterCol, mask * 0.85);
+			}
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
-			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
 
 			// Jurang parit laut dalam (Thalyssan Depths) — khusus laut Noctira
@@ -501,13 +565,25 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 				col = mix(col, fc * 0.22, mask * trench * 0.75);
 			}
 		} else if (t < 3.5) {
+			// Tanah hijau bertompok-tompok spt padang sebenar: dua tona rumput
+			// (lumut gelap & zaitun cerah) bertukar mengikut fbm luas, ditindih
+			// speckle halus (belukar/semak) — bukan satu hijau rata.
+			float grassPatch = fbm2(n * 7.0 + dir * 1.5); // ('patch' kata simpanan GLSL)
+			vec3 grassB = mix(fc, vec3(0.44, 0.46, 0.16), 0.45);
+			vec3 grass = mix(fc, grassB, smoothstep(0.35, 0.65, grassPatch));
 			float speckle = smoothstep(0.7, 0.88, fbm2(n * 26.0 + dir * 6.0));
-			col = mix(col, fc, mask * 0.78);
-			col += speckle * mask * fc * 0.5;
+			col = mix(col, grass, mask * 0.8);
+			col += speckle * mask * grass * 0.35;
 		} else if (t < 4.5) {
+			// Gurun: bayang dun selari dgn relief dun dlm terrainHeight (formula
+			// gelombang SAMA → sisi cerah/gelap dun sepadan tepat dgn bentuk 3D),
+			// + rekahan tanah kering.
+			vec3 duneTangent = normalize(cross(dir, vec3(0.0, 1.0, 0.31)));
+			float duneWave = sin(dot(n, duneTangent) * 140.0 + fbm2(n * 5.0) * 3.0);
+			vec3 duneCol = mix(fc * 0.74, fc * 1.16, 0.5 + 0.5 * duneWave);
 			float groundCrack = smoothstep(0.76, 0.89, fbm2(n * 30.0 + dir * 8.0));
-			col = mix(col, fc, mask * 0.75);
-			col = mix(col, fc * 0.4, mask * groundCrack * 0.55);
+			col = mix(col, duneCol, mask * 0.78);
+			col = mix(col, fc * 0.4, mask * groundCrack * 0.45);
 		} else if (t < 5.5) {
 			// Teres air panas ceria — kolam tosca terang berselang jalur
 			// mineral jingga, dengan kilauan wap putih di tepi setiap terase.
@@ -522,10 +598,15 @@ vec3 applyFeatures(vec3 col, vec3 n) {
 			col = mix(col, fc, mask * 0.75);
 			col += fc * core * 0.5;
 		} else if (t < 7.5) {
-			// Selat Equilara — kilauan air lembut sahaja, TANPA jurang Thalyssan
-			// (jurang itu khusus Tasik Gelap, bukan selat penghubung ini).
+			// Selat Equilara — gradien kedalaman & pantai sama spt air biasa
+			// (tepi cetek terang → tengah dalam), kilauan lembut, TANPA jurang
+			// Thalyssan (jurang itu khusus Tasik Gelap).
+			float sand = smoothstep(0.004, 0.045, mask) * (1.0 - smoothstep(0.045, 0.12, mask));
+			col = mix(col, vec3(0.58, 0.52, 0.38), sand * 0.4);
+			vec3 shallowCol = mix(fc * 1.35, vec3(0.35, 0.7, 0.66), 0.35);
+			vec3 waterCol = mix(shallowCol, fc * 0.55, smoothstep(0.14, 0.85, mask));
+			col = mix(col, waterCol, smoothstep(0.06, 0.26, mask) * 0.84);
 			float sparkle = smoothstep(0.82, 0.97, fbm2(n * 20.0 + vec3(uTime * 0.15, 0.0, 0.0)));
-			col = mix(col, fc, mask * 0.78);
 			col += sparkle * mask * 0.06;
 		} else if (t < 8.5) {
 			// Mendari — speckle merah jambu (bougainvillea) berselang jalan emas.
@@ -629,6 +710,18 @@ void main() {
 	col = applyFeatures(col, n);
 	col = applyCracks(col, n);
 	col = applyRivers(col, n);
+
+	// Pewarnaan MUKA BUMI global (spt peta relief sebenar), selepas semua
+	// warna ciri supaya kesannya konsisten merentasi seluruh permukaan:
+	// 1) Cerun curam → batu terdedah (tanah/tumbuhan tak melekat di dinding
+	//    curam) — dikesan drpd sudut antara normal terganggu & normal sfera.
+	float steep = clamp((1.0 - dot(n, normalize(vSphereNormal))) * 3.0, 0.0, 1.0);
+	col = mix(col, col * vec3(0.6, 0.55, 0.5) + vec3(0.05, 0.045, 0.04), steep * 0.3);
+	// 2) Altitud: lembangan rendah gelap-lembap sedikit sejuk; tanah tinggi
+	//    lebih cerah/kering — bacaan ketinggian serta-merta dari orbit.
+	float elevT = clamp(vElevation * 20.0, -1.0, 1.0);
+	col *= 1.0 + elevT * 0.1;
+	col = mix(col, col * vec3(0.88, 0.94, 1.06), clamp(-elevT, 0.0, 1.0) * 0.22);
 
 	vec3 lightDir = normalize(vec3(0.35, 0.55, 0.75));
 	float litSide = max(dot(n, lightDir), 0.0); // 0 = sisi bayang, 1 = sisi cahaya

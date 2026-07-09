@@ -81,7 +81,13 @@ export function GlobeScene({
 	const fogColor = useRef(new THREE.Color('#0a1420'));
 	const ambColor = useRef(new THREE.Color('#8aa0b0'));
 	const { camera, scene } = useThree();
-	const segments = isMobile ? 48 : 64;
+	// Medium poly (dinaikkan drpd 48/64) — punca terbukti beberapa isu terrain
+	// (ciri kecil tak dpt dipapar tepat — saga Freylyn "tergantung"): pd 48-64
+	// segmen, ciri radius ~0.2 rad cuma merangkumi 2-4 verteks. Pd 96/144,
+	// anjakan terrainHeight (gunung ridged, lembangan laut berperingkat, dun
+	// pasir) benar-benar kelihatan. Kos vertex terkawal — majoriti ciri
+	// early-out via dot-product sebelum kerja berat.
+	const segments = isMobile ? 96 : 144;
 
 	const distance = camera.position.length();
 	const zoomMode = getZoomMode(distance, descentActive);
